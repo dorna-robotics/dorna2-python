@@ -15,7 +15,7 @@ Next, go to the downloaded directory, where `setup.py` file is located, and run:
 python setup.py install
 ```
 ## Getting started
-To start the software, first import `dorna2` module.
+Import `dorna2` module.
 ``` python
 from dorna2 import dorna
 
