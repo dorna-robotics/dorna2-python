@@ -25,7 +25,10 @@ robot = dorna()
 robot.connect("ws://dorna:443")
 
 # sample jmove command
-robot.jmove(j0 = 0, j1 = 0, j2 = 0, j3 = 0, j4 = 0) 
+robot.jmove(rel = 0, id = 100, j0 = 0, j1 = 0, j2 = 0, j3 = 0, j4 = 0)
+
+# send any command via play() method
+robot.paly(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)  
 ```  
   
 [dorna]: https://dorna.ai/
