@@ -1,5 +1,5 @@
 # Dorna2 
-This is Python API for [Dorna 2][dorna] robotic arm.
+This is a Python API for [Dorna 2][dorna] robotic arm.
 
 ## Installation
 Notice that the program is compatible with Python 3.7+.
@@ -15,7 +15,7 @@ Next, go to the downloaded directory, where `setup.py` file is located, and run:
 python setup.py install
 ```
 ## Getting started
-To start the software, first create a `Gui` object, and then call the `run()` method.
+To start the software, first import `dorna2` module.
 ``` python
 from dorna2 import dorna
 
