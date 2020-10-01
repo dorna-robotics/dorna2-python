@@ -21,7 +21,7 @@ from dorna2 import dorna
 
 robot = dorna()
 
-# use the ws url to connect to the robot
+# use the robot WebSocket URL to connect to the robot
 robot.connect("ws://dorna:443")
 
 # helper function for jmove
