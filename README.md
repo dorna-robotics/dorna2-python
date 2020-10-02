@@ -46,7 +46,7 @@ Use `ws.send` method to directly send a string command.
 ``` python
 robot.ws.send('{"cmd": "jmove", "rel": 0, "id":100, "j1": 90, "j2": -90}')
 ``` 
-Use `wait` method to wait for a completion of a command with `id`. 
+Use `wait` method to wait for the completion of a command with an `id`. 
 ``` python
 # command id = 100
 robot.paly(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
