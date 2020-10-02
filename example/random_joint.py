@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
 	try:
 		# go home
-		arg = {"cmd": "rmove", "rel":0, "id": robot.rand_id(), "j0":0,"j1":0,"j2":0,"j3":0,"j4":0, "vel": 0.8, "accel": 0.3 ,"jerk": 0.07} 
+		arg = {"cmd": "rmove", "rel":0, "id": robot.rand_id(), "j0":0,"j1":0,"j2":0,"j3":0,"j4":0, "vel": 0.1, "accel": 0.06 ,"jerk": 0.03} 
 		print("going home ->")
 		robot.play(**arg)
 		robot.wait(arg["id"])		
@@ -29,7 +29,6 @@ if __name__ == '__main__':
 			robot.play(**arg)
 			robot.wait(arg["id"])	
 			i += 1
-			time.sleep(0.5)
 	except KeyboardInterrupt:
 		pass
 	robot.ws.close()
