@@ -4,11 +4,14 @@ This is a Python API for [Dorna 2][dorna] robotic arm.
 ## Installation
 Notice that the program is compatible with Python 3.7+.
 
+### Download
 First, use `git clone` to download the repository:  
 ```bash
 git clone https://github.com/dorna-robotics/dorna2-python.git
 ```
 Or simply download the zip file, and uncompressed the file.  
+
+### Install
 Next, go to the downloaded directory, where `setup.py` file is located, and run:
 ```bash
 python setup.py install
