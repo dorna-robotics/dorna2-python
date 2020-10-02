@@ -30,7 +30,7 @@ robot.jmove(rel = 0, id = 100, j0 = 0, j1 = 0, j2 = 0, j3 = 0, j4 = 0)
 
 # send any command via play() method
 # robot.paly({"cmd": "jmove", "rel": 0, "id":101, "j1": 90, "j2": -90})
-robot.paly(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
+robot.paly(cmd = "jmove", rel = 0, id = 101, j1 = 90, j2 = -90)
 ```  
 
 ## Send command
@@ -38,19 +38,32 @@ There are many helper methods available to send commands to the robot, like `pla
 ``` python
 robot.paly(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
 # or
-# robot.paly({"cmd": "jmove", "rel": 0, "id":101, "j1": 90, "j2": -90})
+# robot.paly({"cmd": "jmove", "rel": 0, "id":100, "j1": 90, "j2": -90})
 ``` 
 Use `ws.send` method to directly send a string command.
 ``` python
-robot.ws.send('{"cmd": "jmove", "rel": 0, "id":101, "j1": 90, "j2": -90}')
+robot.ws.send('{"cmd": "jmove", "rel": 0, "id":100, "j1": 90, "j2": -90}')
 ``` 
 Use `wait` method to wait for a completion of a command with `id`. 
 ``` python
 # command id = 100
 robot.paly(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
 robot.wait(100)
-# command with id = 100 has been completed, i.e. {"id": 100, "stat": 2} has been received
+# command with id = 100 has been completed, i.e., {"id": 100, "stat": 2} has been received
 ``` 
+## Receive message
+`sys` is a dictionary that holds the messages revived by the API. Notice that, `sys` initialized with an empty dictionary. When a new JSON message sent by the controller and received by the API, `sys` updates itself according to the received message.
+``` python
+print(robot.sys)
+# {}
 
+# command id = 100
+robot.paly(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
+robot.wait(100)
+# command with id = 100 has been completed, i.e., {"id": 100, "stat": 2} has been received
+
+print(robot.sys)
+# {"id": 100, "stat": 2, ...}
+``` 
 
 [dorna]: https://dorna.ai/
