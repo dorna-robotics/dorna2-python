@@ -7,7 +7,9 @@ class connection(object):
 		super(connection, self).__init__()
 		self.sys = {}
 		self.q = queue.Queue()
+		self.msg = queue.Queue(100)
 		self.sys = {}
+
 
 	def connect_loop(self):
 		def on_message(ws, msg):
@@ -49,7 +51,15 @@ class connection(object):
 		while self.ws.connected:
 			try:
 				if not self.q.empty():
-					self.sys = {**dict(self.sys), **self.q.get()} # update sys
+					msg = self.q.get()
+					self.sys = {**dict(self.sys), **msg} # update sys
+
+					# put msg
+					try:
+						self.msg.put(msg, block = False)	
+					except:
+						pass
+
 			except Exception as ex:
 				print(ex)
 				pass

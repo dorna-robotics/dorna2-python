@@ -52,7 +52,7 @@ robot.wait(100)
 # command with id = 100 has been completed, i.e., {"id": 100, "stat": 2} has been received
 ``` 
 ## Receive message
-`sys` is a dictionary that holds the messages revived by the API. Notice that, `sys` initialized with an empty dictionary. When a new JSON message sent by the controller and received by the API, `sys` updates itself according to the received message.
+`sys` is a dictionary that holds the messages received by the API. Notice that, `sys` initialized with an empty dictionary. Every time a new JSON message sent by the controller and received by the API, `sys` updates itself according to the received message.
 ``` python
 print(robot.sys)
 # {}
@@ -65,5 +65,13 @@ robot.wait(100)
 print(robot.sys)
 # {"id": 100, "stat": 2, ...}
 ``` 
+The last 100 messages received by the API is stored in `msg` queue. `msg` is a queue object of size 100, `queue.Queue(100)`, and once it is full it can not put any new message inside of it, messages get out of it. So, it is the user responsibility to consume the `msg` messages in a safe way.   
+``` python
+# print received messages 
+while True:
+	if not robot.msg.empty()
+		print(robot.msg.get())
+``` 
+Notice that, `connect_loop.on_message` method is triggered when a new message received by the API.
 
 [dorna]: https://dorna.ai/
