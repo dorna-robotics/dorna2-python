@@ -65,7 +65,7 @@ robot.wait(100)
 print(robot.sys)
 # {"id": 100, "stat": 2, ...}
 ``` 
-The last 100 messages received by the API is stored in `msg` queue. `msg` is a queue object of size 100, `queue.Queue(100)`, and once it is full it can not put any new message inside of it, messages get out of it. So, it is the user responsibility to consume the `msg` messages in a safe way.   
+The up to the last 100 messages received by the API are stored in `msg` queue. `msg` is a queue object of size 100, `queue.Queue(100)`, and whenever it gets full it can not put any new message inside of it, unless some messages get out of it. So, it is the user responsibility to consume the `msg` in a safe way.   
 ``` python
 # print received messages 
 while True:
