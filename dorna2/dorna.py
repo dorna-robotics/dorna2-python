@@ -91,15 +91,17 @@ class dorna(connection):
 
 
 	def wait(self, _id, stop = False):
-		while not stop:
-			try:
-				sys = dict(self.sys)
-				if "stat" in sys and "id" in sys and sys["stat"] == 2 and sys["id"] == _id:
-					break
-			except Exception as ex:
-				print(ex)
-				pass
-
+		try:
+			while not stop:
+				try:
+					sys = dict(self.sys)
+					if "stat" in sys and "id" in sys and sys["stat"] == 2 and sys["id"] == _id:
+						break
+				except Exception as ex:
+					print(ex)
+					pass
+		except KeyboardInterrupt:
+			pass
 
 	def jmove(self,**arg):
 		arg["cmd"] = "jmove"

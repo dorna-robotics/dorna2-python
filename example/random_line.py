@@ -13,13 +13,13 @@ if __name__ == '__main__':
 	robot.wait(arg["id"])
 
 	# come 150 mm back toward x
-	arg = {"rel":1, "id" : robot.rand_id(), "x": -150, "vel": 500, "accel": 5000, "jerk": 10000} 
+	arg = {"rel":1, "id" : robot.rand_id(), "x": -200, "vel": 1000, "accel": 20000, "jerk": 40000} 
 	robot.lmove(**arg)
 	robot.wait(arg["id"])
 
 	# random points
-	for i in range(100):
-		arg = {"rel": 0, "id": i+1, "x": 350+ 100* random.rand(), "y": 100* random.rand(), "z": 206.404 + 100*random.rand()}
+	for i in range(10000):
+		arg = {"rel": 0, "id": i+1, "x": 300+ 100* random.rand(), "y": -100 + 200* random.rand(), "z": 206.404 - 100 + 200*random.rand()}
 		print("command",i, "   arg: ", arg)
 		robot.lmove(**arg)
 		robot.wait(arg["id"])
