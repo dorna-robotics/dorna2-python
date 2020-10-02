@@ -1,0 +1,55 @@
+Metadata-Version: 2.1
+Name: dorna2
+Version: 1.0
+Summary: Python API for Dorna 2
+Home-page: https://dorna.ai/
+Author: Dorna Robotics
+Author-email: info@dorna.ai
+License: MIT
+Project-URL: gitHub, https://github.com/dorna-robotics/dorna2-python
+Description: # Dorna2 
+        This is a Python API for [Dorna 2][dorna] robotic arm.
+        
+        ## Installation
+        Notice that the program is compatible with Python 3.7+.
+        
+        **Clone**  
+        First, use `git clone` to download the repository:  
+        ```bash
+        git clone https://github.com/dorna-robotics/dorna2-python.git
+        ```
+        Or simply download the zip file, and uncompressed the file.  
+        Next, go to the downloaded directory, where `setup.py` file is located, and run:
+        ```bash
+        python setup.py install
+        ```
+        ## Getting started
+        Import `dorna2` module.
+        ``` python
+        from dorna2 import dorna
+        
+        robot = dorna()
+        
+        # use the robot WebSocket URL to establish a connection
+        robot.connect("ws://dorna:443")
+        
+        # helper function for jmove
+        # robot.jmove({"rel": 0, "id": 100, "j0": 0, "j1": 0, "j2": 0, "j3": 0, "j4": 0}) 
+        robot.jmove(rel = 0, id = 100, j0 = 0, j1 = 0, j2 = 0, j3 = 0, j4 = 0)
+        
+        # send any command via play() method
+        # robot.paly({"cmd": "jmove", "rel": 0, "id":101, "j1": 90, "j2": -90})
+        robot.paly(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
+        ```  
+        
+        ## Send data
+        There are many helper functions available to send commands to the robot, like `play, jmove, lmove, cmove, ... `. Use,       
+        
+        [dorna]: https://dorna.ai/
+        
+Platform: UNKNOWN
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Operating System :: OS Independent
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Description-Content-Type: text/markdown

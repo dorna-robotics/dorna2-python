@@ -1,7 +1,4 @@
 import time
-import sys
-sys.path.append("..") # Adds higher directory to python modules path.
-
 
 from numpy import random
 import dorna2
