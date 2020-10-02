@@ -33,7 +33,24 @@ robot.jmove(rel = 0, id = 100, j0 = 0, j1 = 0, j2 = 0, j3 = 0, j4 = 0)
 robot.paly(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
 ```  
 
-## Send data
-There are many helper functions available to send commands to the robot, like `play, jmove, lmove, cmove, ... `. Use,       
+## Send command
+There are many helper methods available to send commands to the robot, like `play, jmove, lmove, cmove, ... `. Assign the variable key and its value as parameter or submit a commands as a dictionary. Use `play` method to send a valid command
+``` python
+robot.paly(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
+# or
+# robot.paly({"cmd": "jmove", "rel": 0, "id":101, "j1": 90, "j2": -90})
+``` 
+Use `ws.send` method to directly send a string command.
+``` python
+robot.ws.send('{"cmd": "jmove", "rel": 0, "id":101, "j1": 90, "j2": -90}')
+``` 
+Use `wait` method to wait for a completion of a command with `id`. 
+``` python
+# command id = 100
+robot.paly(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
+robot.wait(100)
+# command with id = 100 has been completed, i.e. {"id": 100, "stat": 2} has been received
+``` 
+
 
 [dorna]: https://dorna.ai/
