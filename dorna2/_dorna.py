@@ -6,19 +6,17 @@ class connection(object):
 	def __init__(self):
 		super(connection, self).__init__()
 		self.sys = {}
-		self.msg_q = queue.Queue()
+		self.q = queue.Queue()
+		self.sys = {}
 
 	def connect_loop(self):
 		def on_message(ws, msg):
 			try:
 				msg = json.loads(msg) # read the massage
-				self.msg_q.put(msg) #put the message inside queue
-				"""
-				_sys = dict(self.sys) # make a copy
-				for key in msg:
-					_sys[key] = msg[key]
-				self.sys = _sys # update sys
-				"""
+				
+				#put the message inside queue
+				self.q.put(msg)
+				
 			except Exception as ex:
 				print("error: ", ex)
 				pass
@@ -30,32 +28,47 @@ class connection(object):
 
 		def on_close(ws):
 			print("Websocket is closed @"+self.url)
+			self.ws.connected = False
 
 
 		def on_open(ws):
 			print("Websocket is open @"+self.url)
 			self.ws.connected = True
 
+
 		self.ws = websocket.WebSocketApp(self.url,
 									on_message = on_message,
 									on_error = on_error,
 									on_close = on_close,
-									on_open = on_open)
-
-		
+									on_open = on_open)		
 		self.ws.connected = False
 		self.ws.run_forever()
 
 
-	def connect(self, url):
+	def msg_loop(self):
+		while self.ws.connected:
+			try:
+				if not self.q.empty():
+					self.sys = {**dict(self.sys), **self.q.get()} # update sys
+			except Exception as ex:
+				print(ex)
+				pass
+
+	def connect(self, url, timeout = 20):
 		print("connecting...")
 		self.url = url	
 
+		# connection thread
 		self.connect_thread = threading.Thread(target = self.connect_loop)
 		self.connect_thread.start()
-		
-		while not self.ws.connected:
+
+		t = time.time()				
+		while not self.ws.connected and time.time()-t <= timeout: 
 			time.sleep(0.001)
+
+		# message thread
+		self.msg_thread = threading.Thread(target = self.msg_loop)
+		self.msg_thread.start()
 
 
 	def play(self, **arg):
@@ -77,13 +90,12 @@ class dorna(connection):
 	    return True
 
 
-	def wait(self, _id):
-		while True:
+	def wait(self, _id, stop = False):
+		while not stop:
 			try:
-				if not self.msg_q.empty():
-					msg = self.msg_q.get()
-					if "stat" in msg and "id" in msg and msg["stat"] == 2 and msg["id"] == _id:
-						break
+				sys = dict(self.sys)
+				if "stat" in sys and "id" in sys and sys["stat"] == 2 and sys["id"] == _id:
+					break
 			except Exception as ex:
 				print(ex)
 				pass

@@ -21,7 +21,7 @@ from dorna2 import dorna
 
 robot = dorna()
 
-# use the robot WebSocket URL to connect to the robot
+# use the robot WebSocket URL to establish a connection
 robot.connect("ws://dorna:443")
 
 # helper function for jmove
@@ -31,7 +31,9 @@ robot.jmove(rel = 0, id = 100, j0 = 0, j1 = 0, j2 = 0, j3 = 0, j4 = 0)
 # send any command via play() method
 # robot.paly({"cmd": "jmove", "rel": 0, "id":101, "j1": 90, "j2": -90})
 robot.paly(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
- 
 ```  
-  
+
+## Send data
+There are many helper functions available to send commands to the robot, like `play, jmove, lmove, cmove, ... `. Use,       
+
 [dorna]: https://dorna.ai/
