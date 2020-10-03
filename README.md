@@ -16,6 +16,7 @@ Next, go to the downloaded directory, where the `setup.py` file is located, and 
 ```bash
 python setup.py install
 ```
+
 ## Getting started
 Import `dorna2` module.
 ``` python
@@ -33,7 +34,8 @@ if robot.connect("ws://dorna:443"):
 	# robot.play({"cmd": "jmove", "rel": 0, "id":101, "j1": 90, "j2": -90})
 	robot.play(cmd = "jmove", rel = 0, id = 101, j1 = 90, j2 = -90)
 ```  
-## Connect to the WebSocket server
+
+## Connection
 The URL of the robot controller WebSocket server is `ws://robot_ip_address:443`. Where `robot_ip_address` is the IP address of the robot, and `443` is the port number. 
 ```python
 # example: if ip = dorna
@@ -66,6 +68,19 @@ if robot.connect("ws://dorna:443"):
 else:
 	print("Connection was not successful")
 ``` 
+Use `ws.close` method to close the WS connection. It is a good practice to close an opened WS connection when your program is done, and the connection is no longer required. 
+```python
+from dorna2 import dorna
+
+robot = dorna()
+
+# use the robot WebSocket URL to establish a connection
+if robot.connect("ws://dorna:443"):
+	# do something
+
+	robot.ws.close()
+``` 
+
 ## Send command
 There are many helper methods available to send commands to the robot, like `play, jmove, lmove, cmove, ... `. Assign the variable key and its value as parameter or submit a command as a dictionary. Use `play` method to send a valid command
 ``` python
@@ -86,6 +101,7 @@ robot.wait(100)
 # {"id": 100, "stat": 2} has been received
 print("command with id = 100 has been completed")
 ``` 
+
 ## Receive message
 `sys` is a dictionary that holds the messages received by the API. Notice that, `sys` initialized with an empty dictionary. Every time a new JSON message sent by the controller and received by the API, `sys` updates itself according to the received message.
 ``` python
