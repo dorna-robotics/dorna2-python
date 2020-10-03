@@ -33,6 +33,9 @@ if robot.connect("ws://dorna:443"):
 	# send any command via play() method
 	# robot.play({"cmd": "jmove", "rel": 0, "id":101, "j1": 90, "j2": -90})
 	robot.play(cmd = "jmove", rel = 0, id = 101, j1 = 90, j2 = -90)
+
+	# close connection
+	robot.ws.close()
 ```  
 
 ## Connection
