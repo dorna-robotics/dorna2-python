@@ -1,9 +1,11 @@
 from numpy import random
 import dorna2
 
-if __name__ == '__main__':
+def main():
 	robot = dorna2.dorna()
-	robot.connect("ws://dorna:443")
+	if not robot.connect("ws://dorna:443"):
+		return False
+
 	# go home
 	arg = {"rel":0, "id": robot.rand_id(), "j0":0,"j1":0,"j2":0,"j3":0,"j4":0} 
 	robot.jmove(**arg)
@@ -22,3 +24,6 @@ if __name__ == '__main__':
 		robot.wait(arg["id"])
 
 	robot.ws.close()
+
+if __name__ == '__main__':
+	main()

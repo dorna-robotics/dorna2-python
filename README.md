@@ -24,23 +24,54 @@ from dorna2 import dorna
 robot = dorna()
 
 # use the robot WebSocket URL to establish a connection
-robot.connect("ws://dorna:443")
+if robot.connect("ws://dorna:443"):
+	# helper function for jmove
+	# robot.jmove({"rel": 0, "id": 100, "j0": 0, "j1": 0, "j2": 0, "j3": 0, "j4": 0}) 
+	robot.jmove(rel = 0, id = 100, j0 = 0, j1 = 0, j2 = 0, j3 = 0, j4 = 0)
 
-# helper function for jmove
-# robot.jmove({"rel": 0, "id": 100, "j0": 0, "j1": 0, "j2": 0, "j3": 0, "j4": 0}) 
-robot.jmove(rel = 0, id = 100, j0 = 0, j1 = 0, j2 = 0, j3 = 0, j4 = 0)
-
-# send any command via play() method
-# robot.paly({"cmd": "jmove", "rel": 0, "id":101, "j1": 90, "j2": -90})
-robot.paly(cmd = "jmove", rel = 0, id = 101, j1 = 90, j2 = -90)
+	# send any command via play() method
+	# robot.play({"cmd": "jmove", "rel": 0, "id":101, "j1": 90, "j2": -90})
+	robot.play(cmd = "jmove", rel = 0, id = 101, j1 = 90, j2 = -90)
 ```  
+## Connect to the WebSocket server
+The URL of the robot controller WS server is `ws://robot_ip_address:443` (`443` is the port number). Where `robot_ip_address` is the IP address of the robot. 
+```python
+# example: if ip = dorna
+ws_url = "ws://dorna:443"
 
+# example: if ip = 192.168.1.2
+ws_url = "ws://192.168.1.2:443"
+```
+Use the WebSocket URL as a parameter and the `connect` method to establish a connection. The `connect` method returns `True` on a successful connection and `False` otherwise. 
+``` python
+from dorna2 import dorna
+
+robot = dorna()
+
+# use the robot WebSocket URL to establish a connection
+if robot.connect("ws://dorna:443"):
+	print("Connection was successful")
+else:
+	print("Connection was not successful")
+```  
+`ws.sock` is the core `WebSocket` object. After a successful connection use `ws.sock.connected` to keep track of the connection status.  
+```python
+from dorna2 import dorna
+
+robot = dorna()
+
+# use the robot WebSocket URL to establish a connection
+if robot.connect("ws://dorna:443"):
+	print(robot.ws.sock.connected) # True
+else:
+	print("Connection was not successful")
+``` 
 ## Send command
 There are many helper methods available to send commands to the robot, like `play, jmove, lmove, cmove, ... `. Assign the variable key and its value as parameter or submit a commands as a dictionary. Use `play` method to send a valid command
 ``` python
-robot.paly(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
+robot.play(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
 # or
-# robot.paly({"cmd": "jmove", "rel": 0, "id":100, "j1": 90, "j2": -90})
+# robot.play({"cmd": "jmove", "rel": 0, "id":100, "j1": 90, "j2": -90})
 ``` 
 Use `ws.send` method to directly send a string command.
 ``` python
@@ -49,7 +80,7 @@ robot.ws.send('{"cmd": "jmove", "rel": 0, "id":100, "j1": 90, "j2": -90}')
 Use `wait` method to wait for the completion of a command with an `id`. 
 ``` python
 # command id = 100
-robot.paly(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
+robot.play(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
 robot.wait(100)
 # command with id = 100 has been completed, i.e., {"id": 100, "stat": 2} has been received
 ``` 
@@ -60,7 +91,7 @@ print(robot.sys)
 # {}
 
 # command id = 100
-robot.paly(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
+robot.play(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
 robot.wait(100)
 # command with id = 100 has been completed, i.e., {"id": 100, "stat": 2} has been received
 
