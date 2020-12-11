@@ -3,11 +3,11 @@ import dorna2
 
 def main():
 	robot = dorna2.dorna()
-	if not robot.connect("ws://dorna:443"):
+	if not robot.connect("ws://192.168.1.8:443"):
 		return False
 
 	# go home
-	arg = {"cmd": "rmove", "rel":0, "id": robot.rand_id(), "j0":0,"j1":0,"j2":0,"j3":0,"j4":0, "vel": 0.4, "accel": 0.2 ,"jerk": 0.1} 
+	arg = {"cmd": "rmove", "rel":0, "id": robot.rand_id(), "j0":0,"j1":0,"j2":0,"j3":0,"j4":0, "vel": 0.5, "accel": 0.3 ,"jerk": 0.1} 
 	print("going home ->")
 	robot.play(**arg)
 	robot.wait(arg["id"])		

@@ -18,8 +18,12 @@ def main():
 		for line in f:
 			arg = json.loads(line[0:-1])
 			robot.play(**arg)
+			print(arg)
+			arg = {"cmd":"sleep","time":0.3,"id":robot.rand_id()}
+			robot.play(**arg)
 
-	robot.wait(arg["id"])
+	#robot.wait(arg["id"])
+
 	robot.ws.close()
 
 if __name__ == '__main__':

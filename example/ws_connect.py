@@ -1,23 +1,19 @@
-"""
-import sys 
-sys.path.append('..')
-"""
 from dorna2 import dorna
+import sys
+sys.path.append('..')
 
 
-def main():
-	robot = dorna()
-	# check for successful connection
-	if not robot.connect("ws://dorna:443"):
-		return False
+def main(ip, port):
+    robot = dorna()
+    robot.connect(ip, port)
 
-	for cmd in ["alarm", "toollength", "input", "output", "pwm", "adc"]:
-		arg = {"cmd": cmd, "id": robot.rand_id()}
-		print(arg)
-		robot.play(**arg)
-		robot.wait(arg["id"])		
+    for cmd in 100 * ["alarm", "toollength", "input", "output", "pwm", "adc"]:
+        arg = {"cmd": cmd, "id": robot.rand_id()}
+        print(arg)
+        robot.play(**arg)
+        robot.wait(arg["id"])
 
-	robot.ws.close()	
+    robot.close()
 
 if __name__ == '__main__':
-	main()
+    main("192.168.1.7", 443)

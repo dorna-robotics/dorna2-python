@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="dorna2",
-    version= "1.00",
+    version= "1.10",
     author="Dorna Robotics",
     author_email="info@dorna.ai",
     description="Python API for Dorna 2",
@@ -24,7 +24,6 @@ setuptools.setup(
     ],
     install_requires=[
         "setuptools",
-        "websocket_client",
     ],
     license="MIT",
     include_package_data=True,

@@ -3,7 +3,7 @@ import dorna2
 
 def main():
 	robot = dorna2.dorna()
-	if not robot.connect("ws://dorna:443"):
+	if not robot.connect("ws://192.168.1.8:443"):
 		return False
 
 	# go home
