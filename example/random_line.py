@@ -1,11 +1,13 @@
-from numpy import random
-import dorna2
+from random import random
+import sys
+sys.path.append('..')
+from dorna2 import dorna
 
-def main():
+
+def main(ip, port):
 	robot = dorna2.dorna()
-	if not robot.connect("ws://192.168.1.8:443"):
-		return False
-
+	robot.connect(ip, port)
+	
 	# go home
 	arg = {"rel":0, "id": robot.rand_id(), "j0":0,"j1":0,"j2":0,"j3":0,"j4":0} 
 	robot.jmove(**arg)
@@ -17,13 +19,14 @@ def main():
 	robot.wait(arg["id"])
 
 	# random points
-	for i in range(10000):
-		arg = {"rel": 0, "id": i+1, "x": 300+ 100* random.rand(), "y": -100 + 200* random.rand(), "z": 206.404 - 100 + 200*random.rand()}
+	i = 0
+	while True:
+		arg = {"rel": 0, "id": i+1, "x": 300+ 1* random(), "y": -100 + 1* random(), "z": 206.404 - 100 + 1*random()}
 		print("command",i, "   arg: ", arg)
 		robot.lmove(**arg)
 		robot.wait(arg["id"])
-
+		i += 1
 	robot.ws.close()
 
 if __name__ == '__main__':
-	main()
+	main("127.0.0.1", 443)

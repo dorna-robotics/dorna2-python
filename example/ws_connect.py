@@ -1,6 +1,7 @@
-from dorna2 import dorna
 import sys
 sys.path.append('..')
+from dorna2 import dorna
+
 
 
 def main(ip, port):
@@ -16,4 +17,4 @@ def main(ip, port):
     robot.close()
 
 if __name__ == '__main__':
-    main("192.168.1.7", 443)
+    main("127.0.0.1", 443)
