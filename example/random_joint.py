@@ -4,7 +4,7 @@ sys.path.append('..')
 from dorna2 import dorna
 
 def main(ip, port):
-	robot = dorna2.dorna()
+	robot = dorna()
 	robot.connect(ip, port)
 
 	# go home
