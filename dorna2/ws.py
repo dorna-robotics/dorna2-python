@@ -6,7 +6,7 @@ import json
 
 class ws(object):
     """docstring for ws"""
-    def __init__(self, read_len=1000):
+    def __init__(self, read_len=10000):
         super(ws, self).__init__()
         self.read_len = read_len
 
@@ -135,6 +135,9 @@ class ws(object):
                     msg = json.loads(str(buff[:waiting_len], "utf-8"))
                     if not self.msg.full():
                         self.msg.put(msg)
+                    else:
+                        self.msg.get()
+                        self.msg.put(msg)    
                     self.sys = {**dict(self.sys), **msg}  # update sys
                 except:
                     pass
