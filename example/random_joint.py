@@ -10,8 +10,7 @@ def main(ip, port):
 	# go home
 	arg = {"cmd": "rmove", "rel":0, "id": robot.rand_id(), "j0":0,"j1":0,"j2":0,"j3":0,"j4":0, "vel": 0.5, "accel": 0.3 ,"jerk": 0.1} 
 	print("going home ->")
-	robot.play(**arg)
-	robot.wait(arg["id"])		
+	robot.play(**arg)		
 	
 	# random points
 	for i in range(10000):

@@ -17,4 +17,4 @@ def main(ip, port):
     robot.close()
 
 if __name__ == '__main__':
-    main("192.168.1.6", 443)
+    main("127.0.0.1", 443)

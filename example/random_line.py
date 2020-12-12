@@ -9,11 +9,12 @@ def main(ip, port):
 	robot.connect(ip, port)
 	
 	# go home
-	arg = {"rel":0, "id": robot.rand_id(), "j0":0,"j1":0,"j2":0,"j3":0,"j4":0} 
+	print("go toward home")
+	arg = {"rel":0, "id": robot.rand_id(), "j0":1,"j1":1,"j2":0,"j3":0,"j4":0} 
 	robot.jmove(**arg)
-	robot.wait(arg["id"])
 
 	# come 150 mm back toward x
+	print("go back in x direction")
 	arg = {"rel":1, "id" : robot.rand_id(), "x": -200, "vel": 1000, "accel": 20000, "jerk": 40000} 
 	robot.lmove(**arg)
 	robot.wait(arg["id"])
