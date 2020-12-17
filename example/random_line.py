@@ -18,7 +18,7 @@ def main(ip, port):
     print("go back in x direction")
     arg = {"rel": 1, "id": robot.rand_id(), "x": -200, "vel": 1000, "accel": 20000, "jerk": 40000}
     robot.lmove(**arg)
-    robot.wait(arg["id"])
+    robot.wait(id=arg["id"])
 
     # random points
     i = 0
@@ -26,7 +26,7 @@ def main(ip, port):
         arg = {"rel": 0, "id": i + 1, "x": 300 + 1 * random(), "y": -100 + 1 * random(), "z": 206.404 - 100 + 1 * random()}
         print("command", i, "   arg: ", arg)
         robot.lmove(**arg)
-        robot.wait(arg["id"])
+        robot.wait(id=arg["id"])
         i += 1
     robot.ws.close()
 

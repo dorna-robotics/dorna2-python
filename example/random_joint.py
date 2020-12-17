@@ -26,7 +26,7 @@ def main(ip, port):
         arg = {"cmd": "rmove", "rel": 0, "id": i+1, "j0": j0, "j1": j1, "j2": j2, "j3": j3, "j4": j4}
         print("command", i, "   arg: ", arg)
         robot.play(**arg)
-        robot.wait(arg["id"])
+        robot.wait(id=arg["id"], stat=2)
         i += 1
 
     robot.ws.close()

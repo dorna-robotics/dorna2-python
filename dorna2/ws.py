@@ -22,10 +22,11 @@ class ws(object):
         waiting_len = 1
 
         while self.connected:
-            # write
-            if not self.write_q.empty():
-                msg = self.write_q.get()
-                self.s.send(msg)
+            # write 2 commands
+            for _ in range(2):
+                if not self.write_q.empty():
+                    msg = self.write_q.get()
+                    self.s.send(msg)
             # read
             try:
                 # read data
@@ -157,7 +158,7 @@ class ws(object):
                 b"\r\n"
             ))
 
-    def connect(self, host, port, wait=1):
+    def _connect(self, host, port, wait=1):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.connect((host, port))
 
@@ -177,7 +178,7 @@ class ws(object):
 
 def main():
     web_socket = ws()
-    web_socket.connect("dorna", 443)
+    web_socket._connect("dorna", 443)
 
 if __name__ == '__main__':
     main()
