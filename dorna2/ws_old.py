@@ -1,55 +1,101 @@
-import socket
+import asyncio
 import threading
 import queue
 import json
-import time
 
 
 class ws(object):
+    """docstring for ws"""
     def __init__(self, read_len=10000):
         super(ws, self).__init__()
-
         self.read_len = read_len
+
+        self.read_q = queue.Queue()
         self.write_q = queue.Queue()
         self.msg = queue.Queue(100)
         self.sys = {}
+
+        self.connected = False
+    
+    def connect_loop(self, ip, port):
+        asyncio.run(self.async_connect_loop(ip, port))
+
+    async def _handshake(self):
+        message = (
+            b"GET /chat HTTP/1.1\r\n"
+            b"Host: 192.168.1.8:443\r\n"
+            b"Connection: Upgrade\r\n"
+            b"Pragma: no-cache\r\n"
+            b"Cache-Control: no-cache\r\n"
+            b"User-Agent: api\r\n"
+            b"Upgrade: websocket\r\n"
+            b"Origin: localhost\r\n"
+            b"Sec-WebSocket-Version: 13\r\n"
+            b"Accept-Encoding: gzip, deflate\r\n"
+            b"Accept-Language: en-US,en;q=0.9,fa;q=0.8\r\n"
+            b"Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n"
+            b"Sec-WebSocket-Extensions: permessage-deflate; \
+            client_max_window_bits \r\n"
+            b"\r\n"
+            )
+        self.writer.write(message)
+        await self.writer.drain()
+
+    async def async_connect_loop(self, ip, port):
+        try:
+            # establish connection
+            self.reader, self.writer = await asyncio.open_connection(ip, port)
+            await self._handshake()
+            self.connected = True
+
+            # read thread
+            self.read_thread = threading.Thread(target=self.read_loop)
+            self.read_thread.start()
+
+            # connection loop
+            while self.connected:
+
+                # write message
+                if not self.write_q.empty():
+                    self.writer.write(self.write_q.get())
+                    await self.writer.drain()
+
+                # read message
+                data = await self.reader.read(self.read_len)
+                if len(data):
+                    self.read_q.put(data)
+
+        except Exception as ex:
+            print("Connection failed. error: ", ex)
+        finally:
+            await self._close()
+
+    def close(self):
+        self.connected = False 
+
+    async def _close(self):
+        self.writer.close()
+        await self.writer.wait_closed()
         self.connected = False
 
-    def socket_loop(self):
-        # initialize read buffer
+    """
+    decode the read data in read_q
+    """
+    def read_loop(self):
+        # initialize
         state = 0
         buff = b""
         waiting_len = 1
 
         while self.connected:
-            # write
-            if not self.write_q.empty():
-                msg = self.write_q.get()
-                self.s.send(msg)
-            # read
-            try:
-                # read data
-                data = self.s.recv(self.read_len)
+            # add to the buffer
+            while not self.read_q.empty():
+                buff += self.read_q.get()
 
-                if len(data):
-                    # add to the buffer
-                    buff += data
-                    # process buffer
-                    buff, waiting_len, state = self.process_buffer(buff, waiting_len, state)
-            except socket.error as error:
-                pass
+            if waiting_len > len(buff):  # make sure buffer has enough length
+                continue
 
-        self.s.close()
-
-    def close(self):
-        self.connected = False
-
-    """
-    decode the read data
-    """
-    def process_buffer(self, buff, waiting_len, state):
-        while len(buff) >= waiting_len:  # make sure buffer has enough length
-            if state == 0:
+            elif state == 0:
                 if buff[0] == 129:  # message start
                     state = 21
                     buff = buff[waiting_len:]
@@ -65,7 +111,7 @@ class ws(object):
                     state = 25
                     waiting_len = buff[0]
                     buff = buff[1:]
-
+                    
                 elif buff[0] == 126:
                     state = 22
                     buff = buff[waiting_len:]
@@ -87,24 +133,18 @@ class ws(object):
             elif state == 25:  # add to the message queue
                 try:
                     msg = json.loads(str(buff[:waiting_len], "utf-8"))
-
                     if not self.msg.full():
                         self.msg.put(msg)
                     else:
                         self.msg.get()
-                        self.msg.put(msg)
-
+                        self.msg.put(msg)    
                     self.sys = {**dict(self.sys), **msg}  # update sys
-
                 except:
                     pass
 
                 state = 0
                 buff = buff[waiting_len:]
                 waiting_len = 1
-                self.b = len(buff)
-
-        return buff, waiting_len, state
 
     """
     encode the write data and add it to write_q
@@ -139,7 +179,7 @@ class ws(object):
 
             self.write_q.put(bytes(header + mask) + msg.encode("utf-8"))
 
-        elif mode == "handshake":
+        elif "mode" == "handshake":
             self.write_q.put((
                 b"GET /chat HTTP/1.1\r\n"
                 b"Host: 192.168.1.8:443\r\n"
@@ -157,22 +197,13 @@ class ws(object):
                 b"\r\n"
             ))
 
-    def connect(self, host, port, wait=1):
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.connect((host, port))
+    def connect(self, ip, port):
 
-        self.connected = True
-        # handshake
-        self.send(mode="handshake")
-
-        # socket thread
-        self.socket_thread = threading.Thread(
-            target=self.socket_loop
+        self.connect_thread = threading.Thread(
+            target=self.connect_loop, args=(ip, port)
         )
-        self.socket_thread.start()
-
-        time.sleep(wait)
-        self.s.setblocking(0)
+        self.connect_thread.start()
+        
 
 
 def main():

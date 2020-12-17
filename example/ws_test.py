@@ -1,7 +1,7 @@
+from __future__ import print_function
 import sys
 sys.path.append('..')
 from dorna2 import dorna
-
 
 
 def main(ip, port):

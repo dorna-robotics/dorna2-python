@@ -1,7 +1,7 @@
+from __future__ import print_function
 import json
 import time
 from .ws import ws
-
 
 class dorna(ws):
     """docstring for Dorna"""
@@ -49,7 +49,7 @@ class dorna(ws):
 
 def main():
     robot = dorna()
-    print(robot.connect("dorna", 443))
+    (robot.connect("dorna", 443)
 
 if __name__ == '__main__':
     main()
