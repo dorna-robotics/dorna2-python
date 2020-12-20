@@ -2,14 +2,14 @@
 This is a Python API for [Dorna 2][dorna] robotic arm.
 
 ## Installation
-Notice that the program is compatible with Python 3.7+.
+Notice that the program has been tested only on Python 3.7+.
 
 ### Download
 First, use `git clone` to download the repository:  
 ```bash
 git clone https://github.com/dorna-robotics/dorna2-python.git
 ```
-Or simply download the zip file, and uncompress the file.  
+Or simply download the [zip file](https://github.com/dorna-robotics/dorna/archive/master.zip), and uncompress the file.  
 
 ### Install
 Next, go to the downloaded directory, where the `setup.py` file is located, and run:
@@ -23,23 +23,17 @@ Import `dorna2` module.
 from dorna2 import dorna
 
 robot = dorna()
+ip = "127.0.0.1"
+host = 443
+robot.connect(ip, host)
 
-# use the robot WebSocket URL to establish a connection
-if robot.connect("ws://dorna:443"):
-	# helper function for jmove
-	# robot.jmove(**{"rel": 0, "id": 100, "j0": 0, "j1": 0, "j2": 0, "j3": 0, "j4": 0}) 
-	robot.jmove(rel = 0, id = 100, j0 = 0, j1 = 0, j2 = 0, j3 = 0, j4 = 0)
+# your code
 
-	# send any command via play() method
-	# robot.play(**{"cmd": "jmove", "rel": 0, "id":101, "j1": 90, "j2": -90})
-	robot.play(cmd = "jmove", rel = 0, id = 101, j1 = 90, j2 = -90)
-
-	# close connection
-	robot.ws.close()
+robot.close() # always close the socket when you are done
 ```  
 
 ## Connection
-The URL of the robot controller WebSocket server is `ws://robot_ip_address:443`. Where `robot_ip_address` is the IP address of the robot, and `443` is the port number. 
+The robot WebSocket server runs on `ws://robot_ip_address:443`, where `robot_ip_address` is the IP address of the robot, and `443` is the port number.   
 ```python
 # example: if ip = dorna
 ws_url = "ws://dorna:443"
@@ -47,82 +41,95 @@ ws_url = "ws://dorna:443"
 # example: if ip = 192.168.1.2
 ws_url = "ws://192.168.1.2:443"
 ```
-Use the WebSocket URL as a parameter and the `connect` method to establish a connection. The `connect` method returns `True` on a successful connection and `False` otherwise. 
+
+`.connect(host, port, time_out=1, init=True)`  
+Connect to the robot WebSocket server at `ws://host:port`. The `host` and `port` arguments are similar to the Python `socket.connect((host, port))` method.
+
+
+`.close()`  
+Use this method to close a WS connection. Notice that `.close()` instantly closes the socket and terminates the communication loop. After this the `dorna` object is not able to send or receive any message from the robot WS server.  
+> It is a good practice to close an open socket connection when your task is over and the connection is no longer required.  
 ``` python
 from dorna2 import dorna
 
 robot = dorna()
+robot.connect("192.168.1.10", 443) # connect to ws://192.168.1.10:443
 
-# use the robot WebSocket URL to establish a connection
-if robot.connect("ws://dorna:443"):
-	print("Connection was successful")
-else:
-	print("Connection was not successful")
-```  
-`ws.sock` is the core `WebSocket` object. After a successful connection use `ws.sock.connected` to keep track of the connection status.  
-```python
-from dorna2 import dorna
+# your code
 
-robot = dorna()
-
-# use the robot WebSocket URL to establish a connection
-if robot.connect("ws://dorna:443"):
-	print(robot.ws.sock.connected) # True
-else:
-	print("Connection was not successful")
-``` 
-Use `ws.close` method to close the WS connection. It is a good practice to close an opened WS connection when your program is done, and the connection is no longer required. 
-```python
-from dorna2 import dorna
-
-robot = dorna()
-
-# use the robot WebSocket URL to establish a connection
-if robot.connect("ws://dorna:443"):
-	# do something
-
-	robot.ws.close()
+robot.close() # always close the socket when you are done
 ``` 
 
-## Send command
-There are many helper methods available to send commands to the robot, like `play, jmove, lmove, cmove, ... `. Assign the variable key and its value as parameter or submit a command as a dictionary. Use `play` method to send a valid command
+## Send message
+Once you connected to the robot, you can start sending valid messages (commands) to the robot in JSON format.
+
+`.play(message=None, **arg)`  
+Send a message to the robot. There are multiple ways to send a message via `.play()`. For a better understanding, we send a simple `alarm` status command in three different ways:
+1. JSON string format: `play('{"cmd": "alarm", "id": 100}')`
+2. Python dictionary format: `play({'cmd': 'alarm', 'id': 100})` 
+3. Key and value format: `play(cmd='alarm', id=100})`  
+
+We have other helper methods to send a message:
+- `.jmove(**arg)`: A helper function to send a `jmove` command. `jmove(j0=0, id=100)` is equivalent to `play(cmd='jmove', j0=0, id=100)`. Basically the `"cmd"` key is set to `"jmove"`.  
+- `.lmove(**arg)`: Similar to `.jmove()` but the command key is equal to `"lmove"`.
+- `.cmove(**arg)`: Similar to `.cmove()` but the command key is equal to `"cmove"`.
+
+`.play_script(script_path="")`
+Send all the messages that are stored in a script file to the robot. The method opens the script file located at `script_path`, read the file line by line and send each line as a command.  
+> Notice that each message has to occupy exactly one line. Multiple messages in one line or one message in multiple line is not a valid format. Here are a valid and invalid script format:
 ``` python
-robot.play(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
-# or
-# robot.play(**{"cmd": "jmove", "rel": 0, "id":100, "j1": 90, "j2": -90})
-``` 
-Use `ws.send` method to directly send a JSON string command.
-``` python
-robot.ws.send('{"cmd": "jmove", "rel": 0, "id":100, "j1": 90, "j2": -90}')
-``` 
-Use `wait` method to wait for the completion of a command with an `id`. 
-``` python
-# command id = 100
-robot.play(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
-robot.wait(100)
+# valid format: Each message occupy exactly one line
+{"cmd":"jmove","rel":0,"j0":0}
+{"cmd":"jmove","rel":0,"j0":10}
+{"cmd":"jmove","rel":0,"j0":-10}
 
-# {"id": 100, "stat": 2} has been received
-print("command with id = 100 has been completed")
-``` 
+# invalid format: Multiple commands in one line or one command in multiple line
+{"cmd":"jmove","rel":0,"j0":0}{"cmd":"jmove","rel":0,"j0":10}
+{"cmd":"jmove","rel":0,
+"j0":-10}
+```     
 
 ## Receive message
-`sys` is a dictionary that holds the messages received by the API. Notice that, `sys` initialized with an empty dictionary. Every time a new JSON message sent by the controller and received by the API, `sys` updates itself according to the received message.
+After a successful WS connection, the robot starts to send messages in JSON format to the API.  
+
+`sys` is a dictionary that holds the messages keys and values received by the API.  
+> Notice that, `sys` initialized with an empty dictionary. Every time a new JSON received by the API, `sys` updates itself according to the received data.
 ``` python
 print(robot.sys) # {}
 
 # command id = 100
-robot.play(cmd = "jmove", rel = 0, id = 100, j1 = 90, j2 = -90)
-robot.wait(100)
+robot.play(cmd="jmove", rel=0, id=100, j1=90, j2=-90)
+robot.wait(id=100, stat=2)
 
 print(robot.sys) # {"id": 100, "stat": 2, ...}
 ``` 
-The last 100 messages received by the API are stored in `msg` queue. `msg` is a queue object of size 100, `queue.Queue(100)`, and whenever it gets full it can not put any new message inside of it, unless some messages get out of it. So, it is the user responsibility to consume (`get()`) the `msg` in a safe way.   
+
+`msg` queue (`queue.Queue(100)`) holds the last 100 JSON messages received from the robot.
 ``` python
 # print received messages 
 while True:
 	if not robot.msg.empty()
 		print(robot.msg.get())
 ``` 
-Every time, a new message is sent by the WS server and received by the API, `connect_loop.on_message` method is triggered.
 
-[dorna]: https://dorna.ai/
+`.wait(time_out=0, **arg)`  
+Run a while loop and wait until a given pattern of keys and values in `arg` parameter appears in the `.sys`, and then it will break the loop and returns. If `time_out` is set to `0`, then the while loop runs (forever) until the pattern appears in the `sys` and then it will return `True`. When `time_out > 0`, the while loop runs for maximum of `time_out` seconds. If the pattern appears before `time_out` then the method returns `True`. Otherwise, it will return `False`.  
+The `wait()` method is useful in many scenarios. Here we mention two of them.  
+- **Wait for a command completion:** Let say you send a motion command to the robot and want to know exactly when the motion is completed to do something else after that. Notice that when the execution of a command (with an `id` field) is completed, the robot sends a confirmation message with `stat = 2` and the same `id`. So, the following code prints `completed` right after the motion command with `id = 100` is over.
+``` python
+# command id = 100
+robot.play(cmd="jmove", rel=0, id=100, j1=90, j2=-90)
+robot.wait(id=100, stat=2)
+print("completed")
+``` 
+- **Wait for inputs:** Let say you are waiting for a pattern of inputs to appear an do something after that. Simply call `wait()` and your input pattern as the input argument. 
+``` python
+# waiting for input 0 to turn on and input 3 to turn off, and then do something else after that
+robot.wait(in0=1, in3=0)
+# do something
+```
+
+## Example
+To learn more about the API, navigate to the main directory and check the `example` folder for some examples.
+
+[dorna]: https://dorna.ai

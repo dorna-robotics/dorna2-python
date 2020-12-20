@@ -26,11 +26,11 @@ class ws(object):
             for _ in range(2):
                 if not self.write_q.empty():
                     msg = self.write_q.get()
-                    self.s.send(msg)
+                    self.sock.send(msg)
             # read
             try:
                 # read data
-                data = self.s.recv(self.read_len)
+                data = self.sock.recv(self.read_len)
 
                 if len(data):
                     # add to the buffer
@@ -40,10 +40,11 @@ class ws(object):
             except socket.error as error:
                 pass
 
-        self.s.close()
+        self.close()
 
     def close(self):
         self.connected = False
+        self.sock.close()
 
     """
     decode the read data
@@ -158,9 +159,9 @@ class ws(object):
                 b"\r\n"
             ))
 
-    def _connect(self, host, port, wait=1):
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.connect((host, port))
+    def _connect(self, host, port, time_out=1):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((host, port))
 
         self.connected = True
         # handshake
@@ -172,8 +173,8 @@ class ws(object):
         )
         self.socket_thread.start()
 
-        time.sleep(wait)
-        self.s.setblocking(0)
+        time.sleep(time_out)
+        self.sock.setblocking(0)
 
 
 def main():
