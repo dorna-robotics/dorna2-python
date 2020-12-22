@@ -1,6 +1,5 @@
 # Dorna2 
-This is the Python API tutorial for [Dorna 2][dorna] robotic arm.   
-For full documentation please visit the [documentation page](https://doc.dorna.ai/docs/api/python/manual).
+This is the Python API repository for [Dorna 2][dorna] robotic arm.   
 
 ## Installation
 Notice that the program has been tested only on Python 3.7+.
@@ -18,7 +17,22 @@ Next, go to the downloaded directory, where the `setup.py` file is located, and 
 python setup.py install --force
 ```
 
-## Document
-For the full API documentation please visit the [Dorna API documentation](https://doc.dorna.ai/docs/api/python/manual).
+### Getting started
+Import `dorna2` module.
+``` python
+from dorna2 import dorna
+
+robot = dorna()
+ip = "127.0.0.1"
+host = 443
+robot.connect(ip, host)
+
+# your code
+
+robot.close() # always close the socket when you are done
+```  
+
+### Document
+For the full documentation please visit the [Dorna API documentation page](https://doc.dorna.ai/docs/api/python/manual).
 
 [dorna]: https://dorna.ai
