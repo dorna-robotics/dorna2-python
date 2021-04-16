@@ -9,14 +9,14 @@ def main(ip, port):
     start = time.time()
     robot = dorna()
     robot.connect(ip, port)
-    for cmd in 100 * ["alarm", "toollength", "input", "output", "pwm", "adc"]:
+    for cmd in 10 * ["alarm", "toollength", "input", "output", "pwm", "adc"]:
         arg = {"cmd": cmd, "id": robot.rand_id()}
         print(arg)
-        robot.play(**arg)
-        robot.wait_id(arg["id"])
+        trk = robot.play(True, **arg)
+        trk.complete()
 
     robot.close()
     print(time.time()-start)
 
 if __name__ == '__main__':
-    main("192.168.1.10", 443)
+    main("10.0.0.3", 443)
