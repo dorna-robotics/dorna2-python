@@ -12,7 +12,10 @@ def main(config_path):
 
     robot = dorna()
     robot.connect(arg["ip"], arg["port"])
-    robot.wait(in0=1)
+
+    robot.play_script("script.txt")
+    robot.wait(id=1000, stat=2)  # end of script
+
     robot.close()
 
 if __name__ == '__main__':

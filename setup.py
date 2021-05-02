@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="dorna2",
-    version= "1.23",
+    version= "1.24",
     author="Dorna Robotics",
     author_email="info@dorna.ai",
     description="Python API for Dorna 2",

@@ -40,21 +40,20 @@ class dorna(ws):
                             self.id_l[i].pop(index)
 
             except:
-                pass            
+                pass
 
         # close all the tracks
         for track in self.id_l[2]:
             track.put(None)
-        
+
         # update id_l
         self.id_l = [[], [], []]
-
 
     def connect(self, host, port):
         self._connect(host, port, 1)
 
         # id loop
-        self.id_l = [[], [], []] # id_l[0]: index of id s, id_l[1], updated messages, id_l[2] is the queue
+        self.id_l = [[], [], []]  # id_l[0]: index of id s, id_l[1], updated messages, id_l[2] is the queue
         self.id_thread = threading.Thread(target=self.id_loop)
         self.id_thread.start()
 
@@ -103,7 +102,7 @@ class dorna(ws):
                     pass
             return i
 
-    def play(self, track = False, message=None, **arg):
+    def play(self, track=False, message=None, **arg):
         # find msg
         if message:
             # text
@@ -123,12 +122,12 @@ class dorna(ws):
 
             # share the queue
             self.id_l[0].append(msg["id"])
-            self.id_l[1].append( {})
-            self.id_l[2].append( trk.q)
+            self.id_l[1].append({})
+            self.id_l[2].append(trk.q)
 
         # run the command
         self.send(json.dumps(arg))
-        return trk  
+        return trk
 
     def jmove(self, track=False, **arg):
         arg["cmd"] = "jmove"

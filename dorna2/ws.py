@@ -100,7 +100,7 @@ class ws(object):
                         self.msg.put(msg)
 
                     # track queue
-                    if "id" in msg:  
+                    if "id" in msg:
                         self.id_q.put(msg)
 
                     # update sys

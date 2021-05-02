@@ -2,14 +2,14 @@ import threading
 import queue
 import time
 
-class track_msg(object):
-	"""docstring for track"""
-	def __init__(self, _id):
-		super(track_msg, self).__init__()
-		self.q = queue.Queue()
-		self.stop = True
-		self._msg = {"id": _id, "stat": None}
 
+class track_msg(object):
+    """docstring for track"""
+    def __init__(self, _id):
+        super(track_msg, self).__init__()
+        self.q = queue.Queue()
+        self.stop = True
+        self._msg = {"id": _id, "stat": None}
 
 	def start(self):
 		self.stop = False
@@ -23,7 +23,7 @@ class track_msg(object):
 			try:
 				if not self.q.empty():
 					msg = self.q.get()
-					if msg == None:
+					if msg is None:
 						self.stop = True
 					else:
 						self._msg = msg
@@ -36,7 +36,7 @@ class track_msg(object):
 	def stat(self):
 		return self._msg["stat"]
 
-	def complete(self, time_out = 0):
+	def complete(self, time_out=0):
 		if time_out > 0:
 			start = time.time()
 

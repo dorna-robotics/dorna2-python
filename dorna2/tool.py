@@ -124,9 +124,7 @@ class kinematic(object):
 
 
 if __name__ == '__main__':
-
 	k = kinematic()
 	joint = [0, 150, 150, 150, 0]
 	xyz = k.forward(joint)
 	print(xyz)
-		
