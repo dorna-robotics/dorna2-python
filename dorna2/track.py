@@ -3,10 +3,10 @@ import queue
 import time
 
 
-class track_msg(object):
+class track_cmd(object):
     """docstring for track"""
     def __init__(self, _id):
-        super(track_msg, self).__init__()
+        super(track_cmd, self).__init__()
         self.q = queue.Queue()
         self.stop = True
         self._msg = {"id": _id, "stat": None}

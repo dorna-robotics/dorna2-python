@@ -3,7 +3,7 @@ import json
 from random import random
 import time
 from .ws import ws
-from .track import track_msg
+from .track import track_cmd
 
 
 class dorna(ws):
@@ -117,7 +117,7 @@ class dorna(ws):
         # track if there is id and track is True
         trk = None
         if track and "id" in msg:
-            trk = track_msg(msg["id"])
+            trk = track_cmd(msg["id"])
             trk.start()
 
             # share the queue
