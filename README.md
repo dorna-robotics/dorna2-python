@@ -37,12 +37,10 @@ robot.close() # always close the socket when you are done
 For the full documentation please visit the [Dorna API documentation page](https://doc.dorna.ai/docs/api/python/manual).
 
 ### History
-<details><summary>1.24</summary>
-	<ul>
-	<li>Increased the WS speed.</li>
-	<li>Added `track_cmd` class for tracking commands.</li>
-	<li>Added forward and inverse kinematics methods inside the `tool.py`.</li>
-	</ul>	
-</details>
+- 1.24
+    - Adding multi threading feature and increased the WS speed significantly.
+    - Bug fixed: The API and dorna lab can both connect to the robot at the same time.
+    - Added [tracking command](https://doc.dorna.ai/docs/api/python/manual/#tracking-command) feature, for tracking the status of a command.
+    - Added forward and inverse kinematics of the robot inside the `tool.py`.
 
 [dorna]: https://dorna.ai
