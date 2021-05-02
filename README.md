@@ -36,4 +36,10 @@ robot.close() # always close the socket when you are done
 ### Document
 For the full documentation please visit the [Dorna API documentation page](https://doc.dorna.ai/docs/api/python/manual).
 
+### History
+<details><summary>1.24</summary>
+- Increased the WS speed.
+- Added `track_cmd` class for tracking commands.
+- Added forward and inverse kinematics methods inside the `tool.py`.
+</details>
 [dorna]: https://dorna.ai
