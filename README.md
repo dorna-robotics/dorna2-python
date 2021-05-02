@@ -9,7 +9,7 @@ First, use `git clone` to download the repository:
 ```bash
 git clone https://github.com/dorna-robotics/dorna2-python.git
 ```
-Or simply download the [zip file](https://github.com/dorna-robotics/dorna/archive/master.zip), and uncompress the file.  
+Or simply download the [zip file](https://github.com/dorna-robotics/dorna2-python/archive/master.zip), and uncompress the file.  
 
 ### Install
 Next, go to the downloaded directory, where the `setup.py` file is located, and run:
@@ -22,12 +22,13 @@ Import `dorna2` module.
 ``` python
 from dorna2 import dorna
 
-robot = dorna()
 ip = "127.0.0.1"
-host = 443
-robot.connect(ip, host)
+port = 443
 
-# your code
+robot = dorna()  # create the dorna object
+robot.connect(ip, host)  # connect to the robot
+
+# your code goes here
 
 robot.close() # always close the socket when you are done
 ```  
