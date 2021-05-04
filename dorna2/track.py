@@ -4,12 +4,12 @@ import time
 
 
 class track_cmd(object):
-    """docstring for track"""
-    def __init__(self, _id):
-        super(track_cmd, self).__init__()
-        self.q = queue.Queue()
-        self.stop = True
-        self._msg = {"id": _id, "stat": None}
+	"""docstring for track"""
+	def __init__(self, _id):
+		super(track_cmd, self).__init__()
+		self.q = queue.Queue()
+		self.stop = True
+		self._msg = {"id": _id, "stat": None}
 
 	def start(self):
 		self.stop = False
