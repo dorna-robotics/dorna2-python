@@ -58,10 +58,10 @@ class dorna(ws):
         self.id_thread.start()
 
         # initialize
-        for cmd in ["alarm", "toollength", "input", "output", "pwm", "adc"]:
+        for cmd in ["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"]:
             arg = {"cmd": cmd, "id": self.rand_id()}
-            trk = self.play(True, **arg)
-            trk.complete()
+            self.play(**arg)
+            time.sleep(0.01)
 
     def rand_id(self):
         return int(random() * 1000000)
