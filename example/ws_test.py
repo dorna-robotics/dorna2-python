@@ -17,9 +17,9 @@ def main(config_path):
     robot.connect(arg["ip"], arg["port"])
     for cmd in 10 * ["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"]:
         arg = {"cmd": cmd, "id": robot.rand_id()}
-        print(arg)
-        trk = robot.play(True, **arg)
-        trk.complete()
+        print("arg: ", arg)
+        robot.play(**arg)
+        robot.complete(arg["id"])
 
     # tok
     print(time.time()-start)
@@ -27,5 +27,6 @@ def main(config_path):
     # close connection
     robot.close()
 
+    print("connection closed")
 if __name__ == '__main__':
     main("config.json")

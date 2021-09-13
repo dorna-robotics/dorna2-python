@@ -1,9 +1,10 @@
+import asyncio
 import threading
 import json
 from random import random
 import time
 from .ws import ws
-from .track import track_cmd
+from.config import config
 
 
 class dorna(ws):
@@ -11,98 +12,31 @@ class dorna(ws):
     def __init__(self):
         super(dorna, self).__init__()
 
-    def id_loop(self):
-        while self.connected:
-            time.sleep(0)
-            msg = None
-            try:
-                # make sure data exists
-                if self.id_q.empty():
-                    continue
+        self.config = config
 
-                # get data
-                msg = self.id_q.get()
 
-                # update according to the id
-                if self.id_l and "id" in msg:
-                    # find the index
-                    index = self.id_l[0].index(msg["id"])
+    def connect(self, host="localhost", port=443, time_out=5):
+        connected = self.server(host, port, time_out)
 
-                    # update the index
-                    self.id_l[1][index] = {**dict(self.id_l[1][index]), **msg}
-                    # update queue
-                    self.id_l[2][index].put(self.id_l[1][index])
-
-                    # update the list
-                    if "stat" in msg and msg["stat"] not in [0, 1]:
-                        self.id_l[2][index].put(None)
-                        for i in range(3):
-                            self.id_l[i].pop(index)
-
-            except:
-                pass
-
-        # close all the tracks
-        for track in self.id_l[2]:
-            track.put(None)
-
-        # update id_l
-        self.id_l = [[], [], []]
-
-    def connect(self, host, port):
-        self._connect(host, port, 1)
-
-        # id loop
-        self.id_l = [[], [], []]  # id_l[0]: index of id s, id_l[1], updated messages, id_l[2] is the queue
-        self.id_thread = threading.Thread(target=self.id_loop)
-        self.id_thread.start()
+        # Check the connection
+        if not connected:
+            return False
 
         # initialize
-        for cmd in ["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"]:
+        for cmd in self.config["cmd_init"]:
             arg = {"cmd": cmd, "id": self.rand_id()}
-            trk = self.play(True, **arg)
-            trk.complete()
+            print("connect_arg: ", arg)
+            self.play(**arg)
+            self.complete(arg["id"])
 
     def rand_id(self):
         return int(random() * 1000000)
 
-    def wait(self, time_out=0, **arg):
-        if time_out > 0:
-            start = time.time()
+    def complete(self, _id):
+        return self.wait(id=_id, stat=2)
 
-            while time.time() <= start + time_out:
-                try:
-                    sys = dict(self.sys)
-                    if all([sys[x] == arg[x] for x in arg]):
-                        return True
-                except:
-                    pass
-        else:
-            while True:
-                try:
-                    sys = dict(self.sys)
-                    if all([sys[x] == arg[x] for x in arg]):
-                        return True
-                except:
-                    pass
-        return False
 
-    def wait_id(self, _id):
-        self.wait(id=_id, stat=2)
-
-    def play_script(self, script_path=""):
-        with open(script_path, 'r') as f:
-            lines = f.readlines()
-            i = 0
-            for l in lines:
-                try:
-                    self.play(**json.loads(l))
-                    i += 1
-                except:
-                    pass
-            return i
-
-    def play(self, track=False, message=None, **arg):
+    def play(self, message=None, **arg):
         # find msg
         if message:
             # text
@@ -114,41 +48,207 @@ class dorna(ws):
         else:
             msg = dict(arg)
 
-        # track if there is id and track is True
-        trk = None
-        if track and "id" in msg:
-            trk = track_cmd(msg["id"])
-            trk.start()
+        self.write(json.dumps(arg))
 
-            # share the queue
-            self.id_l[0].append(msg["id"])
-            self.id_l[1].append({})
-            self.id_l[2].append(trk.q)
+    """
+    # high level commands
+    """
 
-        # run the command
-        self.send(json.dumps(arg))
-        return trk
+    """
+    play a text file, where each line is a command
+    """
+    def play_script(self, script_path=""):
+        with open(script_path, 'r') as f:
+            lines = f.readlines()
+            num_cmd = 0
+            for l in lines:
+                try:
+                    self.play(**json.loads(l))
+                    num_cmd += 1
+                except:
+                    pass
 
-    def jmove(self, track=False, **arg):
-        arg["cmd"] = "jmove"
-        return self.play(track, **arg)
+        return num_cmd
+    
+    """
+    send a motion command
+    """
+    def _motion(self, method, pace, complete, **arg):
+        cmd = {"cmd": method, "id":self.rand_id()}
+        
+        if pace:
+            cmd = {**dict(cmd), **self.config["pace"][pace][method]}
+        cmd = {**dict(cmd), **arg}
 
-    def lmove(self, track=False, **arg):
-        arg["cmd"] = "lmove"
-        return self.play(track, **arg)
+        if complete:
+            self.play(**cmd)
+            return self.complete(cmd["id"])
+        else:
+            return self.play(**cmd) 
 
-    def rmove(self, track=False, **arg):
-        arg["cmd"] = "rmove"
-        return self.play(track, **arg)
+    """
+    send jmove, rmove, lmove, cmove command
+    """
+    def jmove(self, pace=None, complete=True, **arg):
+        return self._motion("jmove", pace, complete, **arg)
 
-    def cmove(self, track=False, **arg):
-        arg["cmd"] = "cmove"
-        return self.play(track, **arg)
+    def rmove(self, pace=None, complete=True, **arg):
+        return self._motion("rmove", pace, complete, **arg)        
 
+    def lmove(self, pace=None, complete=True, **arg):
+        return self._motion("lmove", pace, complete, **arg)
+
+    def cmove(self, pace=None, complete=True, **arg):
+        return self._motion("jmove", pace, complete, **arg)
+
+    """
+    get the current value of the robot sys, based on the keys
+    """
+    def val(self, *arg):
+        sys = dict(self.sys)
+        if arg:
+            return {key: sys[key] for key in arg}
+        return sys
+
+    """
+    read output i, or turn it on or off
+    """
+    def output(self, i, out=None):
+        if val:
+            # set the value
+            cmd = {"cmd": "output", "out"+str(i): out, "id":self.rand_id()}
+            self.play(**cmd)
+            self.complete(cmd["id"])
+        
+        return self.val("out"+str(i))
+
+    """
+    read input i
+    """
+    def input(self, i):
+        return self.val("in"+str(i))
+
+    """
+    read pwm i, or set its parameters
+    """
+    def pwm(self, i, pwm=None, freq=None, duty=None):
+        if any([val, freq, duty]):
+            cmd = {"cmd": "pwm", "id": self.rand_id()}
+            if val:
+                cmd["pwm"+str(i)] = pwm
+            if freq:
+                cmd["freq"+str(i)] = freq
+            if duty:
+                cmd["duty"+str(i)] = duty
+            self.play(**cmd)
+            self.complete(cmd["id"])
+
+        return self.val("pwm"+str(i), "freq"+str(i), "duty"+str(i))
+
+    """
+    read adc i
+    """
+    def adc(self, i):
+        sys = dict(self.sys)
+        return sys["adc"+str(i)]        
+
+    """
+    send a halt command
+    """
+    def halt(self, accel=None):
+        cmd = {"cmd": "halt", "id":robot.rand_id()}
+        if accel:
+            cmd["accel"] = accel
+        self.play(True, **cmd)
+        return True 
+
+    """
+    read alarm status, set or unset alarm
+    """
+    def alarm(self, alarm=None):
+        if alarm:
+            cmd = {"cmd": "alarm", "alarm": alarm, "id":robot.rand_id()} 
+            self.play(**cmd)
+            self.complete(cmd["id"]) 
+        
+        return self.val("alarm")
+
+    """
+    sleep the controller for certain amount of time (seconds)
+    """
+    def sleep(self, time):
+        cmd = {"cmd": "sleep", "time": time, "id":robot.rand_id()} 
+        self.play(**cmd)
+        self.complete(cmd["id"])
+
+    """
+    set the value of joints / and return their values in a dictionary
+    """
+    def joint(self, **arg):
+        cmd = {"cmd": "joint", "id":robot.rand_id()}
+        cmd = {**dict(cmd), **arg}
+        self.play(**cmd)
+        self.complete(cmd["id"])
+        arg = ["j"+str(i) for i in range(8)]
+        return self.val(*arg)
+
+    """
+    read motor status, set or unset alarm
+    """
+    def motor(self, motor=None):
+        if motor:
+            cmd = {"cmd": "motor", "motor": motor, "id":robot.rand_id()}
+            self.play(**cmd)
+            self.complete(cmd["id"])
+        
+        return self.val("motor")
+
+    """
+    read toollength, or set its value (mm)
+    """
+    def toollength(self, toollength=None):
+        if toollength:
+            cmd = {"cmd": "toollength", "toollength": toollength, "id":robot.rand_id()}
+            self.play(**cmd)
+            self.complete(cmd["id"])
+
+        return self.val("toollength")         
+
+    """
+    read version
+    """
+    def version(self):
+        return self.val("version") 
+
+    """
+    read uid
+    """
+    def uid(self):
+        return self.val("uid")
+
+    """
+    on a given pattern do something
+    self.on("in0" = 0, self.halt):
+    ???
+
+    
+    def on(self, target, args=(), **ptrn):
+        
+        # define the function
+        def running(self, target, args, time_out, **ptrn):
+            self.wait(**ptrn)
+            return eval(target+str(args))
+
+        # run wait in thread
+        thrd = threading.Thread(target=running, args=(self, target, args, **ptrn))
+        thrd.start()
+        return thrd
+    """
 
 def main():
+    ip = "192.168.1.8"
     robot = dorna()
-    robot.connect("dorna", 443)
+    robot.connect(ip)
 
 if __name__ == '__main__':
     main()
