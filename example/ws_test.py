@@ -15,7 +15,7 @@ def main(config_path):
     start = time.time()
     robot = dorna()
     robot.connect(arg["ip"], arg["port"])
-    for cmd in 10 * ["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"]:
+    for cmd in 100 * ["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"]:
         arg = {"cmd": cmd, "id": robot.rand_id()}
         print("arg: ", arg)
         robot.play(**arg)

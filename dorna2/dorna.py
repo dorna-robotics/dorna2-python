@@ -11,30 +11,51 @@ class dorna(ws):
     """docstring for Dorna"""
     def __init__(self):
         super(dorna, self).__init__()
-
         self.config = config
 
-
     def connect(self, host="localhost", port=443, time_out=5):
-        connected = self.server(host, port, time_out)
-
         # Check the connection
-        if not connected:
+        if not self.server(host, port, time_out):
             return False
 
         # initialize
         for cmd in self.config["cmd_init"]:
             arg = {"cmd": cmd, "id": self.rand_id()}
-            print("connect_arg: ", arg)
             self.play(**arg)
             self.complete(arg["id"])
+
+        return True
+
+    """
+    wait for a given pattern ???
+    ptrn = None
+    ptrn = True
+    ptrn = {}
+    """
+    def wait(self, time_out=0, **ptrn):
+        self.ptrn_wait = dict(ptrn)
+        if time_out > 0:
+            start = time.time()
+            while time.time() <= start + time_out:
+                if self.ptrn_wait != ptrn:
+                    return ptrn
+                time.sleep(0.001)
+
+        else:
+            while True:
+                if self.ptrn_wait != ptrn:
+                    return ptrn 
+                time.sleep(0.001)
+
+        self.ptrn_wait = None
+        return dict()
+
 
     def rand_id(self):
         return int(random() * 1000000)
 
     def complete(self, _id):
         return self.wait(id=_id, stat=2)
-
 
     def play(self, message=None, **arg):
         # find msg

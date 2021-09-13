@@ -8,19 +8,12 @@ import asyncio
 
 class ws(object):
     """docstring for comm"""
-    def __init__(self, read_len=10):
+    def __init__(self):
         super(ws, self).__init__()
-        self.read_len = read_len
-        self.write_q = queue.Queue()
         self.msg = queue.Queue(100)
-        self.id_q = queue.Queue(100)
         self.sys = {}
         self.connected = False
         self.ptrn_wait = None
-
-        # read queue
-        self.read_q = asyncio.Queue()        
-
 
     """
     server 
@@ -35,8 +28,7 @@ class ws(object):
             
             # handshake
             self.write(mode="handshake")
-            #self.writer.write(self.write_process("", "handshake"))
-            #await self.writer.drain()
+
             # set parameter
             await asyncio.sleep(1)
             self.connected = True
@@ -48,8 +40,6 @@ class ws(object):
             print("connection error: ", ex)
 
     def server(self, ip, port, time_out=5):
-        # close the previous open servers???
-
         # start a new thread
         self.server_thread = threading.Thread(target=asyncio.run, args=(self.server_init(ip, port),))
         self.server_thread.start()
@@ -77,47 +67,46 @@ class ws(object):
 
     # read loop
     async def read_loop(self):
-        state = 0
-        buff = b""
-        waiting_len = 1
         sys = {}
         while self.connected:
+            msg = None
             try:
-                data = await self.reader.read(self.read_len)
+                # raw data
+                data_byte = await self.reader.readuntil(separator=b'}')
+                data_str = str(data_byte)
+
+                # find the index
+                index_start = data_str.find("{")
+
+                # get the message
+                msg = json.loads(data_str[index_start:-1])
+
+                # message queue
+                if not self.msg.full():
+                    self.msg.put(msg)
+                else:
+                    self.msg.get()
+                    self.msg.put(msg)
+                
+                # update sys
+                sys = {**dict(sys), **msg}
+                
+                # check wait ??? handle alarm and halt
+                if type(self.ptrn_wait) is dict:
+                    try:
+                        if all([sys[x] == self.ptrn_wait[x] for x in self.ptrn_wait]):
+                            self.ptrn_wait = None
+                    except Exception as ex:
+                        #print("Waiting pattern error: ",ex)
+                        pass
+                
+                # update sys           
+                self.sys = dict(sys)
+
+
             except Exception as ex:
                 print("socket read error: ", ex)
-            
-            if len(data):                
-                # add to the buffer
-                buff += data
-                
-                # process buffer
-                buff, waiting_len, state, msg = self.read_process(buff, waiting_len, state)
-                if msg:
-                    # message queue
-                    if not self.msg.full():
-                        self.msg.put(msg)
-                    else:
-                        self.msg.get()
-                        self.msg.put(msg)
-                    
-
-                    # update sys
-                    sys = {**dict(sys), **msg}
-                    
-                    # check wait ??? handle alarm and halt
-                    if type(self.ptrn_wait) is dict:
-                        try:
-                            if all([sys[x] == self.ptrn_wait[x] for x in self.ptrn_wait]):
-                                print("received message: ", msg)
-                                self.ptrn_wait = None
-                        except Exception as ex:
-                            #print("Pattern waiting error: ",ex)
-                            pass
-                    
-                    # update sys           
-                    self.sys = dict(sys)
-            
+                        
             await asyncio.sleep(0)
 
 
@@ -170,61 +159,6 @@ class ws(object):
                 b"\r\n"
             )
 
-    """
-    decode the read data
-    """
-    def read_process(self, buff, waiting_len, state):
-        msg = {}
-        while len(buff) >= waiting_len:  # make sure buffer has enough length
-            if state == 0:
-                if buff[0] == 129:  # message start
-                    state = 21
-                    buff = buff[waiting_len:]
-                    waiting_len = 1
-
-                else:  # basically remove the byte
-                    state = 0
-                    buff = buff[waiting_len:]
-                    waiting_len = 1
-
-            elif state == 21:  # length type
-                if buff[0] <= 125:
-                    state = 25
-                    waiting_len = buff[0]
-                    buff = buff[1:]
-
-                elif buff[0] == 126:
-                    state = 22
-                    buff = buff[waiting_len:]
-                    waiting_len = 2
-                else:
-                    state = 23
-                    buff = buff[waiting_len:]
-                    waiting_len = 8
-
-            elif state == 22 or state == 23:
-                state = 25
-                waiting_len_tmp = waiting_len
-                waiting_len = sum([
-                    int(buff[i] << (8*(waiting_len_tmp-i-1)))
-                    for i in range(waiting_len_tmp)
-                ])
-                buff = buff[waiting_len_tmp:]
-
-            elif state == 25:  # add to the message queue
-                try:
-                    msg = json.loads(str(buff[:waiting_len], "utf-8"))
-                except Exception as ex:
-                    print("buffer_error: ", ex)
-                    pass
-
-                state = 0
-                buff = buff[waiting_len:]
-                waiting_len = 1
-                self.b = len(buff)
-
-        return buff, waiting_len, state, msg
-
     async def close_coro(self):
         self.connected = False
         try:
@@ -236,31 +170,6 @@ class ws(object):
     def close(self):
         #submit the coroutine to the given loop
         future = asyncio.run_coroutine_threadsafe(self.close_coro(), self.loop)
-
-
-    """
-    wait for a given pattern
-    ptrn = None
-    ptrn = True
-    ptrn = {}
-    """
-    def wait(self, time_out=0, **ptrn):
-        self.ptrn_wait = dict(ptrn)
-        if time_out > 0:
-            start = time.time()
-            while time.time() <= start + time_out:
-                if self.ptrn_wait != ptrn:
-                    return ptrn
-                time.sleep(0.001)
-
-        else:
-            while True:
-                if self.ptrn_wait != ptrn:
-                    return ptrn 
-                time.sleep(0.001)
-
-        self.ptrn_wait = None
-        return dict()
 
 
 def main():
