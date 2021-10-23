@@ -4,7 +4,7 @@ import json
 from random import random
 import time
 from .ws import ws
-from.config import config
+from .config import config
 
 
 class dorna(ws):
@@ -15,12 +15,14 @@ class dorna(ws):
 
     def connect(self, host="localhost", port=443, time_out=5):
         # Check the connection
+        print(host, port)
         if not self.server(host, port, time_out):
             return False
 
         # initialize
         for cmd in self.config["cmd_init"]:
             arg = {"cmd": cmd, "id": self.rand_id()}
+            print(arg)
             self.play(**arg)
             self.complete(arg["id"])
 
@@ -267,9 +269,12 @@ class dorna(ws):
     """
 
 def main():
-    ip = "192.168.1.8"
+    ip = "10.0.0.11"
     robot = dorna()
+    print("connecting")
     robot.connect(ip)
+    print("connected")
+    robot.close()
 
 if __name__ == '__main__':
     main()

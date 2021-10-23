@@ -173,7 +173,7 @@ class ws(object):
 
 
 def main():
-    ip = "192.168.1.8"
+    ip = "10.0.0.11"
     port = 443
 
     web_socket = ws()
@@ -184,6 +184,7 @@ def main():
         cmd = {"cmd": "uid", "id": i+2} 
         web_socket.write(json.dumps(cmd))
         time.sleep(0.001)
+    print("Done")
 
 if __name__ == '__main__':
     main()
