@@ -15,31 +15,34 @@ def random_joint():
     return j0, j1, j2, j3, j4
 
 
-def main(config_path):
+def main(robot):
+    # go home
+    arg = {"rel": 0, "id": robot.rand_id(), "j0": 0, "j1": 0, "j2": 0, "j3": 0, "j4": 0, "vel": 50, "accel": 300, "jerk": 1000}
+    print("going to start ->")
+    robot.jmove(**arg)
+
+    # random points
+    i = 0
+    while i < 10:
+        j0, j1, j2, j3, j4 = random_joint()
+
+        arg = {"rel": 0, "id": i+1, "j0": j0, "j1": j1, "j2": j2, "j3": j3, "j4": j4}
+        print("command", i, "   arg: ", arg)
+        robot.jmove(**arg)
+        i += 1
+
+if __name__ == '__main__':
+    config_path = "config.json"
+    
     # arguments
     with open(config_path) as json_file:
         arg = json.load(json_file)
 
     robot = dorna()
-    robot.connect(arg["ip"], arg["port"])
-
-    # go home
-    arg = {"cmd": "jmove", "rel": 0, "id": robot.rand_id(), "j0": 0, "j1": 0, "j2": 0, "j3": 0, "j4": 0, "vel": 50, "accel": 300, "jerk": 1000}
-    print("going to start ->")
-    robot.play(**arg)
-
-    # random points
-    i = 0
-    while True:
-        j0, j1, j2, j3, j4 = random_joint()
-
-        arg = {"cmd": "jmove", "rel": 0, "id": i+1, "j0": j0, "j1": j1, "j2": j2, "j3": j3, "j4": j4}
-        print("command", i, "   arg: ", arg)
-        trk = robot.play(True, **arg)
-        trk.complete()
-        i += 1
-
+    print("connecting")
+    if not robot.connect(arg["ip"], arg["port"]):
+        print("not connected")
+    else:
+        print("connected")
+        main(robot)
     robot.close()
-
-if __name__ == '__main__':
-    main("config.json")

@@ -17,7 +17,7 @@ class homing(object):
             "j1":{
                 "direction": -1,
                 "input": "in8",
-                "value": 0
+                "value": -10
             },
             "j2":{
                 "direction": -1,
@@ -47,19 +47,21 @@ class homing(object):
         }
     
     def _home(self, joint, vel, robot):
+        s= time.time()
         arg = {"time_out": -1, "vel": vel, "rel":1, joint: self.forward * self.calibrate[joint]["direction"]}  
         robot.jmove(**arg) # move toward the homing direction
-        
+        print("time_out: -1, ", time.time()-s)    
         arg = {self.calibrate[joint]["input"]: 0}
         probe = robot.probe(**arg) # wait for the input trigger
         print("probe_result: ", probe)
         print("probe_result: ", probe[joint])
         
         # send halt
-        arg = {"cmd": "halt", "accel":5}
-        robot.play(time_out=-1, **arg)
-
+        s= time.time()
+        robot.halt(accel=5)
+        print("halt send")
         time.sleep(2)
+        print("halt finished, ", time.time()-s)
 
         # set joint
         arg = {joint:  self.calibrate[joint]["value"] + robot.get(joint)[joint]- probe[joint]}
@@ -68,8 +70,13 @@ class homing(object):
     def home(self, joint, robot):
         for vel in self.vel:
             self._home(joint, vel, robot)
+            s= time.time()        
+            print("move sent")
             arg = {"rel":1, "vel": self.vel[0], joint: -1* self.backward * self.calibrate[joint]["direction"]}  
             robot.jmove(**arg) # move toward the homing direction
+            print("move finished")
+            print("time_out: 0, ", time.time()-s)    
+
 
 
 def main(config_path):

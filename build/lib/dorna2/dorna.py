@@ -12,7 +12,7 @@ class dorna(ws):
 
     def connect(self, host="localhost", port=443, time_out=5):
         # Check the connection
-        print(host, port)
+        print(host, ":", port)
         if not self.server(host, port, time_out):
             return False
 
@@ -123,7 +123,7 @@ class dorna(ws):
             num_cmd = 0
             for l in lines:
                 try:
-                    self.play(time_out=-1, message=l)
+                    self.play(time_out=-1, msg=l)
                     num_cmd += 1
                 except:
                     pass
@@ -207,8 +207,8 @@ class dorna(ws):
     """
     send a halt command
     """
-    def halt(self, **arg):
-        return self.cmd("halt", **arg)
+    def halt(self, time_out = -1, **arg):
+        return self.cmd("halt", time_out = time_out, **arg)
 
     """
     read alarm status, set or unset alarm
