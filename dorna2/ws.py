@@ -13,7 +13,13 @@ class ws(object):
         self.msg = queue.Queue(100)
         self.sys = {}
         self.connected = False
+        # 
         self.ptrn_wait = None
+        
+        # track a given id until it is done 
+        self.track = {"id": None, "msgs": []}
+
+        self.condition = {"kill": []}
 
     """
     server 
@@ -91,15 +97,31 @@ class ws(object):
                 # update sys
                 sys = {**dict(sys), **msg}
                 
-                # check wait ??? handle alarm and halt
+                # wait pattern
                 if type(self.ptrn_wait) is dict:
                     try:
                         if all([sys[x] == self.ptrn_wait[x] for x in self.ptrn_wait]):
                             self.ptrn_wait = None
                     except Exception as ex:
-                        #print("Waiting pattern error: ",ex)
+                        print("Waiting pattern error: ",ex)
                         pass
                 
+
+                # track a given id
+                if self.track["id"]:
+                    try:
+                        # message contains an id
+                        if "id" in msg and self.track["id"] == msg["id"]:
+                            # update the resp_id
+                            self.track["msgs"].append(dict(msg))
+
+                            # end the track
+                            if "stat" in msg and any([msg["stat"] < 0, msg["stat"] >= 2]):
+                                self.track["id"] = None                              
+                    except Exception as ex:
+                        print("Waiting pattern error: ",ex)
+                        pass
+
                 # update sys           
                 self.sys = dict(sys)
 

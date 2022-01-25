@@ -1,7 +1,6 @@
 from __future__ import print_function
 import sys
 import json
-sys.path.append('..')
 from dorna2 import dorna
 
 

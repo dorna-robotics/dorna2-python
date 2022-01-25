@@ -1,15 +1,12 @@
-import asyncio
-import threading
 import json
 from random import random
 import time
-from .ws import ws
-from .config import config
-
+from dorna2.ws import ws
+from dorna2.config import config
 
 class dorna(ws):
     """docstring for Dorna"""
-    def __init__(self):
+    def __init__(self, config=config):
         super(dorna, self).__init__()
         self.config = config
 
@@ -21,15 +18,11 @@ class dorna(ws):
 
         # initialize
         for cmd in self.config["cmd_init"]:
-            arg = {"cmd": cmd, "id": self.rand_id()}
-            print(arg)
-            self.play(**arg)
-            self.complete(arg["id"])
+            self.cmd(cmd)
 
         return True
 
     """
-    wait for a given pattern ???
     ptrn = None
     ptrn = True
     ptrn = {}
@@ -59,19 +52,63 @@ class dorna(ws):
     def complete(self, _id):
         return self.wait(id=_id, stat=2)
 
-    def play(self, message=None, **arg):
+    """
+    complete: wait for the completion or not
+    time_out: the maximum amount of time (seconds), the API waits for the command completion, 
+                -1: does not wait
+                0: waits forever
+                positive: waits for few maximum given seconds
+    msg: command in form of text or dict
+    """
+    def play(self, time_out=0, msg=None, **kwargs):
+        rtn = dict()
         # find msg
-        if message:
+        if msg:
             # text
-            if type(message) == str:
-                msg = json.loads(message)
+            if type(msg) == str:
+                msg = json.loads(msg)
 
-            elif type(message) == dict:
-                msg = dict(message)
+            elif type(msg) == dict:
+                msg = dict(msg)
         else:
-            msg = dict(arg)
+            msg = dict(kwargs)
 
-        self.write(json.dumps(arg))
+        # set the track
+        if time_out >=0:
+            # check the id
+            try:
+                type(msg["id"]) == int
+            except Exception as ex:
+                msg["id"] = self.rand_id()
+
+            # send and track messages
+            try:
+                # set the tracking id
+                self.track = {"id": msg["id"], "msgs": []}
+                
+                # write the message
+                self.write(json.dumps(msg))
+
+                # track
+                if time_out > 0:
+                    start = time.time()
+                    while time.time() <= start + time_out and self.track["id"] == msg["id"]:
+                        time.sleep(0.001)
+                else:
+                    while self.track["id"] == msg["id"]:
+                        time.sleep(0.001)
+                
+                # form the union update
+                for i in range(len(self.track["msgs"])):
+                    rtn = {**rtn, **self.track["msgs"][i]}
+            except Exception as ex:
+                pass
+        else:
+            # write the message
+            self.write(json.dumps(msg))
+        return rtn
+
+
 
     """
     # high level commands
@@ -86,7 +123,7 @@ class dorna(ws):
             num_cmd = 0
             for l in lines:
                 try:
-                    self.play(**json.loads(l))
+                    self.play(time_out=-1, message=l)
                     num_cmd += 1
                 except:
                     pass
@@ -96,185 +133,121 @@ class dorna(ws):
     """
     send a motion command
     """
-    def _motion(self, method, pace, complete, **arg):
+    def _motion(self, method, pace, time_out, **kwargs):
         cmd = {"cmd": method, "id":self.rand_id()}
         
         if pace:
             cmd = {**dict(cmd), **self.config["pace"][pace][method]}
-        cmd = {**dict(cmd), **arg}
+        cmd = {**dict(cmd), **kwargs}
 
-        if complete:
-            self.play(**cmd)
-            return self.complete(cmd["id"])
-        else:
-            return self.play(**cmd) 
+        return self.play(time_out=time_out, **cmd)
 
     """
     send jmove, rmove, lmove, cmove command
     """
-    def jmove(self, pace=None, complete=True, **arg):
-        return self._motion("jmove", pace, complete, **arg)
+    def jmove(self, pace=None, time_out=0, **kwargs):
+        return self._motion("jmove", pace, time_out, **kwargs)
 
-    def rmove(self, pace=None, complete=True, **arg):
-        return self._motion("rmove", pace, complete, **arg)        
+    def rmove(self, pace=None, time_out=0, **kwargs):
+        return self._motion("rmove", pace, time_out, **kwargs)        
 
-    def lmove(self, pace=None, complete=True, **arg):
-        return self._motion("lmove", pace, complete, **arg)
+    def lmove(self, pace=None, time_out=0, **kwargs):
+        return self._motion("lmove", pace, time_out, **kwargs)
 
-    def cmove(self, pace=None, complete=True, **arg):
-        return self._motion("jmove", pace, complete, **arg)
+    def cmove(self, pace=None, time_out=0, **kwargs):
+        return self._motion("jmove", pace, time_out, **kwargs)
 
     """
-    get the current value of the robot sys, based on the keys
+    return one value
     """
-    def val(self, *arg):
+    def val(self, key):
+        return self.get(key)[key]
+
+    """
+    return a dictionary based on keys
+    """        
+    def get(self, *args):
         sys = dict(self.sys)
-        if arg:
-            return {key: sys[key] for key in arg}
+        if args:
+            return {key: sys[key] for key in args}
         return sys
+
+    # set a parameter and wait for its reply from the controller
+    def cmd(self, cmd, time_out=0, **arg):
+        cmd = {**{"cmd": cmd}, **arg}
+        return self.play(time_out=time_out, **cmd)
 
     """
     read output i, or turn it on or off
     """
-    def output(self, i, out=None):
-        if val:
-            # set the value
-            cmd = {"cmd": "output", "out"+str(i): out, "id":self.rand_id()}
-            self.play(**cmd)
-            self.complete(cmd["id"])
-        
-        return self.val("out"+str(i))
-
-    """
-    read input i
-    """
-    def input(self, i):
-        return self.val("in"+str(i))
+    def output(self, **arg):
+        return self.cmd("output", **arg)
 
     """
     read pwm i, or set its parameters
     """
-    def pwm(self, i, pwm=None, freq=None, duty=None):
-        if any([val, freq, duty]):
-            cmd = {"cmd": "pwm", "id": self.rand_id()}
-            if val:
-                cmd["pwm"+str(i)] = pwm
-            if freq:
-                cmd["freq"+str(i)] = freq
-            if duty:
-                cmd["duty"+str(i)] = duty
-            self.play(**cmd)
-            self.complete(cmd["id"])
+    def pwm(self, **arg):
+        return self.cmd("pwm", **arg)
 
-        return self.val("pwm"+str(i), "freq"+str(i), "duty"+str(i))
+    """
+    read input i
+    """
+    def input(self, *arg):
+        return self.cmd("input")
 
     """
     read adc i
     """
-    def adc(self, i):
-        sys = dict(self.sys)
-        return sys["adc"+str(i)]        
+    def adc(self, *arg):
+        return self.cmd("adc")
 
+    def probe(self, **arg):
+        return self.cmd("probe", **arg)
+    
     """
     send a halt command
     """
-    def halt(self, accel=None):
-        cmd = {"cmd": "halt", "id":robot.rand_id()}
-        if accel:
-            cmd["accel"] = accel
-        self.play(True, **cmd)
-        return True 
+    def halt(self, **arg):
+        return self.cmd("halt", **arg)
 
     """
     read alarm status, set or unset alarm
     """
-    def alarm(self, alarm=None):
-        if alarm:
-            cmd = {"cmd": "alarm", "alarm": alarm, "id":robot.rand_id()} 
-            self.play(**cmd)
-            self.complete(cmd["id"]) 
-        
-        return self.val("alarm")
+    def alarm(self, **arg):
+        return self.cmd("alarm", **arg)
 
     """
     sleep the controller for certain amount of time (seconds)
     """
-    def sleep(self, time):
-        cmd = {"cmd": "sleep", "time": time, "id":robot.rand_id()} 
-        self.play(**cmd)
-        self.complete(cmd["id"])
+    def sleep(self, **arg):
+        return self.cmd("sleep", **arg)
 
     """
     set the value of joints / and return their values in a dictionary
     """
     def joint(self, **arg):
-        cmd = {"cmd": "joint", "id":robot.rand_id()}
-        cmd = {**dict(cmd), **arg}
-        self.play(**cmd)
-        self.complete(cmd["id"])
-        arg = ["j"+str(i) for i in range(8)]
-        return self.val(*arg)
+        return self.cmd("joint", **arg)
 
     """
     read motor status, set or unset alarm
     """
-    def motor(self, motor=None):
-        if motor:
-            cmd = {"cmd": "motor", "motor": motor, "id":robot.rand_id()}
-            self.play(**cmd)
-            self.complete(cmd["id"])
-        
-        return self.val("motor")
+    def motor(self, **arg):
+        return self.cmd("motor", **arg)
 
     """
     read toollength, or set its value (mm)
     """
-    def toollength(self, toollength=None):
-        if toollength:
-            cmd = {"cmd": "toollength", "toollength": toollength, "id":robot.rand_id()}
-            self.play(**cmd)
-            self.complete(cmd["id"])
-
-        return self.val("toollength")         
+    def toollength(self, **arg):
+        return self.cmd("toollength", **arg)        
 
     """
     read version
     """
-    def version(self):
-        return self.val("version") 
+    def version(self, **arg):
+        return self.cmd("version", **arg)
 
     """
     read uid
     """
-    def uid(self):
-        return self.val("uid")
-
-    """
-    on a given pattern do something
-    self.on("in0" = 0, self.halt):
-    ???
-
-    
-    def on(self, target, args=(), **ptrn):
-        
-        # define the function
-        def running(self, target, args, time_out, **ptrn):
-            self.wait(**ptrn)
-            return eval(target+str(args))
-
-        # run wait in thread
-        thrd = threading.Thread(target=running, args=(self, target, args, **ptrn))
-        thrd.start()
-        return thrd
-    """
-
-def main():
-    ip = "10.0.0.11"
-    robot = dorna()
-    print("connecting")
-    robot.connect(ip)
-    print("connected")
-    robot.close()
-
-if __name__ == '__main__':
-    main()
+    def uid(self, **arg):
+        return self.cmd("uid", **arg)

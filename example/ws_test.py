@@ -2,9 +2,7 @@ from __future__ import print_function
 import sys
 import time
 import json
-sys.path.append('..')
 from dorna2 import dorna
-from sys import stdout
 
 def main(config_path):
     # arguments
@@ -24,12 +22,12 @@ def main(config_path):
     start = time.time()
     for cmd in 10 * ["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"]:
         arg = {"cmd": cmd, "id": robot.rand_id()}
-        print("arg: ", arg, flush=True)
-        robot.play(**arg)
-        robot.complete(arg["id"])
-
+        print("send: ", arg)
+        print("receive: ", robot.play(**arg))
+        print("####")
     # tok
-    print(time.time()-start)
+    print("total time: ",time.time()-start)
+    print("####")
 
     # close connection
     robot.close()

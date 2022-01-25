@@ -3,122 +3,137 @@ import threading
 import queue
 import json
 import time
+import asyncio
 
 
 class ws(object):
-    def __init__(self, read_len=10000):
+    """docstring for comm"""
+    def __init__(self):
         super(ws, self).__init__()
-
-        self.read_len = read_len
-        self.write_q = queue.Queue()
         self.msg = queue.Queue(100)
-        self.id_q = queue.Queue(100)
         self.sys = {}
         self.connected = False
+        # 
+        self.ptrn_wait = None
+        
+        # track a given id until it is done 
+        self.track = {"id": None, "msgs": []}
 
-    def socket_loop(self):
-        # initialize read buffer
-        state = 0
-        buff = b""
-        waiting_len = 1
+        self.condition = {"kill": []}
 
+    """
+    server 
+    """
+    async def server_init(self, ip, port):
+        try:
+            self.connected = False
+            # connect
+            # define the loop
+            self.loop = asyncio.get_running_loop()            
+            self.reader, self.writer = await asyncio.open_connection(ip, port)
+            
+            # handshake
+            self.write(mode="handshake")
+
+            # set parameter
+            await asyncio.sleep(1)
+            self.connected = True
+
+            # gather reader and writer
+            await asyncio.gather(self.read_loop())
+        except Exception as ex:
+            self.connected = False
+            print("connection error: ", ex)
+
+    def server(self, ip, port, time_out=5):
+        # start a new thread
+        self.server_thread = threading.Thread(target=asyncio.run, args=(self.server_init(ip, port),))
+        self.server_thread.start()
+
+        # check for the connection
+        s = time.time()
+        while time.time()-s < time_out:
+            if self.connected:
+                break
+        return self.connected        
+
+    def write(self, msg = "", mode="cmd"):
+        # msg to byte
+        msg_byte = self.write_process(msg, mode)
+
+        #submit the coroutine to the given loop
+        future = asyncio.run_coroutine_threadsafe(self.write_coro(msg_byte), self.loop)
+    
+    # write coroutine
+    async def write_coro(self, msg_byte):
+        self.writer.write(msg_byte)
+        await self.writer.drain()
+        await asyncio.sleep(0.001)
+        return True
+
+    # read loop
+    async def read_loop(self):
+        sys = {}
         while self.connected:
-            time.sleep(0)
-            # write 2 commands
-            for _ in range(2):
-                if not self.write_q.empty():
-                    msg = self.write_q.get()
-                    self.sock.send(msg)
-            # read
+            msg = None
             try:
-                # read data
-                data = self.sock.recv(self.read_len)
+                # raw data
+                data_byte = await self.reader.readuntil(separator=b'}')
+                data_str = str(data_byte)
 
-                if len(data):
-                    # add to the buffer
-                    buff += data
-                    # process buffer
-                    buff, waiting_len, state = self.process_buffer(buff, waiting_len, state)
-            except socket.error as error:
-                pass
+                # find the index
+                index_start = data_str.find("{")
 
-        self.close()
+                # get the message
+                msg = json.loads(data_str[index_start:-1])
 
-    def close(self):
-        self.connected = False
-        self.sock.close()
-
-    """
-    decode the read data
-    """
-    def process_buffer(self, buff, waiting_len, state):
-        while len(buff) >= waiting_len:  # make sure buffer has enough length
-            if state == 0:
-                if buff[0] == 129:  # message start
-                    state = 21
-                    buff = buff[waiting_len:]
-                    waiting_len = 1
-
-                else:  # basically remove the byte
-                    state = 0
-                    buff = buff[waiting_len:]
-                    waiting_len = 1
-
-            elif state == 21:  # length type
-                if buff[0] <= 125:
-                    state = 25
-                    waiting_len = buff[0]
-                    buff = buff[1:]
-
-                elif buff[0] == 126:
-                    state = 22
-                    buff = buff[waiting_len:]
-                    waiting_len = 2
+                # message queue
+                if not self.msg.full():
+                    self.msg.put(msg)
                 else:
-                    state = 23
-                    buff = buff[waiting_len:]
-                    waiting_len = 8
+                    self.msg.get()
+                    self.msg.put(msg)
+                
+                # update sys
+                sys = {**dict(sys), **msg}
+                
+                # wait pattern
+                if type(self.ptrn_wait) is dict:
+                    try:
+                        if all([sys[x] == self.ptrn_wait[x] for x in self.ptrn_wait]):
+                            self.ptrn_wait = None
+                    except Exception as ex:
+                        print("Waiting pattern error: ",ex)
+                        pass
+                
 
-            elif state == 22 or state == 23:
-                state = 25
-                waiting_len_tmp = waiting_len
-                waiting_len = sum([
-                    int(buff[i] << (8*(waiting_len_tmp-i-1)))
-                    for i in range(waiting_len_tmp)
-                ])
-                buff = buff[waiting_len_tmp:]
+                # track a given id
+                if self.track["id"]:
+                    try:
+                        # message contains an id
+                        if "id" in msg and self.track["id"] == msg["id"]:
+                            # update the resp_id
+                            self.track["msgs"].append(dict(msg))
 
-            elif state == 25:  # add to the message queue
-                try:
-                    msg = json.loads(str(buff[:waiting_len], "utf-8"))
+                            # end the track
+                            if "stat" in msg and any([msg["stat"] < 0, msg["stat"] >= 2]):
+                                self.track["id"] = None                              
+                    except Exception as ex:
+                        print("Waiting pattern error: ",ex)
+                        pass
 
-                    # message queue
-                    if not self.msg.full():
-                        self.msg.put(msg)
-                    else:
-                        self.msg.get()
-                        self.msg.put(msg)
+                # update sys           
+                self.sys = dict(sys)
 
-                    # track queue
-                    if "id" in msg:
-                        self.id_q.put(msg)
 
-                    # update sys
-                    self.sys = {**dict(self.sys), **msg}  # update sys
-                except Exception as ex:
-                    pass
+            except Exception as ex:
+                print("socket read error: ", ex)
+                        
+            await asyncio.sleep(0)
 
-                state = 0
-                buff = buff[waiting_len:]
-                waiting_len = 1
-                self.b = len(buff)
 
-        return buff, waiting_len, state
-
-    """
-    encode the write data and add it to write_q
-    """
-    def send(self, msg="", mode="cmd"):
+    # encode the write data
+    def write_process(self, msg, mode):
         if mode == "cmd" and msg:
             # cmd command
             header = [129]
@@ -146,10 +161,10 @@ class ws(object):
                 header.append((msg_len << 48) >> 56)
                 header.append((msg_len << 56) >> 56)
 
-            self.write_q.put(bytes(header + mask) + msg.encode("utf-8"))
+            return bytes(header + mask) + msg.encode("utf-8")
 
         elif mode == "handshake":
-            self.write_q.put((
+            return (
                 b"GET /chat HTTP/1.1\r\n"
                 b"Host: localhost:443\r\n"
                 b"Connection: Upgrade\r\n"
@@ -164,29 +179,34 @@ class ws(object):
                 b"Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n"
                 b"Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits\r\n"
                 b"\r\n"
-            ))
+            )
 
-    def _connect(self, host, port, time_out=1):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect((host, port))
+    async def close_coro(self):
+        self.connected = False
+        try:
+            self.writer.close()
+            await self.writer.wait_closed()
+        except:
+            pass
 
-        self.connected = True
-        # handshake
-        self.send(mode="handshake")
-
-        # socket thread
-        self.socket_thread = threading.Thread(
-            target=self.socket_loop
-        )
-        self.socket_thread.start()
-
-        time.sleep(time_out)
-        self.sock.setblocking(0)
+    def close(self):
+        #submit the coroutine to the given loop
+        future = asyncio.run_coroutine_threadsafe(self.close_coro(), self.loop)
 
 
 def main():
+    ip = "10.0.0.11"
+    port = 443
+
     web_socket = ws()
-    web_socket._connect("dorna", 443)
+    web_socket.server(ip, port)
+    print("ready to write")
+
+    for i in range(10):
+        cmd = {"cmd": "uid", "id": i+2} 
+        web_socket.write(json.dumps(cmd))
+        time.sleep(0.001)
+    print("Done")
 
 if __name__ == '__main__':
     main()
