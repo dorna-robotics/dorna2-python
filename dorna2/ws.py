@@ -97,15 +97,6 @@ class ws(object):
                 # update sys
                 sys = {**dict(sys), **msg}
                 
-                # wait pattern
-                if type(self.ptrn_wait) is dict:
-                    try:
-                        if all([sys[x] == self.ptrn_wait[x] for x in self.ptrn_wait]):
-                            self.ptrn_wait = None
-                    except Exception as ex:
-                        print("Waiting pattern error: ",ex)
-                        pass
-                
 
                 # track a given id
                 if self.track["id"]:
@@ -192,21 +183,3 @@ class ws(object):
     def close(self):
         #submit the coroutine to the given loop
         future = asyncio.run_coroutine_threadsafe(self.close_coro(), self.loop)
-
-
-def main():
-    ip = "10.0.0.11"
-    port = 443
-
-    web_socket = ws()
-    web_socket.server(ip, port)
-    print("ready to write")
-
-    for i in range(10):
-        cmd = {"cmd": "uid", "id": i+2} 
-        web_socket.write(json.dumps(cmd))
-        time.sleep(0.001)
-    print("Done")
-
-if __name__ == '__main__':
-    main()
