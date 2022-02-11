@@ -118,11 +118,11 @@ class dorna(ws):
     """
     send a motion command
     """
-    def _motion(self, method, pace, **kwargs):
+    def _motion(self, method, **kwargs):
         cmd = {"cmd": method}
         
-        if pace:
-            cmd = {**dict(cmd), **self.config["pace"][pace][method]}
+        if "pace" in kwargs:
+            cmd = {**dict(cmd), **self.config["pace"][kwargs["pace"]][method]}
         cmd = {**dict(cmd), **kwargs}
 
         return self.play(**cmd)
@@ -130,17 +130,17 @@ class dorna(ws):
     """
     send jmove, rmove, lmove, cmove command
     """
-    def jmove(self, pace=None, **kwargs):
-        return self._motion("jmove", pace, **kwargs)
+    def jmove(self, **kwargs):
+        return self._motion("jmove", **kwargs)
 
-    def rmove(self, pace=None, **kwargs):
-        return self._motion("rmove", pace, **kwargs)        
+    def rmove(self, **kwargs):
+        return self._motion("rmove", **kwargs)        
 
-    def lmove(self, pace=None, **kwargs):
-        return self._motion("lmove", pace, **kwargs)
+    def lmove(self, **kwargs):
+        return self._motion("lmove", **kwargs)
 
-    def cmove(self, pace=None, **kwargs):
-        return self._motion("cmove", pace, **kwargs)
+    def cmove(self, **kwargs):
+        return self._motion("cmove", **kwargs)
 
     """
     return a dictionary based on keys
@@ -194,8 +194,8 @@ class dorna(ws):
     """
     send a halt command
     """
-    def halt(self, time_out = 0, **kwargs):
-        return self.cmd("halt", time_out = time_out, **kwargs)
+    def halt(self, **kwargs):
+        return self.cmd("halt", time_out = 0, **kwargs)
 
     """
     read alarm status, set or unset alarm
