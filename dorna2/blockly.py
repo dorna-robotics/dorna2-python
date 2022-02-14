@@ -1,3 +1,18 @@
+cmd_list = ["jmove", "lmove", "cmove", "rmove", "halt", "alarm", "sleep", "input", "probe", "output", "pwm", "adc", "joint", "motor", "toollength", "version", "uid"]
+output_list = ["out0", "out1", "out2", "out3", "out4", "out5", "out6", "out7", "out8", "out9", "out10", "out11", "out12", "out13", "out14", "out15"]
+pwm_list = ["pwm0", "pwm1", "pwm2", "pwm3", "pwm4", "duty0", "duty1", "duty2", "duty3", "duty4", "freq0", "freq1", "freq2", "freq3", "freq4"]
+probe_list = ["in0", "in1", "in2", "in3", "in4", "in5", "in6", "in7", "in8", "in9", "in10", "in11", "in12", "in13", "in14", "in15"]
+
+# get_list is also similar to val_list
+val_list =   ["j0", "j1", "j2", "j3", "j4", "j5", "j6", "j7", "x", "y", "z", "a", "b", "c", "d", "e"]
+            + output_list + pwm_list + probe_list + ["adc0", "adc1", "adc2", "adc3", "adc4"]
+            + ["id", "stat", ]
+            + ["time", "motor", "version", "uid"]
+            + ["queue", ]
+            + [ "alarm", "err0", "err1", "err2", "err3", "err4", "err5", "err6", "err7"]
+            + ["cmd" , "vel", "accel", "jerk", "rel"]
+            + ["turn", "dim", "space", "mj0", "mj1", "mj2", "mj3", "mj4", "mj5", "mj6", "mj7", "mx", "my", "mz", "ma", "mb", "mc", "md", "me"]
+
 import json
 from random import random
 import time
