@@ -7,9 +7,7 @@ def main(config_path):
     start = time.time()
     for cmd in 10 * ["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"]:
         print("####")
-        arg = {"cmd": cmd, "id": robot.rand_id()}
-        print("send: ", arg)
-        print("receive: ", robot.play(**arg))
+        print("receive: ", robot.cmd(cmd))
     # tok
     print("####")
     print("total time: ",time.time()-start)
