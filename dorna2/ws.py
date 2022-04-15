@@ -12,6 +12,7 @@ class ws(object):
         super(ws, self).__init__()
         self.msg = queue.Queue(100)
         self.sys = {}
+        self.callback = None
         self.connected = False
         # 
         self.ptrn_wait = None
@@ -71,6 +72,11 @@ class ws(object):
         await asyncio.sleep(0.001)
         return True
 
+    # register a callback
+    def register_callback(self, fn):
+        ''' fn must accept one input, e.g. fn(msg, sys) '''
+        self.callback = fn
+
     # read loop
     async def read_loop(self):
         sys = {}
@@ -93,9 +99,15 @@ class ws(object):
                 else:
                     self.msg.get()
                     self.msg.put(msg)
-                
+
                 # update sys
-                sys = {**dict(sys), **msg}
+                sys.update(msg)
+
+                # hamed
+                if self.callback:
+                    asyncio.create_task(self.callback(msg, sys.copy()))
+                    #await self.callback(msg, sys.copy())
+
                 
 
                 # track a given id

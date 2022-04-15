@@ -1,0 +1,15 @@
+MANIFEST.in
+README.md
+setup.py
+dorna2/__init__.py
+dorna2/blockly.py
+dorna2/config.py
+dorna2/dorna.py
+dorna2/tool.py
+dorna2/ws.py
+dorna2.egg-info/PKG-INFO
+dorna2.egg-info/SOURCES.txt
+dorna2.egg-info/dependency_links.txt
+dorna2.egg-info/not-zip-safe
+dorna2.egg-info/requires.txt
+dorna2.egg-info/top_level.txt

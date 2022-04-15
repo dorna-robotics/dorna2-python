@@ -22,45 +22,24 @@ class dorna(ws):
 
         return True
 
-    """
-    ptrn = None
-    ptrn = True
-    ptrn = {}
-    """
-    def wait(self, time_out=0, **ptrn):
-        self.ptrn_wait = dict(ptrn)
-        if time_out > 0:
-            start = time.time()
-            while time.time() <= start + time_out:
-                if self.ptrn_wait != ptrn:
-                    return ptrn
-                time.sleep(0.001)
-
-        else:
-            while True:
-                if self.ptrn_wait != ptrn:
-                    return ptrn 
-                time.sleep(0.001)
-
-        self.ptrn_wait = None
-        return dict()
-
-
+    def log(self, msg=""):
+        return print(msg, flush=True)        
+    
     def rand_id(self):
         return int(random() * 1000000)
-
-    def complete(self, _id):
-        return self.wait(id=_id, stat=2)
 
     """
     complete: wait for the completion or not
     time_out: the maximum amount of time (seconds), the API waits for the command completion, 
-                -1: does not wait
-                0: waits forever
-                positive: waits for few maximum given seconds
+                negative (e.g. -1): wait for the command completion or error
+                0: no waiting
+                positive: wait for maximum time_out seconds to complete the command
     msg: command in form of text or dict
+    **kwargs: Other parameters associated to the play
+    --------
+    return a dictionary formed by the union of the messages associated to this command 
     """
-    def play(self, time_out=0, msg=None, **kwargs):
+    def play(self, time_out=-1, msg=None, **kwargs):
         rtn = dict()
         # find msg
         if msg:
@@ -74,7 +53,7 @@ class dorna(ws):
             msg = dict(kwargs)
 
         # set the track
-        if time_out >=0:
+        if time_out >0 or time_out < 0:
             # check the id
             try:
                 type(msg["id"]) == int
@@ -109,62 +88,63 @@ class dorna(ws):
         return rtn
 
 
-
     """
     # high level commands
     """
 
     """
-    play a text file, where each line is a command
+    play a text file, where each line is a valid command, if a command is not valid, it will skip it and send the next one
+    script_path: path to the script file
+    time_out= if you want to wait for the completion of this block of scripts or not
+        negative (-1): waits for its completion
+        0: no wait
+        positive: wait for maximum of time_out seconds
+    --------
+    return number valid commands that was sent  
     """
-    def play_script(self, script_path=""):
+    def play_script(self, script_path="", time_out=0):
         with open(script_path, 'r') as f:
             lines = f.readlines()
             num_cmd = 0
             for l in lines:
                 try:
-                    self.play(time_out=-1, msg=l)
+                    self.play(time_out=0, msg=l)
                     num_cmd += 1
                 except:
                     pass
-
+        self.sleep(time_out=time_out, sleep=0)
         return num_cmd
     
     """
     send a motion command
     """
-    def _motion(self, method, pace, time_out, **kwargs):
-        cmd = {"cmd": method, "id":self.rand_id()}
+    def _motion(self, method, **kwargs):
+        cmd = {"cmd": method}
         
-        if pace:
-            cmd = {**dict(cmd), **self.config["pace"][pace][method]}
+        if "pace" in kwargs:
+            cmd = {**dict(cmd), **self.config["pace"][kwargs["pace"]][method]}
         cmd = {**dict(cmd), **kwargs}
 
-        return self.play(time_out=time_out, **cmd)
+        return self.play(**cmd)
 
     """
     send jmove, rmove, lmove, cmove command
     """
-    def jmove(self, pace=None, time_out=0, **kwargs):
-        return self._motion("jmove", pace, time_out, **kwargs)
+    def jmove(self, **kwargs):
+        return self._motion("jmove", **kwargs)
 
-    def rmove(self, pace=None, time_out=0, **kwargs):
-        return self._motion("rmove", pace, time_out, **kwargs)        
+    def rmove(self, **kwargs):
+        return self._motion("rmove", **kwargs)        
 
-    def lmove(self, pace=None, time_out=0, **kwargs):
-        return self._motion("lmove", pace, time_out, **kwargs)
+    def lmove(self, **kwargs):
+        return self._motion("lmove", **kwargs)
 
-    def cmove(self, pace=None, time_out=0, **kwargs):
-        return self._motion("jmove", pace, time_out, **kwargs)
-
-    """
-    return one value
-    """
-    def val(self, key):
-        return self.get(key)[key]
+    def cmove(self, **kwargs):
+        return self._motion("cmove", **kwargs)
 
     """
     return a dictionary based on keys
+    if no *args is present it will return a copy of sys
     """        
     def get(self, *args):
         sys = dict(self.sys)
@@ -172,82 +152,91 @@ class dorna(ws):
             return {key: sys[key] for key in args}
         return sys
 
+    """
+    return one value based on the key
+    """
+    def val(self, key):
+        return self.get(key)[key]
+
+    # It is a shorten version of play, 
     # set a parameter and wait for its reply from the controller
-    def cmd(self, cmd, time_out=0, **arg):
-        cmd = {**{"cmd": cmd}, **arg}
-        return self.play(time_out=time_out, **cmd)
+    def cmd(self, cmd, **kwargs):
+        cmd = {**{"cmd": cmd}, **kwargs}
+        return self.play(**cmd)
 
     """
     read output i, or turn it on or off
     """
-    def output(self, **arg):
-        return self.cmd("output", **arg)
+    def output(self, **kwargs):
+        return self.cmd("output", **kwargs)
 
     """
-    read pwm i, or set its parameters
+    read pwm, or set its parameters
     """
-    def pwm(self, **arg):
-        return self.cmd("pwm", **arg)
+    def pwm(self, **kwargs):
+        return self.cmd("pwm", **kwargs)
 
     """
-    read input i
+    read input
     """
-    def input(self, *arg):
-        return self.cmd("input")
+    def input(self, **kwargs):
+        return self.cmd("input", **kwargs)
 
     """
-    read adc i
+    read adc
     """
-    def adc(self, *arg):
-        return self.cmd("adc")
+    def adc(self, **kwargs):
+        return self.cmd("adc", **kwargs)
 
-    def probe(self, **arg):
-        return self.cmd("probe", **arg)
+    def probe(self, **kwargs):
+        return self.cmd("probe", **kwargs)
     
     """
     send a halt command
     """
-    def halt(self, time_out = -1, **arg):
-        return self.cmd("halt", time_out = time_out, **arg)
+    def halt(self, **kwargs):
+        return self.cmd("halt", time_out = 0, **kwargs)
 
     """
     read alarm status, set or unset alarm
     """
-    def alarm(self, **arg):
-        return self.cmd("alarm", **arg)
+    def alarm(self, **kwargs):
+        return self.cmd("alarm", **kwargs)
 
     """
     sleep the controller for certain amount of time (seconds)
     """
-    def sleep(self, **arg):
-        return self.cmd("sleep", **arg)
+    def sleep(self, **kwargs):
+        return self.cmd("sleep", **kwargs)
 
     """
     set the value of joints / and return their values in a dictionary
     """
-    def joint(self, **arg):
-        return self.cmd("joint", **arg)
+    def joint(self, **kwargs):
+        return self.cmd("joint", **kwargs)
 
+    def pose(self):
+        return self.get("x", "y", "z", "a", "b", "c", "d", "e")
     """
-    read motor status, set or unset alarm
+    read motors status, activate or deactivate the motors
     """
-    def motor(self, **arg):
-        return self.cmd("motor", **arg)
+    def motor(self, **kwargs):
+        return self.cmd("motor", **kwargs)    
 
     """
     read toollength, or set its value (mm)
     """
-    def toollength(self, **arg):
-        return self.cmd("toollength", **arg)        
+    def toollength(self, **kwargs):
+        return self.cmd("toollength", **kwargs)        
 
     """
     read version
     """
-    def version(self, **arg):
-        return self.cmd("version", **arg)
+    def version(self, **kwargs):
+        return self.cmd("version", **kwargs)
 
     """
     read uid
     """
-    def uid(self, **arg):
-        return self.cmd("uid", **arg)
+    def uid(self, **kwargs):
+        return self.cmd("uid", **kwargs)
