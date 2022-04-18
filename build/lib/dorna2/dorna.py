@@ -84,6 +84,7 @@ class dorna(ws):
                 for i in range(len(self.track["msgs"])):
                     rtn = {**rtn, **self.track["msgs"][i]}
                 rtn["_recv"] = self.track["msgs"]
+                rtn.pop("time", None)
             except:
                 pass
         else:

@@ -126,7 +126,7 @@ class ws(object):
                         # message contains an id
                         if "id" in msg and self.track["id"] == msg["id"]:
                             # update the resp_id
-                            self.track["msgs"].append(**dict(msg))
+                            self.track["msgs"].append({**dict(msg), **{"time": time.time()}})
 
                             # end the track
                             if "stat" in msg and any([msg["stat"] < 0, msg["stat"] >= 2]):
