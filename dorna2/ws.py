@@ -7,7 +7,7 @@ import asyncio
 
 class ws(object):
     """docstring for comm"""
-    def __init__(self, channel="socket"):
+    def __init__(self, channel="websocket"):
         super(ws, self).__init__()
         self.channel = channel
         self.msg = queue.Queue(100)
@@ -36,6 +36,7 @@ class ws(object):
             # handshake
             self.write(mode="handshake")
 
+            await asyncio.sleep(1)
             # set parameter
             self.connected = True
 
@@ -62,7 +63,6 @@ class ws(object):
     def write(self, msg = "", mode="cmd"):
         # msg to byte
         msg_byte = self.write_process(msg, mode)
-
         #submit the coroutine to the given loop
         future = asyncio.run_coroutine_threadsafe(self.write_coro(msg_byte), self.loop)
     
@@ -102,7 +102,7 @@ class ws(object):
 
                     # get the message
                     msg = json.loads(data_str[index_start:-1])
-
+                
                 # message queue
                 if not self.msg.full():
                     self.msg.put(msg)
@@ -116,8 +116,6 @@ class ws(object):
                 # hamed
                 if self.callback:
                     asyncio.create_task(self.callback(msg, sys.copy()))
-                    #await self.callback(msg, sys.copy())
-
                 
 
                 # track a given id
@@ -126,7 +124,7 @@ class ws(object):
                         # message contains an id
                         if "id" in msg and self.track["id"] == msg["id"]:
                             # update the resp_id
-                            self.track["msgs"].append(**dict(msg))
+                            self.track["msgs"].append(dict(msg))
 
                             # end the track
                             if "stat" in msg and any([msg["stat"] < 0, msg["stat"] >= 2]):
@@ -141,8 +139,6 @@ class ws(object):
 
             except Exception as ex:
                 print("socket read error: ", ex)
-                        
-            await asyncio.sleep(0)
 
 
     # encode the write data
@@ -210,6 +206,4 @@ class ws(object):
     def close(self):
         #submit the coroutine to the given loop
         future = asyncio.run_coroutine_threadsafe(self.close_coro(), self.loop)
-
-
-    
+        time.sleep(1)
