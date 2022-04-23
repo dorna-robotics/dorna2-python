@@ -1,10 +1,31 @@
-from __future__ import print_function
-import sys
-import time
-import json
-sys.path.append('..')
 from dorna2 import dorna
+import json
 
+def home(robot, joint, **kwargs)
+    # move in the given direction with the given speed
+    arg = {"time_out": -1, "vel": kwargs["vel_forward"], "rel":1, joint: kwargs["forward"] * kwargs["direction"]}  
+    robot.jmove(**arg) # move toward the homing direction until the alarm
+
+    # clear the alarm
+    robot.alarm(alarm=0)
+
+    for i in range(kwargs["trigger_count"])
+        # move backward
+        arg = {"time_out": 0, "vel": kwargs["vel_backward"], "rel":1, joint: kwargs["backward"] * kwargs["direction"]}  
+        robot.jmove(**arg) # move toward the homing direction until the alarm
+
+        # set the probe
+        arg = {kwargs["probe"]: kwargs["probe_val"]}
+        probe = robot.probe(**arg) # wait for the input trigger
+
+        # halt
+        robot.halt(accel=kwargs["halt_accel"])
+
+    # set joint
+    arg = {joint:  kwargs["joint_val"] + robot.get(joint)[joint]- probe[joint]}
+    robot.joint(**arg)
+
+    return True
 
 class homing(object):
     """docstring for homing"""

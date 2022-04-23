@@ -15,15 +15,16 @@ def main(config_path):
 if __name__ == '__main__':
     config_path = "config.json"
     
-    # arguments
-    with open(config_path) as json_file:
-        arg = json.load(json_file)
+    for i in range(100):
+        # arguments
+        with open(config_path) as json_file:
+            arg = json.load(json_file)
 
-    robot = dorna()
-    print("connecting")
-    if not robot.connect(arg["ip"], arg["port"]):
-        print("not connected")
-    else:
-        print("connected")
-        main(robot)
-    robot.close()
+        robot = dorna()
+        print("connecting")
+        if not robot.connect(arg["ip"], arg["port"]):
+            print("not connected")
+        else:
+            print("connected")
+            main(robot)
+        robot.close()
