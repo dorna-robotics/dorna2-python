@@ -27,21 +27,26 @@ sudo python3 setup.py install --force
 ### Getting started
 Import `dorna2` module.
 ``` python
-from dorna2 import dorna
+from dorna2 import Dorna
 
-ip = "127.0.0.1"
+host = "127.0.0.1"
 port = 443
 
-robot = dorna()  # create the dorna object
-robot.connect(ip, host)  # connect to the robot
+# create the Dorna object
+robot = Dorna()
 
-# your code goes here
+# connect to the robot
+robot.connect(host, port)
 
-robot.close() # always close the socket when you are done
+""" Your code goes here
+"""
+
+# always close the socket connection when your code is over
+robot.close()
 ```  
 
 ## Connection
-The robot WebSocket server runs on `ws://robot_ip_address:443`, where `robot_ip_address` is the IP address of the robot, and `443` is the port number. Once the connection has been established between the robot and the user, they start communicating with each other by sending and receiving data in [JSON][json] format. 
+The robot socket server runs on `ws://robot_ip_address:443`, where `robot_ip_address` is the IP address of the robot, and `443` is the port number. Once the connection has been established between the robot and the client (user), they start communicating with each other by sending and receiving data in [JSON][json] format. 
 ```python
 # for example: if ip = dorna
 ws_url = "ws://dorna:443"
@@ -50,18 +55,23 @@ ws_url = "ws://dorna:443"
 ws_url = "ws://192.168.1.2:443"
 ```
 
-### `.connect(host, port)`    
-Connect to the robot WebSocket server at `ws://host:port`. The `host` (string) and `port` (integer) arguments are similar to the Python `socket.connect((host, port))` method. 
-> Notice that the `connect()` method handles the necessary handshake required for the robot WS server.
+### `.connect(host, port=443)`    
+Connect to the robot socket server at `ws://host:port`.
+
+#### Parameters
+- *host*: (string) The controller host address.
+- *port*: (int) The controller port number. The default value is `443`. 
+
+> The `host` (string) and `port` (integer) arguments are similar to the Python `socket.connect((host, port))` method.
 
 ### `.close()` 
-Use this method to close a WS connection. Notice that `.close()` instantly closes the socket and terminates the communication loop. After this the `dorna` object is unable to send or receive any message from the robot WS server.  
+Use this method to close an opened connection. Notice that `.close()` instantly closes the socket and terminates the communication loop. After this the `Dorna` object is unable to send or receive any message from (to) the controller server.  
 > It is a good practice to close an open socket connection when your task is over and the connection is no longer required.  
 ``` python
-from dorna2 import dorna
+from dorna2 import Dorna
 
-robot = dorna()
-robot.connect("192.168.1.10", 443) # connect to ws://192.168.1.10:443
+robot = Dorna()
+robot.connect("10.0.0.10") # connect to ws://10.0.0.10:443
 
 # your code
 
@@ -69,7 +79,8 @@ robot.close() # always close the socket when you are done
 ``` 
 
 ## Send message
-Once you connected to the robot, you can start sending valid messages (commands) to the robot in [JSON][json] format.
+Once you connected to the robot, you can start sending valid messages (commands) to the robot.
+Here in [JSON][json] format.
 
 ### `.play(self, track=False, message=None, **arg)`  
 Send a message to the robot. There are multiple ways to send a message via `.play()`. For a better understanding, we send a simple `alarm` status command in three different ways:
