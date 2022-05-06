@@ -1,7 +1,7 @@
 config = {
-    "j6":{
+    "j5":{
         "direction": 1,
-        "probe": "in0",
+        "iprobe": "in0",
         "probe_val": 1,
         "joint_val": 0,
         "forward": 1000000,

@@ -5,20 +5,22 @@ import time
 import asyncio
 
 
-class WS(object):
+class ws(object):
     """docstring for comm"""
     def __init__(self, channel="websocket"):
-        super(WS, self).__init__()
+        super(ws, self).__init__()
         self.channel = channel
         self.msg = queue.Queue(100)
         self.sys = {}
         self.callback = None
         self.connected = False
+        self.ptrn_wait = None
         
-        # wait
-        self._ptrn = {"wait": None, "sys": None} # wait for a given pattern
-        self._track = {"id": None, "msgs": []} # track a given id until it is done 
-        self._msg = None # last message recived
+
+        # track a given id until it is done 
+        self.track = {"id": None, "msgs": []}
+
+        self.condition = {"kill": []}
 
     """
     server 
@@ -108,43 +110,29 @@ class WS(object):
                     self.msg.get()
                     self.msg.put(msg)
 
-                # update _msg
-                self._msg = dict(msg)
-
                 # update sys
                 sys.update(msg)
 
-                # callback
+                # hamed
                 if self.callback:
                     asyncio.create_task(self.callback(msg, sys.copy()))
                 
 
                 # track a given id
-                if self._track["id"]:
+                if self.track["id"]:
                     try:
                         # message contains an id
-                        if "id" in msg and self._track["id"] == msg["id"]:
+                        if "id" in msg and self.track["id"] == msg["id"]:
                             # update the resp_id
-                            self._track["msgs"].append(dict(msg))
+                            self.track["msgs"].append(dict(msg))
 
                             # end the track
                             if "stat" in msg and any([msg["stat"] < 0, msg["stat"] >= 2]):
-                                self._track["id"] = None                              
+                                self.track["id"] = None                              
                     except Exception as ex:
-                        print("track_error: ",ex)
+                        print("Waiting pattern error: ",ex)
                         pass
 
-                # pattern wait
-                try:
-                    if type(self._ptrn["wait"])== dict
-                        # update sys
-                        self._ptrn["sys"] = dict(sys)
-                        # search for it
-                        if all([k in sys for k in self._ptrn["wait"]]) and all([self._ptrn["wait"][k] == sys[k] for k in self._ptrn["wait"]]):
-                            self._ptrn["wait"] = None
-                except Exception as ex:
-                    print("pattern_error: ", ex)
-                
                 # update sys           
                 self.sys = dict(sys)
 

@@ -1,15 +1,29 @@
 import json
 from random import random
 import time
-from dorna2.ws import ws
+from dorna2.ws import WS
 from dorna2.config import config
 
 
-class dorna(ws):
+class Dorna(WS):
     """docstring for Dorna"""
     def __init__(self, config=config):
-        super(dorna, self).__init__()
+        super(Dorna, self).__init__()
         self.config = config
+    
+    # last message
+    def msg(self):
+        return dict(self._msg)
+
+    """
+    return aggregate and all the messages in _msgs
+    """
+    def track(self):
+        rtn = {}
+        _track = dict(self._track)
+        for i in range(len(_track["msgs"])):
+            rtn = {**rtn, **s_track["msgs"][i]}
+        rtn["_msgs"] = _track["msgs"]
 
     def connect(self, host="localhost", port=443, time_out=5):
         # Check the connection
@@ -25,8 +39,8 @@ class dorna(ws):
     def log(self, msg=""):
         return print(msg, flush=True)        
     
-    def rand_id(self):
-        return int(random() * 1000000)
+    def rand_id(self, thr_low=100, thr_high= 1000000):
+        return random.randint(thr_low, thr_high)
 
     """
     complete: wait for the completion or not
@@ -40,7 +54,8 @@ class dorna(ws):
     return a dictionary formed by the union of the messages associated to this command 
     """
     def play(self, time_out=-1, msg=None, **kwargs):
-        rtn = dict()
+        self._track = {"id": None, "msgs": []} # init track 
+        
         # find msg
         if msg:
             # text
@@ -50,23 +65,25 @@ class dorna(ws):
             elif type(msg) == dict:
                 msg = dict(msg)
             else:
-                return rtn
+                return self.track()
 
         else:
             msg = dict(kwargs)
 
+        # check the id
+        try:
+            type(msg["id"]) == int
+        except:
+            msg["id"] = random.randint(100, 1000000)
+
+
         # set the track
         if time_out >0 or time_out < 0:
-            # check the id
-            try:
-                type(msg["id"]) == int
-            except:
-                msg["id"] = self.rand_id()
 
             # send and track messages
             try:
                 # set the tracking id
-                self.track = {"id": msg["id"], "msgs": []}
+                self._track["id"] =  msg["id"]
                 
                 # write the message
                 self.write(json.dumps(msg))
@@ -74,22 +91,24 @@ class dorna(ws):
                 # track
                 if time_out > 0:
                     start = time.time()
-                    while time.time() <= start + time_out and self.track["id"] == msg["id"]:
+                    while time.time() <= start + time_out and self._track["id"] == msg["id"]:
                         time.sleep(0.001)
+                    
+                    # do not search for it anymore
+                    self._track["id"] = None
                 else:
-                    while self.track["id"] == msg["id"]:
+                    while self._track["id"] == msg["id"]:
                         time.sleep(0.001)
                 
-                # form the union update
-                for i in range(len(self.track["msgs"])):
-                    rtn = {**rtn, **self.track["msgs"][i]}
-                rtn["_recv"] = self.track["msgs"]
             except:
                 pass
         else:
             # write the message
             self.write(json.dumps(msg))
-        return rtn
+        
+        # finish tracking
+        self._track["id"] = None
+        return self.track()
 
 
     """
@@ -116,8 +135,26 @@ class dorna(ws):
                     num_cmd += 1
                 except:
                     pass
-        self.sleep(time_out=time_out, sleep=0)
+        self.sleep(0, time_out=time_out)
         return num_cmd
+
+    """
+    wait for a given patter in received signal
+    """
+    def wait(self, time_out=-1, **kwargs):
+        # set wait dict
+        self._ptrn["wait"] = dict(kwargs)
+        # track
+        if time_out >= 0:
+            start = time.time()
+            while time.time() <= start + time_out and self._ptrn["wait"]:
+                time.sleep(0.001)
+            self._ptrn["wait"] = None
+        else:
+            while self.ptrn:
+                time.sleep(0.001)
+
+        return dict(set( kwargs.items()) & set( self._ptrn["sys"].items()))
     
     """
     send a motion command
@@ -129,7 +166,34 @@ class dorna(ws):
             cmd = {**dict(cmd), **self.config["pace"][kwargs["pace"]][method]}
         cmd = {**dict(cmd), **kwargs}
 
-        return self.play(**cmd)
+        rtn = self.play(**cmd)
+
+        # return stat
+        try:
+            return rtn["stat"]
+        except:
+            return None
+
+    """
+    return a dictionary based on keys
+    if no *args is present it will return a copy of sys
+    """        
+    def get(self, *args):
+        sys = dict(self.sys)
+        return [sys[k] for k in args]
+
+    """
+    return one value based on the key
+    """
+    def val(self, key):
+        return self.get(key)[0]
+
+    # It is a shorten version of play, 
+    # set a parameter and wait for its reply from the controller
+    def cmd(self, cmd, **kwargs):
+        kwargs = {**{"cmd": cmd}, **kwargs}
+        return self.play(**kwargs)
+
 
     """
     send jmove, rmove, lmove, cmove command
@@ -146,101 +210,284 @@ class dorna(ws):
     def cmove(self, **kwargs):
         return self._motion("cmove", **kwargs)
 
-    """
-    return a dictionary based on keys
-    if no *args is present it will return a copy of sys
-    """        
-    def get(self, *args):
-        sys = dict(self.sys)
-        if args:
-            return {key: sys[key] for key in args}
-        return sys
+    def _key_val_cmd(self, key, val, cmd, rtn_key, rtn_keys, **kwargs):
+        # adjust key and kwargs
+        if key != None and val != None:
+            kwargs = {**{key:val}, **kwargs}
 
-    """
-    return one value based on the key
-    """
-    def val(self, key):
-        return self.get(key)[key]
-
-    # It is a shorten version of play, 
-    # set a parameter and wait for its reply from the controller
-    def cmd(self, cmd, **kwargs):
-        cmd = {**{"cmd": cmd}, **kwargs}
-        return self.play(**cmd)
-
+        # send
+        rtn = self.cmd(cmd, **kwargs)
+        
+        # return
+        try:
+            if rtn_key:
+                return rtn[rtn_key]
+            else:
+                return [rtn[k] for k in rtn_keys]
+        except:
+            return None
+    
     """
     read output i, or turn it on or off
+    output(0): return the value of the out0
+    output(0,1): set the value of the out0 to 1
+    output(): return the value of the outputs
+    output(out0=1, out2=0): set the value of out0 to 1 and out2 to 0 
+
+    return -> the value of one out or all outs
     """
-    def output(self, **kwargs):
-        return self.cmd("output", **kwargs)
+    def output(self, index=None, val=None, **kwargs):
+        key = None
+        if index !=None:
+            key = "out"+str(index)
+        
+        cmd = "output"
+        rtn_key = key
+        rtn_keys = ["out"+str(i) for i in range(16)]
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
     """
     read pwm, or set its parameters
+    pwm(0): return the value of the pwm0
+    pwm(0,1): set the value of the pwm0 to 1
+    pwm(): return the value of the pwms
+    pwm(pwm0=1, freq2=1): set the value of pwm0 to 1 and freq2 to 1
+
+    return the value of pwm or all of them    
     """
-    def pwm(self, **kwargs):
-        return self.cmd("pwm", **kwargs)
+    def pwm(self, index=None, val=None, **kwargs):
+        key = None
+        if index !=None:
+            key = "pwm"+str(index)
+        
+        cmd = "pwm"
+        rtn_key = key
+        rtn_keys = ["pwm"+str(i) for i in range(5)]
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
+    """
+    read freq, or set its parameters
+    freq(0): return the value of the freq0
+    freq(0,1): set the value of the freq0 to 1
+    """
+    def freq(self, index=None, val=None, **kwargs):
+        key = None
+        if index !=None:
+            key = "freq"+str(index)
+        
+        cmd = "pwm"
+        rtn_key = key
+        rtn_keys = ["freq"+str(i) for i in range(5)]
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
+    """
+    read duty, or set its parameters
+    duty(0): return the value of the duty0
+    duty(0,1): set the value of the duty0 to 1
+    """
+    def duty(self, index, val=None, **kwargs):
+        key = None
+        if index !=None:
+            key = "duty"+str(index)
+        
+        cmd = "pwm"
+        rtn_key = key
+        rtn_keys = ["duty"+str(i) for i in range(5)]
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
     """
     read input
     """
-    def input(self, **kwargs):
-        return self.cmd("input", **kwargs)
+    def input(self, index=None, **kwargs):
+        key = None
+        if index !=None:
+            key = "in"+str(index)
+        
+        cmd = "input"
+        rtn_key = key
+        rtn_keys = ["in"+str(i) for i in range(16)]
+        val = None
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
     """
     read adc
     """
-    def adc(self, **kwargs):
-        return self.cmd("adc", **kwargs)
+    def adc(self, index=None, **kwargs):
+        key = None
+        if index !=None:
+            key = "adc"+str(index)
+        
+        cmd = "adc"
+        rtn_key = key
+        rtn_keys = ["adc"+str(i) for i in range(5)]
+        val = None
 
-    def probe(self, **kwargs):
-        return self.cmd("probe", **kwargs)
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
+    
+    """
+    probe
+    """
+    def probe(self, index=None, val=None, **kwargs):
+        key = None
+        if index !=None:
+            key = "in"+str(index)
+        
+        cmd = "probe"
+        rtn_key = None
+        rtn_keys = ["j"+str(i) for i in range(8)]
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
+    """
+    iprobe
+    return joint values in a list
+    """
+    def iprobe(self, index=None, val=None, **kwargs):
+        key = None
+        if index !=None:
+            key = "in"+str(index)
+        
+        cmd = "probe"
+        rtn_key = None
+        rtn_keys = ["j"+str(i) for i in range(8)]
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
     
     """
     send a halt command
     """
-    def halt(self, **kwargs):
-        return self.cmd("halt", time_out = 0, **kwargs)
+    def halt(self, val=None, **kwargs):
+        key = "accel"
+        cmd = "halt"
+        rtn_key = "stat"
+        rtn_keys = None
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
 
     """
     read alarm status, set or unset alarm
     """
-    def alarm(self, **kwargs):
-        return self.cmd("alarm", **kwargs)
+    def alarm(self, val=None, **kwargs):
+        key = "alarm"
+        cmd = "alarm"
+        rtn_key = key
+        rtn_keys = None
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
 
     """
     sleep the controller for certain amount of time (seconds)
     """
-    def sleep(self, **kwargs):
-        return self.cmd("sleep", **kwargs)
+    def sleep(self, val=None, **kwargs):
+        key = "time"
+        cmd = "sleep"
+        rtn_key = "stat"
+        rtn_keys = None
 
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+    
     """
     set the value of joints / and return their values in a dictionary
-    """
-    def joint(self, **kwargs):
-        return self.cmd("joint", **kwargs)
 
+    [list]: return the joint values in a list format
+    """
+    def joint(self, index=None, val=None, **kwargs):
+        key = None
+        if index !=None:
+            key = "j"+str(index)
+        
+        cmd = "joint"
+        rtn_key = key
+        rtn_keys = ["j"+str(i) for i in range(8)]
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+    
     def pose(self):
+        """
+        Get the robot x, y, z, a, b, c, d and e poses. 
+
+        Returns:
+            (list of length 8): The robot pose.
+        """
         return self.get("x", "y", "z", "a", "b", "c", "d", "e")
-    """
-    read motors status, activate or deactivate the motors
-    """
-    def motor(self, **kwargs):
-        return self.cmd("motor", **kwargs)    
+    
 
-    """
-    read toollength, or set its value (mm)
-    """
-    def toollength(self, **kwargs):
-        return self.cmd("toollength", **kwargs)        
+    def motor(self, val=None, **kwargs):
+        """
+        Enable or disable the robot motors. Or get the motor status (disabled or enabled).
+        If the val parameter is not specified, then we get the motor status. 
 
-    """
-    read version
-    """
+        Parameters:
+            val (int): Use this parameter to enable (val=1) or disable (val=1) the motors. 
+
+        Returns:
+            (int): The status of the motors.
+        """
+        key = "motor"
+        cmd = "motor"
+        rtn_key = key
+        rtn_keys = None
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
+
+    def toollength(self, val=None, **kwargs):
+        """
+        Set and get the robot tool length. 
+        If the length of the toollength is not specified then, we get the value of the toollength.
+
+        Parameters:
+            val (float or None): The length of the toollength in mm.
+
+        Returns:
+            (float): The robot toollength in mm.
+        """
+        key = "toollength"
+        cmd = "toollength"
+        rtn_key = key
+        rtn_keys = None
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+    
+
     def version(self, **kwargs):
-        return self.cmd("version", **kwargs)
+        """
+        Get the version of the firmware running on the controller.
 
-    """
-    read uid
-    """
+        Parameters:
+
+        Returns:
+            (int): The version of the firmware.
+        """
+        key = None
+        cmd = "version"
+        rtn_key = "version"
+        rtn_keys = None
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
+
     def uid(self, **kwargs):
-        return self.cmd("uid", **kwargs)
+        """
+        Get the controller UID number.
+
+        Parameters:
+
+        Returns:
+            (str): The uid of the controller.
+        """
+        key = None
+        cmd = "uid"
+        rtn_key = "uid"
+        rtn_keys = None
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
