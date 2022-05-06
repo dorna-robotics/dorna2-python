@@ -5,7 +5,7 @@ This is the Python API tutorial for [Dorna][dorna] robotic arm.
 Notice that the program has been tested only on Python 3.7+.
 
 ### Repository
-You can find the code repositry on [GitHub](https://github.com/dorna-robotics/dorna2-python), and report your issues there.
+You can find the code repositry on [GitHub](https://github.com/dorna-robotics/dorna2-python), and report your technical issues [there](https://github.com/dorna-robotics/dorna2-python/issues).
 
 ### Download
 First, use `git clone` to download the repository:  
@@ -18,6 +18,10 @@ Or simply download the [zip file](https://github.com/dorna-robotics/dorna2-pytho
 Next, go to the downloaded directory, where the `setup.py` file is located, and run:
 ```bash
 python setup.py install --force
+```
+Notice that, on UNIX systems you need to use `sudo` prefix for admin previliages and installing the requirements:
+```bash
+sudo python3 setup.py install --force
 ```
 
 ### Getting started
