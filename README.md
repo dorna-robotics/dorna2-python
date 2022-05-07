@@ -55,7 +55,7 @@ ws_url = "ws://dorna:443"
 ws_url = "ws://192.168.1.2:443"
 ```
 
-### `.connect(host, port=443)`    
+### <code>.connect(*host, port=443*)</code> 
 Connect to the robot socket server at `ws://host:port`.
 
 #### Parameters
