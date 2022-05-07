@@ -1,5 +1,5 @@
 import json
-from random import random
+import random
 import time
 from dorna2.ws import WS
 from dorna2.config import config
@@ -22,8 +22,9 @@ class Dorna(WS):
         rtn = {}
         _track = dict(self._track)
         for i in range(len(_track["msgs"])):
-            rtn = {**rtn, **s_track["msgs"][i]}
+            rtn = {**rtn, **_track["msgs"][i]}
         rtn["_msgs"] = _track["msgs"]
+        return rtn
 
     def connect(self, host="localhost", port=443, time_out=5):
         # Check the connection
@@ -216,6 +217,7 @@ class Dorna(WS):
             kwargs = {**{key:val}, **kwargs}
 
         # send
+        print("cmd: ", kwargs)
         rtn = self.cmd(cmd, **kwargs)
         
         # return
@@ -224,7 +226,8 @@ class Dorna(WS):
                 return rtn[rtn_key]
             else:
                 return [rtn[k] for k in rtn_keys]
-        except:
+        except Exception as ex:
+            print("error1: ", ex)
             return None
     
     """
@@ -353,7 +356,7 @@ class Dorna(WS):
         if index !=None:
             key = "in"+str(index)
         
-        cmd = "probe"
+        cmd = "iprobe"
         rtn_key = None
         rtn_keys = ["j"+str(i) for i in range(8)]
 
@@ -491,3 +494,23 @@ class Dorna(WS):
         rtn_keys = None
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
+def main(config_path):
+    # tik
+    start = time.time()
+    for cmd in 10 * ["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"]:
+        print("####")
+        print("receive: ", robot.cmd(cmd))
+    # tok
+    print("####")
+    print("total time: ",time.time()-start)
+
+if __name__ == '__main__':
+    robot = Dorna()
+    robot.connect("192.168.254.126")
+    
+    for cmd in 10 * ["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"]:
+        print("####")
+        print("receive: ", robot.cmd(cmd))
+
+    robot.close()

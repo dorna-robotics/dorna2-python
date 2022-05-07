@@ -1,6 +1,6 @@
 import time
 import json
-from dorna2 import dorna
+from dorna2 import Dorna
 
 def main(config_path):
     # tik
@@ -20,7 +20,7 @@ if __name__ == '__main__':
         with open(config_path) as json_file:
             arg = json.load(json_file)
 
-        robot = dorna()
+        robot = Dorna()
         print("connecting")
         if not robot.connect(arg["ip"], arg["port"]):
             print("not connected")

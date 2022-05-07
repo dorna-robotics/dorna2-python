@@ -136,7 +136,7 @@ class WS(object):
 
                 # pattern wait
                 try:
-                    if type(self._ptrn["wait"])== dict
+                    if type(self._ptrn["wait"])== dict:
                         # update sys
                         self._ptrn["sys"] = dict(sys)
                         # search for it
