@@ -108,39 +108,25 @@ Here we explain the `time_out` parameter with few scenarios:
 Lets say we want to command the robot to get to an especific position and then enables output 0. In this case, in it important for us that the robot has achieved the desired position before enabling the output. This is how we do it:
 ``` python
 """ scenario 1
+time_out < 0: run the print after the motion comaand is completed.
 """
-# send a jmove command
 robot.play(time_out=-1, cmd="jmove", rel=1, j0=45)
 print("motion is completed")
 
 """ scenario 2
+time_out = 0: run the print right after sending the motion command.
 """
-# send a jmove command
 robot.play(time_out=0, cmd="jmove", rel=1, j0=45)
 print("motion is still in progress")
 
 """ scenario 3
+time_out > 0: wait for the completion of the motion command for certain amount of time, and then run the print. 
 """
-# send a jmove command
 robot.play(time_out=10, cmd="jmove", rel=1, j0=45)
 print("We have waited maximum of 10 seconds for the completion of the above command")
 ``` 
-If we
-
-### `.jmove(track=False, **arg)`
-A helper function to send a `jmove` command. `jmove(j0=0, id=100)` is equivalent to `play(cmd='jmove', j0=0, id=100)`. Basically the `"cmd"` key is set to `"jmove"`.  
-
-### `.rmove(track=False, **arg)`
-Similar to `.jmove()` but the command key is equal to `"rmove"`.
-
-### `.lmove(track=False, **arg)`
-Similar to `.jmove()` but the command key is equal to `"lmove"`.
-
-### `.cmove(track=False, **arg)`
-Similar to `.jmove()` but the command key is equal to `"cmove"`.
-
-### `.play_script(script_path="")`
-Send all the messages that are stored in a script file to the robot. The method opens the script file located at `script_path`, read the file line by line and send each line as a command.  
+### `play_script(script_path, time_out=0)`
+Send all the messages that are stored in a script file to the robot controller. The method opens the script file located at `script_path`, read the file line by line and send each line as a command. 
 > Notice that each message has to occupy exactly one line. Multiple messages in one line or one message in multiple line is not a valid format. As an example, here we show a valid and invalid script format:
 ``` python
 # valid format: Each message occupy exactly one line
@@ -152,7 +138,86 @@ Send all the messages that are stored in a script file to the robot. The method 
 {"cmd":"jmove","rel":0,"j0":0}{"cmd":"jmove","rel":0,"j0":10}
 {"cmd":"jmove","rel":0,
 "j0":-10}
-```     
+``` 
+Use the `time_out` parameter for waiting or not waiting for the execution of the commands in the script file.
+
+### `.jmove(**kwargs)`
+A helper function to send a `jmove` command. `jmove(j0=0, id=100)` is equivalent to `play(cmd='jmove', j0=0, id=100)`. Basically the `cmd` key is set to `"jmove"`.  
+
+### `.rmove(**kwargs)`
+Similar to `.jmove()` but the command key is equal to `"rmove"`.
+
+### `.lmove(**kwargs)`
+Similar to `.jmove()` but the command key is equal to `"lmove"`.
+
+### `.cmove(**kwargs)`
+Similar to `.jmove()` but the command key is equal to `"cmove"`.
+
+### `.output(index=None, val=None, **kwargs)`
+Set (enable or disable) or get the value of an output pin.
+``` python
+robot.output(0) # return the value of the out0
+robot.output(0, 1) # set the value of the out0 to 1 and return its value
+robot.output() # return the value of all the 16 outputs in a list of size 16
+robot.output(out0=1, out2=0) # set the value of out0 to 1 and out2 to 0, and return the value of all the 16 outputs in a list 
+``` 
+#### Parameters
+- *index*: (None or 0 <= int < 16) The index of the output pin that we are interested to set or get its value.
+- *val*: (None or binary) The value we want to assign to the output pin `index`. If the `val` is not present or `None` then we are only getting (reading) the value of the output pin `index`.  
+- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Return
+Returns the value of output(s). If the `index` parameter is presented then the value of output pin `index` is returnred. Otherwise, the value of all the 16 output pins are returned in a list of size 16, where item `i` in the list is the value of `outi`.
+
+### `.pwm(index=None, val=None, **kwargs)`
+Set (enable or disable) or get the value of a pwm channel.
+``` python
+robot.pwm(0) # return the value of the pwm0
+robot.pwm(0, 1) # set the value of the pwm0 to 1 and return its value
+robot.pwm() # return the value of all the 5 pwms in a list of size 5
+robot.pwm(pwm0=1, pwm2=0) # set the value of pwm0 to 1 and pwm2 to 0, and return the value of all the 5 pwms in a list 
+``` 
+#### Parameters
+- *index*: (None or 0 <= int < 5) The index of the pwm channel that we are interested to set or get its value.
+- *val*: (None or binary) The value we want to assign to the pwm channel `index`. If the `val` is not present or `None` then we are only getting (reading) the value of the pwm channel `index`.  
+- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Return
+Returns the value of pwm(s). If the `index` parameter is presented then the value of pwm channel `index` is returnred. Otherwise, the value of all the 5 pwm channels are returned in a list of size 5, where item `i` in the list is the value of `pwmi`.
+
+### `.freq(index=None, val=None, **kwargs)`
+Set or get the frequency value of a pwm channel.
+``` python
+robot.freq(0) # return the value of freq0
+robot.freq(0, 10) # set the value of freq0 to 1 and return its value
+robot.freq() # return the frequency value of all the 5 pwms in a list of size 5
+robot.freq(freq0=10, freq2=20) # set the value of freq0 to 1 and freq2 to 0, and return the frequency value of all the 5 pwms in a list 
+``` 
+#### Parameters
+- *index*: (None or 0 <= int < 5) The index of the pwm channel that we are interested to set or get its frequency value.
+- *val*: (None or binary) The frequency value we want to assign to the pwm channel `index`. If the `val` is not present or `None` then we are only getting (reading) the frequency value of the pwm channel `index`.  
+- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Return
+Returns the value of freq(s). If the `index` parameter is presented then the frequency value of the pwm channel `index` is returnred. Otherwise, the frequency value of all the 5 pwm channels are returned in a list of size 5, where item `i` in the list is the value of `freqi`.
+
+### `.duty(index=None, val=None, **kwargs)`
+Set or get the frequency value of a pwm channel.
+``` python
+robot.freq(0) # return the value of freq0
+robot.freq(0, 10) # set the value of freq0 to 1 and return its value
+robot.freq() # return the frequency value of all the 5 pwms in a list of size 5
+robot.freq(freq0=10, freq2=20) # set the value of freq0 to 1 and freq2 to 0, and return the frequency value of all the 5 pwms in a list 
+``` 
+#### Parameters
+- *index*: (None or 0 <= int < 5) The index of the pwm channel that we are interested to set or get its frequency value.
+- *val*: (None or binary) The frequency value we want to assign to the pwm channel `index`. If the `val` is not present or `None` then we are only getting (reading) the frequency value of the pwm channel `index`.  
+- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Return
+Returns the value of freq(s). If the `index` parameter is presented then the frequency value of the pwm channel `index` is returnred. Otherwise, the frequency value of all the 5 pwm channels are returned in a list of size 5, where item `i` in the list is the value of `freqi`.
+
+
 
 ## Receive message
 After a successful WS connection, the robot starts to send messages in JSON format to the API.  
