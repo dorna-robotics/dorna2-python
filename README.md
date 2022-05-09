@@ -85,17 +85,47 @@ robot.close() # always close the socket when you are done
 ## Send message
 Once you connected to the controller, you can start sending valid messages (commands) to the robot.
 
+### Command status and execution 
+We need to first get familiar with the status of a command first. When sending a valid command to the robot, the controller reports the status of the command from the time that the command is submitted, to the time that the execution of the command is completed using a `stat` key and the unique `id` associated to the command. There are four main stages in a life cycle of a command:
+- `stat = 0`: The command has been received by the controller with no error.
+- `stat = 1`: The command execution has begun.
+- `stat = 2`: The execution of the command is now completed.
+- `stat < 0`: An eeror happened during the execution of the command and it will not be executed.
+
 ### `.play(time_out=-1, msg=None, **kwargs):`  
 Send a message to the robot. There are multiple ways to send a message via `.play()`. For a better understanding, we send a simple `alarm` status command in three different ways:
-1. JSON string format: `play('{"cmd": "alarm", "id": 100}')`
+1. Key and value format: `play(cmd='alarm', id=100})`
 2. Python dictionary format: `play({'cmd': 'alarm', 'id': 100})` 
-3. Key and value format: `play(cmd='alarm', id=100})`  
+3. JSON string format: `play('{"cmd": "alarm", "id": 100}')`
 
-The `track` key is used for tracking the completion of the command. By default `track` is set to `False`, but if you want to track your command and see when the execution of the command is over set it to `True`. Read more about this in the [Tracking command](#tracking-command)
+#### `time_out`
+The `time_out` key is used for tracking the completion or any error during the execution of the command. 
+- `time_out < 0`: The function waits for the `stat = 2` or `stat < 0` of the command and then returns.
+- `time_out >= 0`: The function waits maximum of `time_out` seconds for the  `stat = 2` or `stat < 0` of the command to arrive.
 
-The `play` method returns `None` if `track=False` and returns a `track_msg` object if `track=True`.  
+Here we explain the `time_out` parameter with few scenarios:
+##### Scenario 1
+Lets say we want to command the robot to get to an especific position and then enables output 0. In this case, in it important for us that the robot has achieved the desired position before enabling the output. This is how we do it:
+``` python
+""" scenario 1
+"""
+# send a jmove command
+robot.play(time_out=-1, cmd="jmove", rel=1, j0=45)
+print("motion is completed")
 
-We have few other helper methods to send a message:
+""" scenario 2
+"""
+# send a jmove command
+robot.play(time_out=0, cmd="jmove", rel=1, j0=45)
+print("motion is still in progress")
+
+""" scenario 3
+"""
+# send a jmove command
+robot.play(time_out=10, cmd="jmove", rel=1, j0=45)
+print("We have waited maximum of 10 seconds for the completion of the above command")
+``` 
+If we
 
 ### `.jmove(track=False, **arg)`
 A helper function to send a `jmove` command. `jmove(j0=0, id=100)` is equivalent to `play(cmd='jmove', j0=0, id=100)`. Basically the `"cmd"` key is set to `"jmove"`.  
