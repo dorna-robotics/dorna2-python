@@ -202,21 +202,46 @@ robot.freq(freq0=10, freq2=20) # set the value of freq0 to 1 and freq2 to 0, and
 Returns the value of freq(s). If the `index` parameter is presented then the frequency value of the pwm channel `index` is returnred. Otherwise, the frequency value of all the 5 pwm channels are returned in a list of size 5, where item `i` in the list is the value of `freqi`.
 
 ### `.duty(index=None, val=None, **kwargs)`
-Set or get the frequency value of a pwm channel.
+Set or get the duty cycle of a pwm channel.
 ``` python
-robot.freq(0) # return the value of freq0
-robot.freq(0, 10) # set the value of freq0 to 1 and return its value
-robot.freq() # return the frequency value of all the 5 pwms in a list of size 5
-robot.freq(freq0=10, freq2=20) # set the value of freq0 to 1 and freq2 to 0, and return the frequency value of all the 5 pwms in a list 
+robot.duty(0) # return the value of duty0
+robot.duty(0, 10) # set the value of duty0 to 1 and return its value
+robot.duty() # return the duty cycle of all the 5 pwms in a list of size 5
+robot.duty(duty0=10, duty2=20) # set the duty0 to 1 and duty2 to 0, and return the duty cycles of all the 5 pwms in a list 
 ``` 
 #### Parameters
-- *index*: (None or 0 <= int < 5) The index of the pwm channel that we are interested to set or get its frequency value.
-- *val*: (None or binary) The frequency value we want to assign to the pwm channel `index`. If the `val` is not present or `None` then we are only getting (reading) the frequency value of the pwm channel `index`.  
+- *index*: (None or 0 <= int < 5) The index of the pwm channel that we are interested to set or get its duty cycle.
+- *val*: (None or binary) The duty cycle we want to assign to the pwm channel `index`. If the `val` is not present or `None` then we are only getting (reading) the duty cycle of the pwm channel `index`.  
 - *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
 
 #### Return
-Returns the value of freq(s). If the `index` parameter is presented then the frequency value of the pwm channel `index` is returnred. Otherwise, the frequency value of all the 5 pwm channels are returned in a list of size 5, where item `i` in the list is the value of `freqi`.
+Returns the duty cycle(s). If the `index` parameter is presented then the duty cycle of the pwm channel `index` is returnred. Otherwise, the dudty cycle of all the 5 pwm channels are returned in a list of size 5, where item `i` in the list is the value of `dutyi`.
 
+### `.input(index=None, **kwargs)`
+Get the value of an input pin(s).
+``` python
+robot.input(0) # return the value of in0
+robot.input() # return the value of all the 16 input pins in a list of size 16
+``` 
+#### Parameters
+- *index*: (None or 0 <= int < 16) The index of the input pin that we are interested to get its value.
+- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Return
+Returns the value of input pin(s). If the `index` parameter is presented then the value of input pin `index` is returnred. Otherwise, the value of all the 16 input pins are returned in a list of size 16, where item `i` in the list is the value of `ini`.
+
+### `.adc(index=None, **kwargs)`
+Get the value of an adc channel(s).
+``` python
+robot.input(0) # return the value of in0
+robot.input() # return the value of all the 16 input pins in a list of size 16
+``` 
+#### Parameters
+- *index*: (None or 0 <= int < 16) The index of the input pin that we are interested to get its value.
+- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Return
+Returns the value of input pin(s). If the `index` parameter is presented then the value of input pin `index` is returnred. Otherwise, the value of all the 16 input pins are returned in a list of size 16, where item `i` in the list is the value of `ini`.
 
 
 ## Receive message
