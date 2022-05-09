@@ -55,12 +55,16 @@ ws_url = "ws://dorna:443"
 ws_url = "ws://192.168.1.2:443"
 ```
 
-### <code>.connect(*host, port=443*)</code> 
+### `.connect(host="localhost", port=443, time_out=5)` 
 Connect to the robot socket server at `ws://host:port`.
 
 #### Parameters
-- *host*: (string) The controller host address.
-- *port*: (int) The controller port number. The default value is `443`. 
+- *host*: (string) The controller host address. The default value is `"localhost"`.
+- *port*: (int) The controller port number. The default value is `443`.
+- *time_out*: (float > 0) Waits maximum of `time_out` seconds to establish a connection to the robot controller. The default value is 5 seconds.
+
+#### Returns
+Returns `True` on a sucessful connection, otherwise `False`.
 
 > The `host` (string) and `port` (integer) arguments are similar to the Python `socket.connect((host, port))` method.
 
@@ -79,10 +83,9 @@ robot.close() # always close the socket when you are done
 ``` 
 
 ## Send message
-Once you connected to the robot, you can start sending valid messages (commands) to the robot.
-Here in [JSON][json] format.
+Once you connected to the controller, you can start sending valid messages (commands) to the robot.
 
-### `.play(self, track=False, message=None, **arg)`  
+### `.play(time_out=-1, msg=None, **kwargs):`  
 Send a message to the robot. There are multiple ways to send a message via `.play()`. For a better understanding, we send a simple `alarm` status command in three different ways:
 1. JSON string format: `play('{"cmd": "alarm", "id": 100}')`
 2. Python dictionary format: `play({'cmd': 'alarm', 'id': 100})` 
