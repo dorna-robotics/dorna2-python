@@ -169,6 +169,15 @@ robot.joint(out0=1, out2=0) # set the value of out0 to 1 and out2 to 0, and retu
 #### Return
 Returns the value of joint(s). If the `index` parameter is presented then the value of the joint `index` is returnred. Otherwise, the value of all the 8 joints are returned in a list of size 8, where item `i` in the list is the value of `ji`.
 
+### `.pose()`
+Get the value of the robot toolhead in Cartesian coordinate system.
+``` python
+robot.pose() # return [x, y, z, a, b, c, d, e] 
+``` 
+
+#### Return
+Returns the value of the robot toolhead in Cartesian coordinate system in a list of size 8. Where indices 0 to 7 in this list are associated to `x`, `y`, `z`, `a`, `b`, `c`, `d` and `e`, respectively.   
+
 ### `.output(index=None, val=None, **kwargs)`
 Set (enable or disable) or get the value of an output pin.
 ``` python
@@ -327,6 +336,20 @@ Return the status of the command. A successful sleep returns 2. A negative integ
 
 ## Receive message
 After a successful WS connection, the robot starts to send messages in JSON format to the API.  
+
+### `.motor(self, val=None, **kwargs)`
+Set (disable or enable) or get the motor status.
+``` python
+robot.motor() # get the robot motor status
+robot.motor(0) # disable the motors  
+``` 
+#### Parameters
+- *val*: (None or binary) The value we are assigning to the alarm. For enabling or disablening the alarm the alarm set the `val` to `1` or `0`, respectively.
+- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Return
+Return the alarm status of the controller. Which is either 1 (system is in alarm) or 0 (no alarm in the controller)  
+
 
 ### `.sys` 
 This dictionary holds the messages keys and values received by the API.  
