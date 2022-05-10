@@ -153,6 +153,22 @@ Similar to `.jmove()` but the command key is equal to `"lmove"`.
 ### `.cmove(**kwargs)`
 Similar to `.jmove()` but the command key is equal to `"cmove"`.
 
+### `.joint(index=None, val=None, **kwargs)`
+Set or get the value of the robot joints.
+``` python
+robot.joint(1) # return the value of j1
+robot.joint(1, 3.14) # set the value of j1 to 3.14
+robot.joint() # return the value of all the 16 outputs in a list of size 16
+robot.joint(out0=1, out2=0) # set the value of out0 to 1 and out2 to 0, and return the value of all the 16 outputs in a list 
+``` 
+#### Parameters
+- *index*: (None or 0 <= int < 8) The index of the joint that we are interested to set or get its value.
+- *val*: (None or float) The value we want to assign to the joint `index`. If the `val` is not present or `None` then we are only getting (reading) the value of the joint `index`.  
+- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Return
+Returns the value of joint(s). If the `index` parameter is presented then the value of the joint `index` is returnred. Otherwise, the value of all the 8 joints are returned in a list of size 8, where item `i` in the list is the value of `ji`.
+
 ### `.output(index=None, val=None, **kwargs)`
 Set (enable or disable) or get the value of an output pin.
 ``` python
@@ -271,6 +287,43 @@ robot.iprobe(in0=1, in3=1) # return the value of joints the moment index0 is 1 a
 #### Return
 Return the values of the robot joints the mooment the index pattern matches the value, in a list of size 8. Where index `i` in the list is the value of joint joint `i` (`ji`).
 
+### `.halt(accel=None, **kwargs)`
+Send a halt command with a given accelration (`accel`).
+``` python
+robot.halt() # send a halt command to the controller
+robot.halt(5) # send a halt  command with accelration equal to 5 
+``` 
+#### Parameters
+- *accel*: (None or float > 0) The acceleration parameter associated to the halt command. Larger number means faster stop.
+- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Return
+Return the status of the command. A successful halt returns 2. A negative integer means there was an error during the excution of this command. 
+
+### `.alarm(self, val=None, **kwargs)`
+Set or get the alarm on the controller.
+``` python
+robot.alarm() # get the alarm status of the controller
+robot.alarm(0) # clear the alarm (set alarm to 0)  
+``` 
+#### Parameters
+- *val*: (None or binary) The value we are assigning to the alarm. For enabling or disablening the alarm the alarm set the `val` to `1` or `0`, respectively.
+- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Return
+Return the alarm status of the controller. Which is either 1 (system is in alarm) or 0 (no alarm in the controller)  
+
+### `.sleep(sec=None, **kwargs)`
+Send a `sleep` command to the controller.
+``` python
+robot.sleep(10) # the controller sleepsfor 10 seconds
+``` 
+#### Parameters
+- *sec*: (float >= 0) The amount of time in seconds we want the controller to sleep.
+- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Return
+Return the status of the command. A successful sleep returns 2. A negative integer means there was an error during the excution of this command. 
 
 ## Receive message
 After a successful WS connection, the robot starts to send messages in JSON format to the API.  
