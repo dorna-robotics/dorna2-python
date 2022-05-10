@@ -25,43 +25,24 @@ sudo python3 setup.py install --force
 ```
 
 ### Getting started
-Import `dorna2` module.
+First, import `Dorna` class from the `dorna2` module, and then creat a `Dorna` object.
 ``` python
 from dorna2 import Dorna
 
-host = "127.0.0.1"
-port = 443
-
 # create the Dorna object
 robot = Dorna()
-
-# connect to the robot
-robot.connect(host, port)
-
-""" Your code goes here
-"""
-
-# always close the socket connection when your code is over
-robot.close()
 ```  
 
 ## Connection
-The robot socket server runs on `ws://robot_ip_address:443`, where `robot_ip_address` is the IP address of the robot, and `443` is the port number. Once the connection has been established between the robot and the client (user), they start communicating with each other by sending and receiving data in [JSON][json] format. 
-```python
-# for example: if ip = dorna
-ws_url = "ws://dorna:443"
-
-# for example: if ip = 192.168.1.2
-ws_url = "ws://192.168.1.2:443"
-```
+The robot socket server runs on `ws://robot_ip_address:443`, where `robot_ip_address` is the IP address (host) of the robot, and `443` is the port number. Once the connection has been established between the robot and the client (user), they start communicating with each other by sending and receiving data in [JSON][json] format. 
 
 ### `.connect(host="localhost", port=443, time_out=5)` 
-Connect to the robot socket server at `ws://host:port`.
+Connect to the robot controller socket server at `ws://host:port`.
 
 #### Parameters
 - *host*: (string) The controller host address. The default value is `"localhost"`.
 - *port*: (int) The controller port number. The default value is `443`.
-- *time_out*: (float > 0) Waits maximum of `time_out` seconds to establish a connection to the robot controller. The default value is 5 seconds.
+- *time_out*: (float > 0) Wait maximum of `time_out` seconds to establish a connection to the robot controller. The default value is `5` seconds.
 
 #### Returns
 Returns `True` on a sucessful connection, otherwise `False`.
@@ -69,8 +50,10 @@ Returns `True` on a sucessful connection, otherwise `False`.
 > The `host` (string) and `port` (integer) arguments are similar to the Python `socket.connect((host, port))` method.
 
 ### `.close()` 
-Use this method to close an opened connection. Notice that `.close()` instantly closes the socket and terminates the communication loop. After this the `Dorna` object is unable to send or receive any message from (to) the controller server.  
+Use this method to close an opened connection. This method instantly closes the socket and terminates the communication loop. After this the `Dorna` object is unable to send or receive any message from (to) the controller server.  
+
 > It is a good practice to close an open socket connection when your task is over and the connection is no longer required.  
+
 ``` python
 from dorna2 import Dorna
 
@@ -85,12 +68,24 @@ robot.close() # always close the socket when you are done
 ## Send message
 Once you connected to the controller, you can start sending valid messages (commands) to the robot.
 
-### Command status and execution 
-We need to first get familiar with the status of a command first. When sending a valid command to the robot, the controller reports the status of the command from the time that the command is submitted, to the time that the execution of the command is completed using a `stat` key and the unique `id` associated to the command. There are four main stages in a life cycle of a command:
+### Command status and execution
+We need to first get familiar with the status of a command first. When sending a valid command to the robot, the controller reports the status of the command from the time that the command is submitted, to the time that the execution of the command is completed using a `stat` key and the unique `id` send initially with the command. An example of such a message is as follows:
+``` python
+{"id":12, "stat":2}
+```
+It means that the command with `id` equal to `12`, is in status `2`. The `stat` field can take different values with the following interpretations:
 - `stat = 0`: The command has been received by the controller with no error.
 - `stat = 1`: The command execution has begun.
 - `stat = 2`: The execution of the command is now completed.
 - `stat < 0`: An eeror happened during the execution of the command and it will not be executed.
+
+> Notice, that we say thta a command is done if get `stat = 2` or `stat < 0` of that command.
+
+### `time_out` variable
+Throughout this document we use and refer to the `time_out` key as an arguments inside methods that are sending command to the robot.  
+Functions that are sending command to the robot are using the `time_out` argument for tracking the completion or any error during the execution of the command that they are sending. 
+- `time_out < 0`: Send a command and wait for the command to get done ( `stat = 2` or `stat < 0`) and then return. At this moment we are sure that the command is no longer running.
+- `time_out >= 0`: Send a command and wait for A maximum of `time_out` seconds for its execution. Notice that in this case, we might have returned from the fuction but the command which was sent by the fuction to the robot is still runnning or wating inside the controller for its time to run. If we do not want to wait for the execution of a command at all we can always set `time_out = 0`.
 
 ### `.play(time_out=-1, msg=None, **kwargs):`  
 Send a message to the robot. There are multiple ways to send a message via `.play()`. For a better understanding, we send a simple `alarm` status command in three different ways:
@@ -98,33 +93,6 @@ Send a message to the robot. There are multiple ways to send a message via `.pla
 2. Python dictionary format: `play({'cmd': 'alarm', 'id': 100})` 
 3. JSON string format: `play('{"cmd": "alarm", "id": 100}')`
 
-#### `time_out`
-The `time_out` key is used for tracking the completion or any error during the execution of the command. 
-- `time_out < 0`: The function waits for the `stat = 2` or `stat < 0` of the command and then returns.
-- `time_out >= 0`: The function waits maximum of `time_out` seconds for the  `stat = 2` or `stat < 0` of the command to arrive.
-
-Here we explain the `time_out` parameter with few scenarios:
-##### Scenario 1
-Lets say we want to command the robot to get to an especific position and then enables output 0. In this case, in it important for us that the robot has achieved the desired position before enabling the output. This is how we do it:
-``` python
-""" scenario 1
-time_out < 0: run the print after the motion comaand is completed.
-"""
-robot.play(time_out=-1, cmd="jmove", rel=1, j0=45)
-print("motion is completed")
-
-""" scenario 2
-time_out = 0: run the print right after sending the motion command.
-"""
-robot.play(time_out=0, cmd="jmove", rel=1, j0=45)
-print("motion is still in progress")
-
-""" scenario 3
-time_out > 0: wait for the completion of the motion command for certain amount of time, and then run the print. 
-"""
-robot.play(time_out=10, cmd="jmove", rel=1, j0=45)
-print("We have waited maximum of 10 seconds for the completion of the above command")
-``` 
 ### `play_script(script_path, time_out=0)`
 Send all the messages that are stored in a script file to the robot controller. The method opens the script file located at `script_path`, read the file line by line and send each line as a command. 
 > Notice that each message has to occupy exactly one line. Multiple messages in one line or one message in multiple line is not a valid format. As an example, here we show a valid and invalid script format:
@@ -153,7 +121,11 @@ Similar to `.jmove()` but the command key is equal to `"lmove"`.
 ### `.cmove(**kwargs)`
 Similar to `.jmove()` but the command key is equal to `"cmove"`.
 
-### `.joint(index=None, val=None, **kwargs)`
+## Orientation
+In this section we cover methods that are related to the robot orientation.
+### `.joint(joint=None, val=None, **kwargs)`
+- `joint()`: Get the current joint values of the robot, in a list of size  
+- 
 Set or get the value of the robot joints.
 ``` python
 robot.joint(1) # return the value of j1
@@ -377,20 +349,6 @@ robot.motor(0) # disable the motors
 
 #### Return
 Return the alarm status of the controller. Which is either 1 (system is in alarm) or 0 (no alarm in the controller)  
-
-## Tracking command
-When the user sends a command to the robot, the robot starts to process the command and execute it. Depending on the command status the robot report messages to the user. These messages report the status of each command that is sent to the controller, from the time that the command is submitted, to the time that the execution of the command is completed. These messages will only be sent to the user if the corresponding command has an `id` field with a positive integer value. The returned message will have the same id as the command itself. An example of such a message is as follows:
-```
-{"id":12, "stat":2}
-```
-It means that the command with `"id":12`, is in status 2. The `stat` field can take different values with the following interpretations:
-
-| Stat      | Description |
-| ----------- | ----------- |
-| 0           |The command has been received by the controller|
-| 1           |The command execution has begun|
-| 2           |The execution of the command is completed|
-| 2           |The command has an error and it will not be executed|
 
 
 ## Example
