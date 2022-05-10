@@ -178,6 +178,19 @@ robot.pose() # return [x, y, z, a, b, c, d, e]
 #### Return
 Returns the value of the robot toolhead in Cartesian coordinate system in a list of size 8. Where indices 0 to 7 in this list are associated to `x`, `y`, `z`, `a`, `b`, `c`, `d` and `e`, respectively.   
 
+### `.toollength(val=None, **kwargs)`
+Set or get the robot toollength.
+``` python
+robot.toollength() # get the robot toollength in mm
+robot.toollength(10) # set the robot toollength to 10 mm  
+``` 
+#### Parameters
+- *val*: (flaot) The value we are assigning to the robot toollength in mm.
+- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Return
+Return the toollength of the robot in mm.  
+
 ### `.output(index=None, val=None, **kwargs)`
 Set (enable or disable) or get the value of an output pin.
 ``` python
@@ -334,6 +347,21 @@ robot.sleep(10) # the controller sleepsfor 10 seconds
 #### Return
 Return the status of the command. A successful sleep returns 2. A negative integer means there was an error during the excution of this command. 
 
+### `.version(**kwargs)`
+Get the firmware version of the controller.
+``` python
+robot.version() # get the firmware version
+``` 
+
+#### Return
+Return the firmware version of the controller.
+
+### `.uid(**kwargs)`
+Get the controller ID.
+``` python
+robot.uid() # get the controller 
+``` 
+
 ## Receive message
 After a successful WS connection, the robot starts to send messages in JSON format to the API.  
 
@@ -350,41 +378,6 @@ robot.motor(0) # disable the motors
 #### Return
 Return the alarm status of the controller. Which is either 1 (system is in alarm) or 0 (no alarm in the controller)  
 
-
-### `.sys` 
-This dictionary holds the messages keys and values received by the API.  
-> Notice that, `sys` initialized with an empty dictionary. Every time a new JSON received by the API, `sys` updates itself according to the received data.
-``` python
-print(robot.sys) # {}
-
-# command id = 100
-trk = robot.play(True, cmd="jmove", rel=0, id=100, j1=90, j2=-90)
-trk.complete()
-
-print(robot.sys)  # {"id": 100, "stat": 2, ...}
-``` 
-
-### `.msg` 
-A Python queue of size 100 (`queue.Queue(100)`) that holds the last 100 JSON messages received from the robot.  
-> Notice that each element in `msg` is a Python dictionary, and it is the user responsibility to dequeue and process this queue according to their needs.
-``` python
-# print received messages 
-while True:
-    if not robot.msg.empty()
-        print(robot.msg.get())
-``` 
-
-### `.wait(time_out=0, **arg)`  
-Run a while loop and wait until a given pattern of keys and values in `arg` parameter appears in the `.sys`, and then it will break the loop and returns. If `time_out` is set to `0`, then the while loop runs (forever) until the pattern appears in the `sys` and then it will return `True`. When `time_out > 0`, the while loop runs for maximum of `time_out` seconds. If the pattern appears before `time_out` then the method returns `True`. Otherwise, it will return `False`.  
-The `wait()` method is useful in many scenarios. Here we mention one.  
-
-#### Wait for inputs
-Let say you are waiting for a pattern of inputs to appear an do something after that. Simply call `wait()` and your input pattern as the input argument. 
-``` python
-# waiting for input 0 to turn on and input 3 to turn off, and then do something else after that
-robot.wait(in0=1, in3=0)
-# do something
-```
 ## Tracking command
 When the user sends a command to the robot, the robot starts to process the command and execute it. Depending on the command status the robot report messages to the user. These messages report the status of each command that is sent to the controller, from the time that the command is submitted, to the time that the execution of the command is completed. These messages will only be sent to the user if the corresponding command has an `id` field with a positive integer value. The returned message will have the same id as the command itself. An example of such a message is as follows:
 ```
@@ -399,17 +392,6 @@ It means that the command with `"id":12`, is in status 2. The `stat` field can t
 | 2           |The execution of the command is completed|
 | 2           |The command has an error and it will not be executed|
 
-To track a command set the `track` parameter in `.play()` method to `True`. For better understanding, let say we send a `jmove` command to the robot and we want to wait for the completion of this command.
-```python
-cmd = {"cmd":"jmove", "rel":1, "j0": 90, "id":100}
-trk = robot.play(True, **cmd)  # set the track to True for tracking the completion
-trk.complete()
-print("command execution is completed")
-```
-The `trk` variable returned by the `.play()` method is a `track_cmd` object and it has multiple multiple useful methods. Here we go over one of them.
-
-### `.complete(time_out=0)`
-Use this method to wait for the completion of a command sent by the `.play()` method. If `time_out` is `0` then the method waits until the status of the command is 2 (completed) or negative (error happened). If the `time_out > 0` then the method waits for the maximum of `time_out` seconds for the completion or any error in the execution of the command. This method returns the status of the command. For example, if it returns `2` then it means that the execution of the command is completed.
 
 ## Example
 To learn more about the API, navigate to the main directory of the repository and check the `example` folder for more examples.  
