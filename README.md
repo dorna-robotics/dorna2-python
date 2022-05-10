@@ -233,15 +233,43 @@ Returns the value of input pin(s). If the `index` parameter is presented then th
 ### `.adc(index=None, **kwargs)`
 Get the value of an adc channel(s).
 ``` python
-robot.input(0) # return the value of in0
-robot.input() # return the value of all the 16 input pins in a list of size 16
+robot.adc(0) # return the value of adc0
+robot.adc() # return the value of all the 5 adc channels in a list of size 5
 ``` 
 #### Parameters
-- *index*: (None or 0 <= int < 16) The index of the input pin that we are interested to get its value.
+- *index*: (None or 0 <= int < 5) The index of the adc channel that we are interested to get its value.
 - *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
 
 #### Return
-Returns the value of input pin(s). If the `index` parameter is presented then the value of input pin `index` is returnred. Otherwise, the value of all the 16 input pins are returned in a list of size 16, where item `i` in the list is the value of `ini`.
+Returns the value of adc channel(s). If the `index` parameter is presented then the value of adc channel `index` is returnred. Otherwise, the value of all the 5 adc channels are returned in a list of size 5, where item `i` in the list is the value of `adci`.
+
+### `.probe(index=None, val=None, **kwargs)`
+Set the probe input pin and return the the value of the joints when then input was matched the probe patteren.
+``` python
+robot.probe(1, 0) # return the value of joints, the moment in1 is 0
+robot.probe(in0=0, in3=1) # return the value of joints the moment in0 is 0 and in3 is 1 
+``` 
+#### Parameters
+- *index*: (None or 0 <= int < 16) The index of the input pin that we are interested to set for probe.
+- *val*: (None or binary) The value we want to assign to the input pin `index` for the probe process. This basicall means to return the joints value of the robot when input pin `index` is equal to `val`.   
+- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Return
+Return the values of the robot joints the mooment the input pattern appears in a list of size 8. Where index `i` in the list is the value of joint joint `i` (`ji`).
+
+### `.iprobe(index=None, val=None, **kwargs)`
+This method is similar to the `probe` function but here we are matching an encoder index with a value, instead of an input pin. The encoder on the robot gets 1 8 times during one full rotation of the encoder, and we can locate this points by calling this function.
+``` python
+robot.iprobe(1, 1) # return the value of joints, the moment index1 (encoder 1 index) gets 1
+robot.iprobe(in0=1, in3=1) # return the value of joints the moment index0 is 1 and index3 is 1 
+``` 
+#### Parameters
+- *index*: (None or 0 <= int < 16) The index of the encoder that we are interested to set for iprobe.
+- *val*: (None or binary) The value we want to assign to the encoder index `index` for the iprobe process. This basically means to return the joints value of the robot when encoder index `index` is equal to `val`.   
+- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Return
+Return the values of the robot joints the mooment the index pattern matches the value, in a list of size 8. Where index `i` in the list is the value of joint joint `i` (`ji`).
 
 
 ## Receive message
