@@ -125,14 +125,10 @@ Similar to `.jmove()` but the command key is equal to `"cmove"`.
 In this section we cover methods that are related to the robot orientation.
 
 ### `.joint(index=None, val=None, **kwargs)`
-#### `.joint()`
-Get the joint values of the robot, in a list of size 8. Where index `i` in the list is the value of joint `i` (`ji`). 
-#### `.joint(index)`
-Get the current value of the joint `index`.
-#### `.joint(index, val)`
-Set the value of the joint `index` to `val` and return `.joint(index)`.
-#### `.joint(**kwargs)`
-A helper function to send a `joint` command. It is similar to the [`.play()`](#jointindexnone-valnone-kwargs)
+- `.joint()`: Get the joint values of the robot, in a list of size 8. Where index `i` in the list is the value of joint `i` (`ji`). 
+- `.joint(index)`: Get the value of the joint `index`. 
+- `.joint(index, val)`: Set the value of the joint `index` to `val` and return `.joint(index)`. 
+- `.joint(**kwargs)`: A helper function to send a `joint` command. It is similar to [`.play(cmd="joint", **kwargs)`](#jointindexnone-valnone-kwargs), and return `.joint()`.
 
 ``` python
 robot.joint() # return the value of all the 8 joints of the robot
@@ -149,12 +145,10 @@ robot.pose() # return [x, y, z, a, b, c, d, e]
 ``` 
 
 ### `.toollength(val=None, **kwargs)`
-#### `.toollength()`
-Get the robot toollength in mm.
-#### `.toollength(val)`
-Set the robot toollength to `val` mm and return `.toollength()`.
-#### `.toollength(**kwargs)`
-A helper function to send a `joint` command. It is similar to the [`.play()`](#jointindexnone-valnone-kwargs)
+Set or get the value of the the robot toollength.
+- `.toollength()`: Get the robot toollength in mm.
+- `.toollength(val)`: Set the robot toollength to `val` mm and return `.toollength()`.
+- `.toollength(**kwargs)`: A helper function to send a `joint` command. It is similar to the [`.play(cmd="toollength", **kwargs)`](#jointindexnone-valnone-kwargs)
 
 ``` python
 robot.toollength() # get the robot toollength in mm
@@ -162,41 +156,32 @@ robot.toollength(10) # set the robot toollength to 10 mm
 ``` 
 
 ### `.output(index=None, val=None, **kwargs)`
-#### `.output()`
-Get the value of all the 16 output pins in a list of size 16. Where item `i` in the list is the value of `outi`.
+Set (enable or disable) or get the value of an output pin(s).
+- `.output()`: Get the value of all the 16 output pins in a list of size 16. Where item `i` in the list is the value of `outi`.
+- `.output(index)`: Get the value of output pin `index`.
+- `.output(index, val)`: Set the value of output pin `index` to `val`. Notice that `val` is either 0 or 1, and return `.output(index)`.
+- `.output(**kwargs)`: A helper function to send a `output` command. It is similar to the [`.play(cmd="output", **kwargs)`](#jointindexnone-valnone-kwargs), and return `.output()`. 
 
-#### `.output(index=None, val=None, **kwargs)`
-#### `.output(index=None, val=None, **kwargs)`
-Set (enable or disable) or get the value of an output pin.
 ``` python
+robot.output() # return the value of all the 16 outputs in a list of size 16
 robot.output(0) # return the value of the out0
 robot.output(0, 1) # set the value of the out0 to 1 and return its value
-robot.output() # return the value of all the 16 outputs in a list of size 16
 robot.output(out0=1, out2=0) # set the value of out0 to 1 and out2 to 0, and return the value of all the 16 outputs in a list 
 ``` 
-#### Parameters
-- *index*: (None or 0 <= int < 16) The index of the output pin that we are interested to set or get its value.
-- *val*: (None or binary) The value we want to assign to the output pin `index`. If the `val` is not present or `None` then we are only getting (reading) the value of the output pin `index`.  
-- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
-
-#### Return
-Returns the value of output(s). If the `index` parameter is presented then the value of output pin `index` is returnred. Otherwise, the value of all the 16 output pins are returned in a list of size 16, where item `i` in the list is the value of `outi`.
 
 ### `.pwm(index=None, val=None, **kwargs)`
-Set (enable or disable) or get the value of a pwm channel.
+Set (enable or disable) or get the value of a pwm channel(s).
+- `.pwm()`: Get the value of all the 5 pwm channels in a list of size 5. Where item `i` in the list is the value of `pwmi`.
+- `.pwm(index)`: Get the value of the pwm channel `index`.
+- `.pwm(index, val)`: Set the value of the pwm channel `index` to `val`, and return `.pwm(index)`.
+- `.pwm(**kwargs)`: A helper function to send a `output` command. It is similar to the [`.play(cmd="output", **kwargs)`](#jointindexnone-valnone-kwargs), and return `.output()`. 
+
 ``` python
+robot.pwm() # return the value of all the 5 pwms in a list of size 5
 robot.pwm(0) # return the value of the pwm0
 robot.pwm(0, 1) # set the value of the pwm0 to 1 and return its value
-robot.pwm() # return the value of all the 5 pwms in a list of size 5
-robot.pwm(pwm0=1, pwm2=0) # set the value of pwm0 to 1 and pwm2 to 0, and return the value of all the 5 pwms in a list 
+robot.pwm(pwm0=1, pwm2=0) # set the value of pwm0 to 1 and pwm2 to 0, and return .pwm() 
 ``` 
-#### Parameters
-- *index*: (None or 0 <= int < 5) The index of the pwm channel that we are interested to set or get its value.
-- *val*: (None or binary) The value we want to assign to the pwm channel `index`. If the `val` is not present or `None` then we are only getting (reading) the value of the pwm channel `index`.  
-- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
-
-#### Return
-Returns the value of pwm(s). If the `index` parameter is presented then the value of pwm channel `index` is returnred. Otherwise, the value of all the 5 pwm channels are returned in a list of size 5, where item `i` in the list is the value of `pwmi`.
 
 ### `.freq(index=None, val=None, **kwargs)`
 Set or get the frequency value of a pwm channel.
@@ -257,18 +242,13 @@ robot.adc() # return the value of all the 5 adc channels in a list of size 5
 Returns the value of adc channel(s). If the `index` parameter is presented then the value of adc channel `index` is returnred. Otherwise, the value of all the 5 adc channels are returned in a list of size 5, where item `i` in the list is the value of `adci`.
 
 ### `.probe(index=None, val=None, **kwargs)`
-Set the probe input pin and return the the value of the joints when then input was matched the probe patteren.
-``` python
-robot.probe(1, 0) # return the value of joints, the moment in1 is 0
-robot.probe(in0=0, in3=1) # return the value of joints the moment in0 is 0 and in3 is 1 
-``` 
-#### Parameters
-- *index*: (None or 0 <= int < 16) The index of the input pin that we are interested to set for probe.
-- *val*: (None or binary) The value we want to assign to the input pin `index` for the probe process. This basicall means to return the joints value of the robot when input pin `index` is equal to `val`.   
-- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+Set the probe input pin and return the the value of the joints the moment that the input pin was matched to the probe patteren.
+- `.probe(index, val)`: Return the joint values of the robot in a list of size 8, the moment input `index` (0 <= int < 16), matched to `val` (0 or 1).
+- `.probe(**kwargs)`: A helper function to send a `probe` command. It is similar to the [`.play(cmd="probe", **kwargs)`](#jointindexnone-valnone-kwargs), and return the joint values the moment the probe was triggered. 
 
-#### Return
-Return the values of the robot joints the mooment the input pattern appears in a list of size 8. Where index `i` in the list is the value of joint joint `i` (`ji`).
+``` python
+robot.probe(1, 0) # return the joint values, the moment in1 gets 0
+``` 
 
 ### `.iprobe(index=None, val=None, **kwargs)`
 This method is similar to the `probe` function but here we are matching an encoder index with a value, instead of an input pin. The encoder on the robot gets 1 8 times during one full rotation of the encoder, and we can locate this points by calling this function.
@@ -285,42 +265,33 @@ robot.iprobe(in0=1, in3=1) # return the value of joints the moment index0 is 1 a
 Return the values of the robot joints the mooment the index pattern matches the value, in a list of size 8. Where index `i` in the list is the value of joint joint `i` (`ji`).
 
 ### `.halt(accel=None, **kwargs)`
-Send a halt command with a given accelration (`accel`).
+Send a halt command to the robot. with a given accelration ratio (`accel`), and return the
+- `.halt()`: Send a halt command to the robot. Retun the status of the command: `2` if the command is completed properly, and negative number in case of any error.
+- `.halt(accel)`: Similar to the `.halt()` but this time the `accel` (float >=1) parameter associated to the halt command is specified. Larger number means faster and sharper halt (stop).
+- `.halt(**kwargs)`: A helper function to send an `halt` command. It is similar to the [`.play(cmd="halt", **kwargs)`](#jointindexnone-valnone-kwargs), and return `.halt()`.
+
 ``` python
 robot.halt() # send a halt command to the controller
-robot.halt(5) # send a halt  command with accelration equal to 5 
+robot.halt(5) # send a halt  command with accelration ratio equal to 5 
 ``` 
-#### Parameters
-- *accel*: (None or float > 0) The acceleration parameter associated to the halt command. Larger number means faster stop.
-- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
-
-#### Return
-Return the status of the command. A successful halt returns 2. A negative integer means there was an error during the excution of this command. 
 
 ### `.alarm(self, val=None, **kwargs)`
-Set or get the alarm on the controller.
+Set (disable or enable) or get the alarm status.
+- `.alarm()`: Get the robot alarm status (0 for disabled and 1 for enabled).
+- `.alarm(val)`: Set the alarm status of the robot to `val` (0 or 1), and return `.alarm()`.
+- `.alarm(**kwargs)`: A helper function to send an `alarm` command. It is similar to the [`.play(cmd="alarm", **kwargs)`](#jointindexnone-valnone-kwargs), and return `.alarm()`.
 ``` python
 robot.alarm() # get the alarm status of the controller
 robot.alarm(0) # clear the alarm (set alarm to 0)  
 ``` 
-#### Parameters
-- *val*: (None or binary) The value we are assigning to the alarm. For enabling or disablening the alarm the alarm set the `val` to `1` or `0`, respectively.
-- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
 
-#### Return
-Return the alarm status of the controller. Which is either 1 (system is in alarm) or 0 (no alarm in the controller)  
-
-### `.sleep(sec=None, **kwargs)`
-Send a `sleep` command to the controller.
+### `.sleep(val=None, **kwargs)`
+Send a `sleep` command to the controller and sleep for certain amount of time.
+- `.sleep(val)`: Sleep for `val` (float >=0) seconds and return the status of the command. A successful sleep returns 2. A negative integer return means that there was an error during the excution of this command. 
+- `.sleep(**kwargs)`: A helper function to send a `sleep` command. It is similar to the [`.play(cmd="sleep", **kwargs)`](#jointindexnone-valnone-kwargs), and return the final status of the executed command (2 or negative integer for an error).
 ``` python
 robot.sleep(10) # the controller sleepsfor 10 seconds
 ``` 
-#### Parameters
-- *sec*: (float >= 0) The amount of time in seconds we want the controller to sleep.
-- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
-
-#### Return
-Return the status of the command. A successful sleep returns 2. A negative integer means there was an error during the excution of this command. 
 
 ### `.version(**kwargs)`
 Get the firmware version of the controller.
@@ -328,31 +299,21 @@ Get the firmware version of the controller.
 robot.version() # get the firmware version
 ``` 
 
-#### Return
-Return the firmware version of the controller.
-
 ### `.uid(**kwargs)`
 Get the controller ID.
 ``` python
 robot.uid() # get the controller 
 ``` 
 
-## Receive message
-After a successful WS connection, the robot starts to send messages in JSON format to the API.  
-
 ### `.motor(self, val=None, **kwargs)`
 Set (disable or enable) or get the motor status.
+- `.motor()`: Get the robot motor status (0 for disabled and 1 for enabled).
+- `.motor(val)`: Set the value of the motors to `val` (0 or 1), and return `.motor()`.
+- `.motor(**kwargs)`: A helper function to send a `motor` command. It is similar to the [`.play(cmd="motor", **kwargs)`](#jointindexnone-valnone-kwargs), and return `.motor()`.
 ``` python
 robot.motor() # get the robot motor status
 robot.motor(0) # disable the motors  
 ``` 
-#### Parameters
-- *val*: (None or binary) The value we are assigning to the alarm. For enabling or disablening the alarm the alarm set the `val` to `1` or `0`, respectively.
-- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
-
-#### Return
-Return the alarm status of the controller. Which is either 1 (system is in alarm) or 0 (no alarm in the controller)  
-
 
 ## Example
 To learn more about the API, navigate to the main directory of the repository and check the `example` folder for more examples.  
