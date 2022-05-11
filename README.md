@@ -123,47 +123,50 @@ Similar to `.jmove()` but the command key is equal to `"cmove"`.
 
 ## Orientation
 In this section we cover methods that are related to the robot orientation.
-### `.joint(joint=None, val=None, **kwargs)`
-- `joint()`: Get the current joint values of the robot, in a list of size  
-- 
-Set or get the value of the robot joints.
+
+### `.joint(index=None, val=None, **kwargs)`
+#### `.joint()`
+Get the joint values of the robot, in a list of size 8. Where index `i` in the list is the value of joint `i` (`ji`). 
+#### `.joint(index)`
+Get the current value of the joint `index`.
+#### `.joint(index, val)`
+Set the value of the joint `index` to `val` and return `.joint(index)`.
+#### `.joint(**kwargs)`
+A helper function to send a `joint` command. It is similar to the [`.play()`](#jointindexnone-valnone-kwargs)
+
 ``` python
+robot.joint() # return the value of all the 8 joints of the robot
 robot.joint(1) # return the value of j1
 robot.joint(1, 3.14) # set the value of j1 to 3.14
-robot.joint() # return the value of all the 16 outputs in a list of size 16
-robot.joint(out0=1, out2=0) # set the value of out0 to 1 and out2 to 0, and return the value of all the 16 outputs in a list 
+robot.joint(j0=1, j2=3.14) # set the value of j0 to 1 and j2 to 3.14
 ``` 
-#### Parameters
-- *index*: (None or 0 <= int < 8) The index of the joint that we are interested to set or get its value.
-- *val*: (None or float) The value we want to assign to the joint `index`. If the `val` is not present or `None` then we are only getting (reading) the value of the joint `index`.  
-- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
-
-#### Return
-Returns the value of joint(s). If the `index` parameter is presented then the value of the joint `index` is returnred. Otherwise, the value of all the 8 joints are returned in a list of size 8, where item `i` in the list is the value of `ji`.
 
 ### `.pose()`
-Get the value of the robot toolhead in Cartesian coordinate system.
+Get the value of the robot toolhead in Cartesian coordinate system in a list of size 8. Where indices 0 to 7 in this list are associated to `x`, `y`, `z`, `a`, `b`, `c`, `d` and `e`, respectively.
+
 ``` python
 robot.pose() # return [x, y, z, a, b, c, d, e] 
 ``` 
 
-#### Return
-Returns the value of the robot toolhead in Cartesian coordinate system in a list of size 8. Where indices 0 to 7 in this list are associated to `x`, `y`, `z`, `a`, `b`, `c`, `d` and `e`, respectively.   
-
 ### `.toollength(val=None, **kwargs)`
-Set or get the robot toollength.
+#### `.toollength()`
+Get the robot toollength in mm.
+#### `.toollength(val)`
+Set the robot toollength to `val` mm and return `.toollength()`.
+#### `.toollength(**kwargs)`
+A helper function to send a `joint` command. It is similar to the [`.play()`](#jointindexnone-valnone-kwargs)
+
 ``` python
 robot.toollength() # get the robot toollength in mm
 robot.toollength(10) # set the robot toollength to 10 mm  
 ``` 
-#### Parameters
-- *val*: (flaot) The value we are assigning to the robot toollength in mm.
-- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
-
-#### Return
-Return the toollength of the robot in mm.  
 
 ### `.output(index=None, val=None, **kwargs)`
+#### `.output()`
+Get the value of all the 16 output pins in a list of size 16. Where item `i` in the list is the value of `outi`.
+
+#### `.output(index=None, val=None, **kwargs)`
+#### `.output(index=None, val=None, **kwargs)`
 Set (enable or disable) or get the value of an output pin.
 ``` python
 robot.output(0) # return the value of the out0
