@@ -18,8 +18,10 @@ class WS(object):
         # wait
         self._ptrn = {"wait": None, "sys": None} # wait for a given pattern
         self._track = {"id": None, "msgs": []} # track a given id until it is done 
-        self._msg = None # last message recived
+        self._recv = None # last message recived
 
+        # last message sent
+        self._send = None
     """
     server 
     """
@@ -63,7 +65,7 @@ class WS(object):
         msg_byte = self.write_process(msg, mode)
         #submit the coroutine to the given loop
         future = asyncio.run_coroutine_threadsafe(self.write_coro(msg_byte), self.loop)
-    
+
     # write coroutine
     async def write_coro(self, msg_byte):
         self.writer.write(msg_byte)
@@ -109,7 +111,7 @@ class WS(object):
                     self.msg.put(msg)
 
                 # update _msg
-                self._msg = dict(msg)
+                self._recv = dict(msg)
 
                 # update sys
                 sys.update(msg)

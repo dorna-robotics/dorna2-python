@@ -4,6 +4,10 @@ from config import config
 import time
 
 def home(robot, index, **kwargs):
+    # lower the threshold
+    arg = {"cmd":"set","alarm_error_threshold": 50}
+    robot.play(**arg)
+
     print(kwargs)
     joint = "j"+str(index)
     # move in the given direction with the given speed
@@ -16,6 +20,9 @@ def home(robot, index, **kwargs):
     # clear the alarm
     robot.alarm(0)
 
+    # bring the threshold to normal
+    arg = {"cmd":"set","alarm_error_threshold":3000}
+    robot.play(**arg)
     
     for i in range(kwargs["trigger_count"]):
         # move backward
@@ -37,10 +44,11 @@ def home(robot, index, **kwargs):
 
     # set joint
     joint_assignment = kwargs["joint_val"] + robot.val(joint) - iprobe[index]
-    robot.joint(index, joint_assignment)
+    #robot.joint(index, joint_assignment)
 
     # go to a fixed position
-    robot.jmove(rel=0, j5=-30)
+    #robot.jmove(rel=0, j5=-30)
+
 
     return True
     

@@ -1,11 +1,14 @@
 import setuptools
-
+import dorna2
 with open("README.md", "r") as fh:
     readme = fh.read()
+
+version = dorna2.__version__
 
 setuptools.setup(
     name="dorna2",
     author="Dorna Robotics",
+    version=version,
     author_email="info@dorna.ai",
     description="Python API for Dorna 2",
     long_description=readme,

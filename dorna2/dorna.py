@@ -11,9 +11,14 @@ class Dorna(WS):
         super(Dorna, self).__init__()
         self.config = config
     
-    # last message
-    def msg(self):
-        return dict(self._msg)
+    # last message received
+    def recv(self):
+        return dict(self._recv)
+
+    # last message sent
+    def send(self):
+        return str(self._send)
+
 
     """
     return aggregate and all the messages in _msgs
@@ -86,8 +91,12 @@ class Dorna(WS):
                 # set the tracking id
                 self._track["id"] =  msg["id"]
                 
+                # take a copy
+                self._send = dict(msg)
+                
                 # write the message
                 self.write(json.dumps(msg))
+
 
                 # track
                 if time_out > 0:
@@ -104,6 +113,9 @@ class Dorna(WS):
             except:
                 pass
         else:
+            # take a copy
+            self._send = dict(msg)            
+            
             # write the message
             self.write(json.dumps(msg))
         
@@ -126,7 +138,7 @@ class Dorna(WS):
     --------
     return number valid commands that was sent  
     """
-    def play_script(self, script_path="", time_out=0):
+    def play_script(self, time_out=0, script_path=""):
         with open(script_path, 'r') as f:
             lines = f.readlines()
             num_cmd = 0
@@ -366,8 +378,9 @@ class Dorna(WS):
     """
     send a halt command
     """
-    def halt(self, val=None, **kwargs):
+    def halt(self, accel=None, **kwargs):
         key = "accel"
+        val = accel
         cmd = "halt"
         rtn_key = "stat"
         rtn_keys = None
@@ -495,22 +508,3 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
-def main(config_path):
-    # tik
-    start = time.time()
-    for cmd in 10 * ["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"]:
-        print("####")
-        print("receive: ", robot.cmd(cmd))
-    # tok
-    print("####")
-    print("total time: ",time.time()-start)
-
-if __name__ == '__main__':
-    robot = Dorna()
-    robot.connect("192.168.254.126")
-    
-    for cmd in 10 * ["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"]:
-        print("####")
-        print("receive: ", robot.cmd(cmd))
-
-    robot.close()

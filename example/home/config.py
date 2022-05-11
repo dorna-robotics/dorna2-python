@@ -6,7 +6,7 @@ config = {
         "joint_val": 0,
         "forward": 1000000,
         "backward": -1000000,
-        "vel_forward": 25,
+        "vel_forward": 5,
         "vel_backward": 10,
         "halt_accel": 1,
         "trigger_count": 1
