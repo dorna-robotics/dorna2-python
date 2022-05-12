@@ -5,30 +5,29 @@ import time
 
 def home(robot, index, **kwargs):
     # lower the threshold
-    arg = {"cmd":"set","alarm_error_threshold": 50}
+    arg = {"cmd":"pid","threshold":10,"duration":5}
     robot.play(**arg)
 
-    print(kwargs)
     joint = "j"+str(index)
     # move in the given direction with the given speed
     arg = {"vel": kwargs["vel_forward"], "rel":1, joint: kwargs["forward"] * kwargs["direction"]}  
     alarm_move = robot.jmove(**arg) # move toward the homing direction until the alarm
-
-    # alarm
-    print(alarm_move)
     
+    print(alarm_move)
+    # sleep for a short amount
+    time.sleep(0.2)
+
     # clear the alarm
     robot.alarm(0)
 
     # bring the threshold to normal
-    arg = {"cmd":"set","alarm_error_threshold":3000}
+    arg = {"cmd":"pid","threshold":75,"duration":3000}
     robot.play(**arg)
     
     for i in range(kwargs["trigger_count"]):
         # move backward
         arg = {"time_out": 0, "vel": kwargs["vel_backward"], "rel":1, joint: kwargs["backward"] * kwargs["direction"]}  
         robot.jmove(**arg) # move toward the homing direction until the alarm
-
 
         # set the probe
         print("set the iprobe")
@@ -47,8 +46,7 @@ def home(robot, index, **kwargs):
     #robot.joint(index, joint_assignment)
 
     # go to a fixed position
-    #robot.jmove(rel=0, j5=-30)
-
+    robot.jmove(rel=0, j5=-5)
 
     return True
     
@@ -58,7 +56,8 @@ if __name__ == '__main__':
     robot.connect("192.168.254.126")
 
     print("connected")
-    home(robot, index, **config["j"+ str(index)])
-
+    for i in range(100):
+        home(robot, index, **config["j"+ str(index)])
+        time.sleep(2)
     robot.close()
     
