@@ -94,7 +94,6 @@ class Dorna(WS):
                 # take a copy
                 self._send = dict(msg)
                 
-                print("send: ", msg)
                 # write the message
                 self.write(json.dumps(msg))
 
@@ -117,7 +116,6 @@ class Dorna(WS):
             # take a copy
             self._send = dict(msg)            
             
-            print("send: ", msg)
             # write the message
             self.write(json.dumps(msg))
         
