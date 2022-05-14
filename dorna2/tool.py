@@ -111,6 +111,7 @@ class link(trans):
 	def pc3_c4(self, p, theta, **arg):
 		#M = self.l[3] + np.matrix(p) * self.rot_z(theta) * self.rot_z(-90) * self.rot_y(-90)
 		M = self.l[3] + np.matrix(p) * self.rot_y(90) * self.rot_z(theta) * self.rot_x(90)
+		print("test: ", np.asarray(M).reshape(-1))
 		return np.asarray(M).reshape(-1)
 
 	def pc4_c3(self, p, theta, **arg):
@@ -207,19 +208,18 @@ class kinematic(link):
 						self.adjust_degree(math.degrees(j1)), 
 						self.adjust_degree(math.degrees(j2)), 
 						self.adjust_degree(math.degrees(j3)), 
-						b
+						math.degrees(b)
 					])
-			except:
+			except Exception as ex:
 				pass
 
 		return np.matrix(joint)
 
 if __name__ == '__main__':
 	k = kinematic()
-	joint = [0, 0, 0, 0, 0]
-	xyz = k.forward(joint, [100, 0, 0])
+	joint = [9.996, 10.004, 9.996, 10.001, 10.001]
+	xyz = k.forward(joint, [0, 0, 60.61])
 	print("joint: ", joint)
 	print("forward: ", xyz)
-	#print("inverse: ", k.inverse(xyz))
-
+	print("inverse: ", k.inverse(xyz))
 
