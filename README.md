@@ -121,10 +121,18 @@ Similar to `.jmove()` but the command key is equal to `"lmove"`.
 ### `.cmove(**kwargs)`
 Similar to `.jmove()` but the command key is equal to `"cmove"`.
 
-## Orientation
+## Robot orientation
 In this section we cover methods that are related to the robot orientation.
 
 ### `.joint(index=None, val=None, **kwargs)`
+Set or get the value of an specific joint (or joints), and return its value (their values).
+
+#### Parameter
+- *index*: (0<= int < 8) The index of the joint that we are interested in, to set or get its value.
+- *val*: (float) The value we want to assign to the specific joint.
+- *kwargs*: ???
+
+#### Usage
 - `.joint()`: Get the joint values of the robot, in a list of size 8. Where index `i` in the list is the value of joint `i` (`ji`). 
 - `.joint(index)`: Get the value of the joint `index`. 
 - `.joint(index, val)`: Set the value of the joint `index` to `val` and return `.joint(index)`. 
@@ -145,21 +153,36 @@ robot.pose() # return [x, y, z, a, b, c, d, e]
 ``` 
 
 ### `.toollength(val=None, **kwargs)`
-Set or get the value of the the robot toollength.
+Set or get the value of the robot toollength, and return its value.
+
+#### Parameter
+- *val*: (float >= 0) The length of the toolhead from the base of the robot flange to the tip of the toolhead in mm.
+
+### Usage
 - `.toollength()`: Get the robot toollength in mm.
 - `.toollength(val)`: Set the robot toollength to `val` mm and return `.toollength()`.
-- `.toollength(**kwargs)`: A helper function to send a `joint` command. It is similar to the [`.play(cmd="toollength", **kwargs)`](#jointindexnone-valnone-kwargs)
+- `.toollength(**kwargs)`: ??? A helper function to send a `toollength` command. It is similar to the [`.play(cmd="toollength", **kwargs)`](#jointindexnone-valnone-kwargs)
 
 ``` python
 robot.toollength() # get the robot toollength in mm
 robot.toollength(10) # set the robot toollength to 10 mm  
 ``` 
 
+## I/O
+In this section we cover methods that are related to the robot inputs and outputs.
+
 ### `.output(index=None, val=None, **kwargs)`
 Set (enable or disable) or get the value of an output pin(s).
+
+#### Parameter
+- *index*: (0<= int < 16) The index of the output pin that we are interested in, to set or get its value.
+- *val*: (binary 0 or 1) The value we want to assign to the specific output pin `index`.
+- *kwargs*: ???
+
+#### Usage
 - `.output()`: Get the value of all the 16 output pins in a list of size 16. Where item `i` in the list is the value of `outi`.
 - `.output(index)`: Get the value of output pin `index`.
-- `.output(index, val)`: Set the value of output pin `index` to `val`. Notice that `val` is either 0 or 1, and return `.output(index)`.
+- `.output(index, val)`: Set the value of output pin `index` to `val`, and return `.output(index)`.
 - `.output(**kwargs)`: A helper function to send a `output` command. It is similar to the [`.play(cmd="output", **kwargs)`](#jointindexnone-valnone-kwargs), and return `.output()`. 
 
 ``` python
@@ -171,6 +194,13 @@ robot.output(out0=1, out2=0) # set the value of out0 to 1 and out2 to 0, and ret
 
 ### `.pwm(index=None, val=None, **kwargs)`
 Set (enable or disable) or get the value of a pwm channel(s).
+
+#### Parameter
+- *index*: (0<= int < 16) The index of the output pin that we are interested in, to set or get its value.
+- *val*: (binary 0 or 1) The value we want to assign to the specific output pin `index`.
+- *kwargs*: ???
+
+#### Usage
 - `.pwm()`: Get the value of all the 5 pwm channels in a list of size 5. Where item `i` in the list is the value of `pwmi`.
 - `.pwm(index)`: Get the value of the pwm channel `index`.
 - `.pwm(index, val)`: Set the value of the pwm channel `index` to `val`, and return `.pwm(index)`.
