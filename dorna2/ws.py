@@ -13,7 +13,7 @@ class WS(object):
         self.msg = queue.Queue(100)
         self.sys = {}
         self.callback = None
-        self.connected = False
+        self._connected = False
         
         # wait
         self._ptrn = {"wait": None, "sys": None} # wait for a given pattern
@@ -27,7 +27,7 @@ class WS(object):
     """
     async def server_init(self, ip, port):
         try:
-            self.connected = False
+            self._connected = False
             # connect
             # define the loop
             self.loop = asyncio.get_running_loop()            
@@ -38,13 +38,12 @@ class WS(object):
 
             await asyncio.sleep(1)
             # set parameter
-            self.connected = True
+            self._connected = True
 
             # gather reader and writer
             await asyncio.gather(self.read_loop())
         except Exception as ex:
-            self.connected = False
-            print("connection error: ", ex)
+            await self.close_coro()
 
     def server(self, ip, port, time_out=5):
         # start a new thread
@@ -54,11 +53,11 @@ class WS(object):
         # check for the connection
         s = time.time()
         while time.time()-s < time_out:
-            if self.connected:
+            if self._connected:
                 break
             time.sleep(0.001)
         
-        return self.connected        
+        return self._connected        
 
     def write(self, msg = "", mode="cmd"):
         # msg to byte
@@ -68,9 +67,13 @@ class WS(object):
 
     # write coroutine
     async def write_coro(self, msg_byte):
-        self.writer.write(msg_byte)
-        await self.writer.drain()
-        return True
+        try:
+            self.writer.write(msg_byte)
+            await self.writer.drain()
+            return True
+        except:
+            await self.close_coro()
+            return False
 
     # register a callback
     def register_callback(self, fn):
@@ -80,22 +83,29 @@ class WS(object):
     # read loop
     async def read_loop(self):
         sys = {}
-        while self.connected:
+        while self._connected:
             msg = None
             try:
                 if self.channel == "socket":
-                    # read header
-                    data_length_byte = await self.reader.readexactly(2)
+                    try:
+                        # read header
+                        data_length_byte = await self.reader.readexactly(2)
 
-                    # read data
-                    data_byte = await self.reader.readexactly(int.from_bytes(data_length_byte, byteorder='big'))
-
+                        # read data
+                        data_byte = await self.reader.readexactly(int.from_bytes(data_length_byte, byteorder='big'))
+                    except:
+                        break
+                       
                     # get the message
                     msg = json.loads(data_byte.decode("utf-8") )                    
                 else:
                     # raw data
-                    data_byte = await self.reader.readuntil(separator=b'}')
-                    data_str = str(data_byte)
+                    try:
+                        data_byte = await self.reader.readuntil(separator=b'}')
+                        data_str = str(data_byte)
+                    except:
+                        # close connection
+                        break
 
                     # find the index
                     index_start = data_str.find("{")
@@ -132,8 +142,7 @@ class WS(object):
                             # end the track
                             if "stat" in msg and any([msg["stat"] < 0, msg["stat"] >= 2]):
                                 self._track["id"] = None                              
-                    except Exception as ex:
-                        print("track_error: ",ex)
+                    except:
                         pass
 
                 # pattern wait
@@ -144,9 +153,9 @@ class WS(object):
                         # search for it
                         if all([k in sys for k in self._ptrn["wait"]]) and all([self._ptrn["wait"][k] == sys[k] for k in self._ptrn["wait"]]):
                             self._ptrn["wait"] = None
-                except Exception as ex:
-                    print("pattern_error: ", ex)
-                
+                except:
+                    pass 
+
                 # update sys           
                 self.sys = dict(sys)
 
@@ -154,6 +163,8 @@ class WS(object):
             except Exception as ex:
                 print("socket read error: ", ex)
 
+        # close connection
+        await self.close_coro()
 
     # encode the write data
     def write_process(self, msg, mode):
@@ -210,14 +221,16 @@ class WS(object):
             )
 
     async def close_coro(self):
-        self.connected = False
-        try:
-            self.writer.close()
-            await self.writer.wait_closed()
-        except:
-            pass
+        if self._connected:
+            try:
+                self.writer.close()
+                await self.writer.wait_closed()
+            except:
+                pass
+
+        self._connected = False
 
     def close(self):
-        #submit the coroutine to the given loop
-        future = asyncio.run_coroutine_threadsafe(self.close_coro(), self.loop)
-        time.sleep(1)
+        if self._connected:
+            future = asyncio.run_coroutine_threadsafe(self.close_coro(), self.loop)
+        #asyncio.run(self.close_coro())

@@ -17,7 +17,7 @@ class Dorna(WS):
 
     # last message sent
     def send(self):
-        return str(self._send)
+        return dict(self._send)
 
 
     """
@@ -25,10 +25,12 @@ class Dorna(WS):
     """
     def track(self):
         rtn = {}
+        merge = {}
         _track = dict(self._track)
         for i in range(len(_track["msgs"])):
-            rtn = {**rtn, **_track["msgs"][i]}
-        rtn["_msgs"] = _track["msgs"]
+            merge = {**merge, **_track["msgs"][i]}
+        rtn["all"] = _track["msgs"]
+        rtn["merge"] = merge
         return rtn
 
     def connect(self, host="localhost", port=443, time_out=5):
@@ -506,4 +508,3 @@ class Dorna(WS):
         rtn_keys = None
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
-
