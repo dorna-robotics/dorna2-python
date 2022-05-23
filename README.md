@@ -121,10 +121,18 @@ Similar to `.jmove()` but the command key is equal to `"lmove"`.
 ### `.cmove(**kwargs)`
 Similar to `.jmove()` but the command key is equal to `"cmove"`.
 
-## Orientation
+## Robot orientation
 In this section we cover methods that are related to the robot orientation.
 
 ### `.joint(index=None, val=None, **kwargs)`
+Set or get the value of an specific joint (or joints), and return its value (their values).
+
+#### Parameter
+- *index*: (0<= int < 8) The index of the joint that we are interested in, to set or get its value.
+- *val*: (float) The value we want to assign to the specific joint.
+- *kwargs*: ???
+
+#### Usage
 - `.joint()`: Get the joint values of the robot, in a list of size 8. Where index `i` in the list is the value of joint `i` (`ji`). 
 - `.joint(index)`: Get the value of the joint `index`. 
 - `.joint(index, val)`: Set the value of the joint `index` to `val` and return `.joint(index)`. 
@@ -145,21 +153,36 @@ robot.pose() # return [x, y, z, a, b, c, d, e]
 ``` 
 
 ### `.toollength(val=None, **kwargs)`
-Set or get the value of the the robot toollength.
+Set or get the value of the robot toollength, and return its value.
+
+#### Parameter
+- *val*: (float >= 0) The length of the toolhead from the base of the robot flange to the tip of the toolhead in mm.
+
+### Usage
 - `.toollength()`: Get the robot toollength in mm.
 - `.toollength(val)`: Set the robot toollength to `val` mm and return `.toollength()`.
-- `.toollength(**kwargs)`: A helper function to send a `joint` command. It is similar to the [`.play(cmd="toollength", **kwargs)`](#jointindexnone-valnone-kwargs)
+- `.toollength(**kwargs)`: ??? A helper function to send a `toollength` command. It is similar to the [`.play(cmd="toollength", **kwargs)`](#jointindexnone-valnone-kwargs)
 
 ``` python
 robot.toollength() # get the robot toollength in mm
 robot.toollength(10) # set the robot toollength to 10 mm  
 ``` 
 
+## I/O
+In this section we cover methods that are related to the robot inputs and outputs.
+
 ### `.output(index=None, val=None, **kwargs)`
 Set (enable or disable) or get the value of an output pin(s).
+
+#### Parameter
+- *index*: (0<= int < 16) The index of the output pin that we are interested in, to set or get its value.
+- *val*: (binary 0 or 1) The value we want to assign to the specific output pin `index`.
+- *kwargs*: ???
+
+#### Usage
 - `.output()`: Get the value of all the 16 output pins in a list of size 16. Where item `i` in the list is the value of `outi`.
 - `.output(index)`: Get the value of output pin `index`.
-- `.output(index, val)`: Set the value of output pin `index` to `val`. Notice that `val` is either 0 or 1, and return `.output(index)`.
+- `.output(index, val)`: Set the value of output pin `index` to `val`, and return `.output(index)`.
 - `.output(**kwargs)`: A helper function to send a `output` command. It is similar to the [`.play(cmd="output", **kwargs)`](#jointindexnone-valnone-kwargs), and return `.output()`. 
 
 ``` python
@@ -171,6 +194,13 @@ robot.output(out0=1, out2=0) # set the value of out0 to 1 and out2 to 0, and ret
 
 ### `.pwm(index=None, val=None, **kwargs)`
 Set (enable or disable) or get the value of a pwm channel(s).
+
+#### Parameter
+- *index*: (0<= int < 5) The index of the pwm channel that we are interested in, to set or get its value.
+- *val*: (binary 0 or 1) The value we want to assign to the specific pwm channel `index`.
+- *kwargs*: ???
+
+#### Usage
 - `.pwm()`: Get the value of all the 5 pwm channels in a list of size 5. Where item `i` in the list is the value of `pwmi`.
 - `.pwm(index)`: Get the value of the pwm channel `index`.
 - `.pwm(index, val)`: Set the value of the pwm channel `index` to `val`, and return `.pwm(index)`.
@@ -184,49 +214,61 @@ robot.pwm(pwm0=1, pwm2=0) # set the value of pwm0 to 1 and pwm2 to 0, and return
 ``` 
 
 ### `.freq(index=None, val=None, **kwargs)`
-Set or get the frequency value of a pwm channel.
+Set or get the frequency value of a pwm channel(s).
+
+#### Parameters
+- *index*: (0 <= int < 5) The index of the pwm channel that we are interested to set or get its frequency value.
+- *val*: (0 <= float <= 120,000,000) The frequency value we want to assign to the pwm channel `index`.  
+- *kwargs*: ??? Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Usage
+- `.freq()`: Get the frequency value of all the 5 pwm channels in a list of size 5. Where item `i` in the list is the value of `freqi`.
+- `.freq(index)`: Get the frequency value of the pwm channel `index`.
+- `.freq(index, val)`: Set the frequency value of the pwm channel `index` to `val`, and return `.pwm(index)`.
+- `.freq(**kwargs)`: ???A helper function to send a `output` command. It is similar to the [`.play(cmd="output", **kwargs)`](#jointindexnone-valnone-kwargs), and return `.output()`. 
+
 ``` python
 robot.freq(0) # return the value of freq0
 robot.freq(0, 10) # set the value of freq0 to 1 and return its value
 robot.freq() # return the frequency value of all the 5 pwms in a list of size 5
 robot.freq(freq0=10, freq2=20) # set the value of freq0 to 1 and freq2 to 0, and return the frequency value of all the 5 pwms in a list 
 ``` 
-#### Parameters
-- *index*: (None or 0 <= int < 5) The index of the pwm channel that we are interested to set or get its frequency value.
-- *val*: (None or binary) The frequency value we want to assign to the pwm channel `index`. If the `val` is not present or `None` then we are only getting (reading) the frequency value of the pwm channel `index`.  
-- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
-
-#### Return
-Returns the value of freq(s). If the `index` parameter is presented then the frequency value of the pwm channel `index` is returnred. Otherwise, the frequency value of all the 5 pwm channels are returned in a list of size 5, where item `i` in the list is the value of `freqi`.
 
 ### `.duty(index=None, val=None, **kwargs)`
-Set or get the duty cycle of a pwm channel.
+Set or get the duty cycle of a pwm channel(s). If the `index` parameter is presented then the duty cycle of the pwm channel `index` is returnred. Otherwise, the dudty cycle of all the 5 pwm channels are returned in a list of size 5, where item `i` in the list is the value of `dutyi`.
+
+#### Parameters
+- *index*: (0 <= int < 5) The index of the pwm channel that we are interested to set or get its duty cycle.
+- *val*: (0<= float <=100) The value of the duty cycle we want to assign to the pwm channel `index`. 
+- *kwargs*: ???Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Usage
+- `.duty()`: Get the duty cycles of all the 5 pwm channels in a list of size 5. Where item `i` in the list is the value of `dutyi`.
+- `.duty(index)`: Get the frequency value of the pwm channel `index`.
+- `.duty(index, val)`: Set the frequency value of the pwm channel `index` to `val`, and return `.pwm(index)`.
+- `.duty(**kwargs)`: ???A helper function to send a `output` command. It is similar to the [`.play(cmd="output", **kwargs)`](#jointindexnone-valnone-kwargs), and return `.output()`. 
+
 ``` python
 robot.duty(0) # return the value of duty0
 robot.duty(0, 10) # set the value of duty0 to 1 and return its value
 robot.duty() # return the duty cycle of all the 5 pwms in a list of size 5
 robot.duty(duty0=10, duty2=20) # set the duty0 to 1 and duty2 to 0, and return the duty cycles of all the 5 pwms in a list 
 ``` 
-#### Parameters
-- *index*: (None or 0 <= int < 5) The index of the pwm channel that we are interested to set or get its duty cycle.
-- *val*: (None or binary) The duty cycle we want to assign to the pwm channel `index`. If the `val` is not present or `None` then we are only getting (reading) the duty cycle of the pwm channel `index`.  
-- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
-
-#### Return
-Returns the duty cycle(s). If the `index` parameter is presented then the duty cycle of the pwm channel `index` is returnred. Otherwise, the dudty cycle of all the 5 pwm channels are returned in a list of size 5, where item `i` in the list is the value of `dutyi`.
-
 ### `.input(index=None, **kwargs)`
-Get the value of an input pin(s).
+Get the value of an input pin(s). If the `index` parameter is presented then the value of input pin `index` is returnred. Otherwise, the value of all the 16 input pins are returned in a list of size 16, where item `i` in the list is the value of `ini`.
+
+#### Parameters
+- *index*: (0 <= int < 16) The index of the input pin that we are interested to get its value.
+- *kwargs*: ???Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+
+#### Usage
+- `.input()`: Get the value of all input pins in a list of size 8, where index `i` in the list is the value of `ini`.
+- `.input(index)`: Get the value of input pin `index`.
+
 ``` python
 robot.input(0) # return the value of in0
 robot.input() # return the value of all the 16 input pins in a list of size 16
 ``` 
-#### Parameters
-- *index*: (None or 0 <= int < 16) The index of the input pin that we are interested to get its value.
-- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
-
-#### Return
-Returns the value of input pin(s). If the `index` parameter is presented then the value of input pin `index` is returnred. Otherwise, the value of all the 16 input pins are returned in a list of size 16, where item `i` in the list is the value of `ini`.
 
 ### `.adc(index=None, **kwargs)`
 Get the value of an adc channel(s).
