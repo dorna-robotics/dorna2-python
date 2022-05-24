@@ -36,13 +36,13 @@ robot = Dorna()
 ## Connection
 The robot socket server runs on `ws://robot_ip_address:443`, where `robot_ip_address` is the IP address (host) of the robot, and `443` is the port number. Once the connection has been established between the robot and the client (user), they start communicating with each other by sending and receiving data in [JSON][json] format. 
 
-### `.connect(host="localhost", port=443, time_out=5)` 
+### `.connect(host="localhost", port=443, timeout=5)` 
 Connect to the robot controller socket server at `ws://host:port`.
 
 #### Parameters
 - *host*: (string) The controller host address. The default value is `"localhost"`.
 - *port*: (int) The controller port number. The default value is `443`.
-- *time_out*: (float > 0) Wait maximum of `time_out` seconds to establish a connection to the robot controller. The default value is `5` seconds.
+- *timeout*: (float > 0) Wait maximum of `timeout` seconds to establish a connection to the robot controller. The default value is `5` seconds.
 
 #### Returns
 Returns `True` on a sucessful connection, otherwise `False`.
@@ -81,19 +81,19 @@ It means that the command with `id` equal to `12`, is in status `2`. The `stat` 
 
 > Notice, that we say thta a command is done if get `stat = 2` or `stat < 0` of that command.
 
-### `time_out` variable
-Throughout this document we use and refer to the `time_out` key as an arguments inside methods that are sending command to the robot.  
-Functions that are sending command to the robot are using the `time_out` argument for tracking the completion or any error during the execution of the command that they are sending. 
-- `time_out < 0`: Send a command and wait for the command to get done ( `stat = 2` or `stat < 0`) and then return. At this moment we are sure that the command is no longer running.
-- `time_out >= 0`: Send a command and wait for A maximum of `time_out` seconds for its execution. Notice that in this case, we might have returned from the fuction but the command which was sent by the fuction to the robot is still runnning or wating inside the controller for its time to run. If we do not want to wait for the execution of a command at all we can always set `time_out = 0`.
+### `timeout` variable
+Throughout this document we use and refer to the `timeout` key as an arguments inside methods that are sending command to the robot.  
+Functions that are sending command to the robot are using the `timeout` argument for tracking the completion or any error during the execution of the command that they are sending. 
+- `timeout < 0`: Send a command and wait for the command to get done ( `stat = 2` or `stat < 0`) and then return. At this moment we are sure that the command is no longer running.
+- `timeout >= 0`: Send a command and wait for A maximum of `timeout` seconds for its execution. Notice that in this case, we might have returned from the fuction but the command which was sent by the fuction to the robot is still runnning or wating inside the controller for its time to run. If we do not want to wait for the execution of a command at all we can always set `timeout = 0`.
 
-### `.play(time_out=-1, msg=None, **kwargs):`  
+### `.play(timeout=-1, msg=None, **kwargs):`  
 Send a message to the robot. There are multiple ways to send a message via `.play()`. For a better understanding, we send a simple `alarm` status command in three different ways:
 1. Key and value format: `play(cmd='alarm', id=100})`
 2. Python dictionary format: `play({'cmd': 'alarm', 'id': 100})` 
 3. JSON string format: `play('{"cmd": "alarm", "id": 100}')`
 
-### `play_script(script_path, time_out=0)`
+### `play_script(script_path, timeout=0)`
 Send all the messages that are stored in a script file to the robot controller. The method opens the script file located at `script_path`, read the file line by line and send each line as a command. 
 > Notice that each message has to occupy exactly one line. Multiple messages in one line or one message in multiple line is not a valid format. As an example, here we show a valid and invalid script format:
 ``` python
@@ -107,7 +107,7 @@ Send all the messages that are stored in a script file to the robot controller. 
 {"cmd":"jmove","rel":0,
 "j0":-10}
 ``` 
-Use the `time_out` parameter for waiting or not waiting for the execution of the commands in the script file.
+Use the `timeout` parameter for waiting or not waiting for the execution of the commands in the script file.
 
 ### `.jmove(**kwargs)`
 A helper function to send a `jmove` command. `jmove(j0=0, id=100)` is equivalent to `play(cmd='jmove', j0=0, id=100)`. Basically the `cmd` key is set to `"jmove"`.  
@@ -219,7 +219,7 @@ Set or get the frequency value of a pwm channel(s).
 #### Parameters
 - *index*: (0 <= int < 5) The index of the pwm channel that we are interested to set or get its frequency value.
 - *val*: (0 <= float <= 120,000,000) The frequency value we want to assign to the pwm channel `index`.  
-- *kwargs*: ??? Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+- *kwargs*: ??? Other key and value parameters associated to this method. Including `timeout`, `queue`, `id`, etc. 
 
 #### Usage
 - `.freq()`: Get the frequency value of all the 5 pwm channels in a list of size 5. Where item `i` in the list is the value of `freqi`.
@@ -240,7 +240,7 @@ Set or get the duty cycle of a pwm channel(s). If the `index` parameter is prese
 #### Parameters
 - *index*: (0 <= int < 5) The index of the pwm channel that we are interested to set or get its duty cycle.
 - *val*: (0<= float <=100) The value of the duty cycle we want to assign to the pwm channel `index`. 
-- *kwargs*: ???Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+- *kwargs*: ???Other key and value parameters associated to this method. Including `timeout`, `queue`, `id`, etc. 
 
 #### Usage
 - `.duty()`: Get the duty cycles of all the 5 pwm channels in a list of size 5. Where item `i` in the list is the value of `dutyi`.
@@ -259,7 +259,7 @@ Get the value of an input pin(s). If the `index` parameter is presented then the
 
 #### Parameters
 - *index*: (0 <= int < 16) The index of the input pin that we are interested to get its value.
-- *kwargs*: ???Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+- *kwargs*: ???Other key and value parameters associated to this method. Including `timeout`, `queue`, `id`, etc. 
 
 #### Usage
 - `.input()`: Get the value of all input pins in a list of size 8, where index `i` in the list is the value of `ini`.
@@ -278,7 +278,7 @@ robot.adc() # return the value of all the 5 adc channels in a list of size 5
 ``` 
 #### Parameters
 - *index*: (None or 0 <= int < 5) The index of the adc channel that we are interested to get its value.
-- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+- *kwargs*: Other key and value parameters associated to this method. Including `timeout`, `queue`, `id`, etc. 
 
 #### Return
 Returns the value of adc channel(s). If the `index` parameter is presented then the value of adc channel `index` is returnred. Otherwise, the value of all the 5 adc channels are returned in a list of size 5, where item `i` in the list is the value of `adci`.
@@ -301,7 +301,7 @@ robot.iprobe(in0=1, in3=1) # return the value of joints the moment index0 is 1 a
 #### Parameters
 - *index*: (None or 0 <= int < 16) The index of the encoder that we are interested to set for iprobe.
 - *val*: (None or binary) The value we want to assign to the encoder index `index` for the iprobe process. This basically means to return the joints value of the robot when encoder index `index` is equal to `val`.   
-- *kwargs*: Other key and value parameters associated to this method. Including `time_out`, `queue`, `id`, etc. 
+- *kwargs*: Other key and value parameters associated to this method. Including `timeout`, `queue`, `id`, etc. 
 
 #### Return
 Return the values of the robot joints the mooment the index pattern matches the value, in a list of size 8. Where index `i` in the list is the value of joint joint `i` (`ji`).

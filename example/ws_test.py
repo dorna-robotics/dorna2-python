@@ -15,7 +15,7 @@ def main(config_path):
 if __name__ == '__main__':
     config_path = "config.json"
     
-    for i in range(100):
+    for i in range(1):
         # arguments
         with open(config_path) as json_file:
             arg = json.load(json_file)

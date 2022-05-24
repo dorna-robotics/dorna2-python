@@ -25,68 +25,106 @@ class WS(object):
     """
     server 
     """
-    async def server_init(self, ip, port):
+    async def server_init(self, ip, port, timeout):
+
+        handshake = False
+        self._connected = False
+
+        # define the loop
+        self.loop = asyncio.get_running_loop()            
+
+        # reader and writer
         try:
-            self._connected = False
-            # connect
-            # define the loop
-            self.loop = asyncio.get_running_loop()            
-            self.reader, self.writer = await asyncio.open_connection(ip, port)
-            
-            # handshake
-            self.write(mode="handshake")
+            self.reader, self.writer = await asyncio.wait_for(asyncio.open_connection(ip, port), timeout=1)
+        except:
+            return await self.close_coro()
 
-            await asyncio.sleep(1)
-            # set parameter
-            self._connected = True
+        # handshake
+        if self.channel == "websocket":                
+            try:
+                handshake = await asyncio.wait_for(self._handshake_ws(), timeout=timeout)
+            except asyncio.TimeoutError:
+                return await self.close_coro()
+        else:
+            handshake = True
+        
+        # read loop
+        if handshake:
+            await self.read_loop()
+        
+        await self.close_coro()
 
-            # gather reader and writer
-            await asyncio.gather(self.read_loop())
-        except Exception as ex:
-            await self.close_coro()
 
-    def server(self, ip, port, time_out=5):
+    def server(self, ip, port, timeout=5):
         # start a new thread
-        self.server_thread = threading.Thread(target=asyncio.run, args=(self.server_init(ip, port),))
+        self.server_thread = threading.Thread(target=asyncio.run, args=(self.server_init(ip, port, timeout),))
         self.server_thread.start()
 
         # check for the connection
+        self._thr = True
         s = time.time()
-        while time.time()-s < time_out:
-            if self._connected:
+        while time.time()-s < timeout:
+            if self._connected or not self._thr:
                 break
             time.sleep(0.001)
         
         return self._connected        
 
     def write(self, msg = "", mode="cmd"):
-        # msg to byte
-        msg_byte = self.write_process(msg, mode)
-        #submit the coroutine to the given loop
-        future = asyncio.run_coroutine_threadsafe(self.write_coro(msg_byte), self.loop)
+        #asyncio.create_task(self.write_coro(msg, mode))
+        asyncio.run_coroutine_threadsafe(self.write_coro(msg, mode), self.loop)
+
 
     # write coroutine
-    async def write_coro(self, msg_byte):
+    async def write_coro(self, msg="", mode="cmd"):
         try:
+            # msg to byte
+            msg_byte = self.write_process(msg, mode)            
             self.writer.write(msg_byte)
             await self.writer.drain()
             return True
         except:
-            await self.close_coro()
             return False
+
 
     # register a callback
     def register_callback(self, fn):
         ''' fn must accept one input, e.g. fn(msg, sys) '''
         self.callback = fn
 
+
+    async def _handshake_ws(self):
+        # send the handshake and wait for its reply
+        await self.write_coro("", mode="handshake")
+        data = str(await self.reader.readuntil(separator=b'\r\n\r\n'))
+        if "Sec-WebSocket-Accept" in data:
+            return True
+
+        return False
+
+
     # read loop
     async def read_loop(self):
         sys = {}
+        self._connected = True
         while self._connected:
             msg = None
             try:
-                if self.channel == "socket":
+                if self.channel == "websocket":
+                    # raw data
+                    try:
+                        data_byte = await self.reader.readuntil(separator=b'}')
+                        data_str = str(data_byte)
+                    except Exception as ex:
+                        # close connection
+                        break
+
+                    # find the index
+                    index_start = data_str.find("{")
+
+                    # get the message
+                    msg = json.loads(data_str[index_start:-1])
+                else:
                     try:
                         # read header
                         data_length_byte = await self.reader.readexactly(2)
@@ -98,20 +136,6 @@ class WS(object):
                        
                     # get the message
                     msg = json.loads(data_byte.decode("utf-8") )                    
-                else:
-                    # raw data
-                    try:
-                        data_byte = await self.reader.readuntil(separator=b'}')
-                        data_str = str(data_byte)
-                    except:
-                        # close connection
-                        break
-
-                    # find the index
-                    index_start = data_str.find("{")
-
-                    # get the message
-                    msg = json.loads(data_str[index_start:-1])
                 
                 # message queue
                 if not self.msg.full():
@@ -227,8 +251,8 @@ class WS(object):
                 await self.writer.wait_closed()
             except:
                 pass
-
         self._connected = False
+        self._thr = False
 
     def close(self):
         if self._connected:

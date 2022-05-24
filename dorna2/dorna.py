@@ -4,7 +4,6 @@ import time
 from dorna2.ws import WS
 from dorna2.config import config
 
-
 class Dorna(WS):
     """docstring for Dorna"""
     def __init__(self, config=config):
@@ -33,9 +32,9 @@ class Dorna(WS):
         rtn["merge"] = merge
         return rtn
 
-    def connect(self, host="localhost", port=443, time_out=5):
+    def connect(self, host="localhost", port=443, timeout=5):
         # Check the connection
-        if not self.server(host, port, time_out):
+        if not self.server(host, port, timeout):
             return False
 
         # initialize
@@ -52,16 +51,16 @@ class Dorna(WS):
 
     """
     complete: wait for the completion or not
-    time_out: the maximum amount of time (seconds), the API waits for the command completion, 
+    timeout: the maximum amount of time (seconds), the API waits for the command completion, 
                 negative (e.g. -1): wait for the command completion or error
                 0: no waiting
-                positive: wait for maximum time_out seconds to complete the command
+                positive: wait for maximum timeout seconds to complete the command
     msg: command in form of text or dict
     **kwargs: Other parameters associated to the play
     --------
     return a dictionary formed by the union of the messages associated to this command 
     """
-    def play(self, time_out=-1, msg=None, **kwargs):
+    def play(self, timeout=-1, msg=None, **kwargs):
         self._track = {"id": None, "msgs": []} # init track 
         
         # find msg
@@ -86,7 +85,7 @@ class Dorna(WS):
 
 
         # set the track
-        if time_out >0 or time_out < 0:
+        if timeout >0 or timeout < 0:
 
             # send and track messages
             try:
@@ -101,9 +100,9 @@ class Dorna(WS):
 
 
                 # track
-                if time_out > 0:
+                if timeout > 0:
                     start = time.time()
-                    while time.time() <= start + time_out and self._track["id"] == msg["id"]:
+                    while time.time() <= start + timeout and self._track["id"] == msg["id"]:
                         time.sleep(0.001)
                     
                     # do not search for it anymore
@@ -133,36 +132,36 @@ class Dorna(WS):
     """
     play a text file, where each line is a valid command, if a command is not valid, it will skip it and send the next one
     script_path: path to the script file
-    time_out= if you want to wait for the completion of this block of scripts or not
+    timeout= if you want to wait for the completion of this block of scripts or not
         negative (-1): waits for its completion
         0: no wait
-        positive: wait for maximum of time_out seconds
+        positive: wait for maximum of timeout seconds
     --------
     return number valid commands that was sent  
     """
-    def play_script(self, time_out=0, script_path=""):
+    def play_script(self, timeout=0, script_path=""):
         with open(script_path, 'r') as f:
             lines = f.readlines()
             num_cmd = 0
             for l in lines:
                 try:
-                    self.play(time_out=0, msg=l)
+                    self.play(timeout=0, msg=l)
                     num_cmd += 1
                 except:
                     pass
-        self.sleep(0, time_out=time_out)
+        self.sleep(0, timeout=timeout)
         return num_cmd
 
     """
     wait for a given patter in received signal
     """
-    def wait(self, time_out=-1, **kwargs):
+    def wait(self, timeout=-1, **kwargs):
         # set wait dict
         self._ptrn["wait"] = dict(kwargs)
         # track
-        if time_out >= 0:
+        if timeout >= 0:
             start = time.time()
-            while time.time() <= start + time_out and self._ptrn["wait"]:
+            while time.time() <= start + timeout and self._ptrn["wait"]:
                 time.sleep(0.001)
             self._ptrn["wait"] = None
         else:
@@ -240,7 +239,7 @@ class Dorna(WS):
             else:
                 return [rtn[k] for k in rtn_keys]
         except Exception as ex:
-            print("error1: ", ex)
+            print("error key and value: ", ex)
             return None
     
     """
