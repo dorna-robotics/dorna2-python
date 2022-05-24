@@ -94,12 +94,15 @@ class WS(object):
 
 
     async def _handshake_ws(self):
-        # send the handshake and wait for its reply
-        await self.write_coro("", mode="handshake")
-        data = str(await self.reader.readuntil(separator=b'\r\n\r\n'))
-        if "Sec-WebSocket-Accept" in data:
-            return True
+        try:
+            # send the handshake and wait for its reply
+            await self.write_coro("", mode="handshake")
+            data = str(await self.reader.readuntil(separator=b'\r\n\r\n'))
+            if "Sec-WebSocket-Accept" in data:
+                return True
 
+        except:
+            pass
         return False
 
 
