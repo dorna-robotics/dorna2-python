@@ -109,8 +109,19 @@ Send all the messages that are stored in a script file to the robot controller. 
 ``` 
 Use the `timeout` parameter for waiting or not waiting for the execution of the commands in the script file.
 
+## Move
+In this section we cover functions which are used for the robot motion. 
+
 ### `.jmove(**kwargs)`
-A helper function to send a `jmove` command. `jmove(j0=0, id=100)` is equivalent to `play(cmd='jmove', j0=0, id=100)`. Basically the `cmd` key is set to `"jmove"`.  
+A helper function to send a joint move (`jmove`) command. `jmove(rel=0, j0=0, id=100)` is equivalent to `play(cmd='jmove', rel=0, j0=0, id=100)`. Basically the `cmd` key is set to `"jmove"`. Similar to the [`.play()`](#play) method, this method returns a `.track()` object.
+``` python
+robot.jmove(rel=1, j0=10, j2=20) # move j0, 10 degrees and j2, 20 degrees relative to their last position, and wait for the motion to
+robot.jmove()
+robot.joint(1) # return the value of j1
+robot.joint(1, 3.14) # set the value of j1 to 3.14
+robot.joint(j0=1, j2=3.14) # set the value of j0 to 1 and j2 to 3.14
+``` 
+
 
 ### `.rmove(**kwargs)`
 Similar to `.jmove()` but the command key is equal to `"rmove"`.
