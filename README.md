@@ -25,7 +25,7 @@ sudo python3 setup.py install --force
 ```
 
 ### Getting started
-First, import `Dorna` class from the `dorna2` module, and then creat a `Dorna` object.
+First, import `Dorna` class from the `dorna2` module, and then create a `Dorna` object.
 ``` python
 from dorna2 import Dorna
 
@@ -62,8 +62,8 @@ robot.connect("10.0.0.10") # connect to the robot at ws://10.0.0.10:443
 robot.close() # always close the socket when you are done
 ``` 
 
-## Send message
-Once you connected to the controller, you can start sending valid messages (commands) to the robot.
+## Send and Receive 
+Once you connected to the controller, you can start sending valid messages (commands) to the robot, and receiving  
 
 ### Command status and execution
 We need to first get familiar with the status of a command first. When sending a valid command to the robot, the controller reports the status of the command from the time that the command is submitted, to the time that the execution of the command is completed using a `stat` key and the unique `id` send initially with the command. An example of such a message is as follows:

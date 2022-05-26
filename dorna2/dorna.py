@@ -78,48 +78,28 @@ class Dorna(WS):
             msg = dict(kwargs)
 
         # check the id
-        try:
-            type(msg["id"]) == int
-        except:
-            msg["id"] = random.randint(100, 1000000)
-
-
-        # set the track
-        if timeout >0 or timeout < 0:
-
-            # send and track messages
-            try:
-                # set the tracking id
-                self._track["id"] =  msg["id"]
-                
-                # take a copy
-                self._send = dict(msg)
-                
-                # write the message
-                self.write(json.dumps(msg))
-
-
-                # track
-                if timeout > 0:
-                    start = time.time()
-                    while time.time() <= start + timeout and self._track["id"] == msg["id"]:
-                        time.sleep(0.001)
-                    
-                    # do not search for it anymore
-                    self._track["id"] = None
-                else:
-                    while self._track["id"] == msg["id"]:
-                        time.sleep(0.001)
-                
-            except:
-                pass
+        if type(msg["id"]) == int and msg["id"] > 0:
+            pass
         else:
-            # take a copy
-            self._send = dict(msg)            
-            
-            # write the message
-            self.write(json.dumps(msg))
+            msg["id"] = self.rand_id(100, 1000000)
+
+
+        # set the tracking id
+        self._track["id"] =  msg["id"]
         
+        # take a copy
+        self._send = dict(msg)
+        
+        # write the message
+        self.write(json.dumps(msg))
+
+        start = time.time()
+        while self._track["id"] == msg["id"]:            
+            # positive timeout
+            if timeout >=0 and time.time() >= start + timeout
+                break
+            time.sleep(0.001)
+
         # finish tracking
         self._track["id"] = None
         return self.track()

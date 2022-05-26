@@ -18,10 +18,10 @@ class WS(object):
         # wait
         self._ptrn = {"wait": None, "sys": None} # wait for a given pattern
         self._track = {"id": None, "msgs": []} # track a given id until it is done 
-        self._recv = None # last message recived
+        self._recv = {} # last message recived
 
         # last message sent
-        self._send = None
+        self._send = {}
     """
     server 
     """
