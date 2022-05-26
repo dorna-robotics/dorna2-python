@@ -34,31 +34,28 @@ robot = Dorna()
 ```  
 
 ## Connection
-The robot socket server runs on `ws://robot_ip_address:443`, where `robot_ip_address` is the IP address (host) of the robot, and `443` is the port number. Once the connection has been established between the robot and the client (user), they start communicating with each other by sending and receiving data in [JSON][json] format. 
+The robot websocket server runs on `ws://robot_ip_address:443`, where `robot_ip_address` is the IP address (host) of the robot, and `443` is the port number. Once the connection has been established between the robot and the client (user), they start communicating with each other by sending and receiving data in [JSON][json] format. 
 
 ### `.connect(host="localhost", port=443, timeout=5)` 
-Connect to the robot controller socket server at `ws://host:port`.
+Connect to the robot controller socket server at `ws://host:port`. Returns `True` on a sucessful connection, otherwise `False`.
 
 #### Parameters
 - *host*: (string) The controller host address. The default value is `"localhost"`.
 - *port*: (int) The controller port number. The default value is `443`.
 - *timeout*: (float > 0) Wait maximum of `timeout` seconds to establish a connection to the robot controller. The default value is `5` seconds.
 
-#### Returns
-Returns `True` on a sucessful connection, otherwise `False`.
-
 > The `host` (string) and `port` (integer) arguments are similar to the Python `socket.connect((host, port))` method.
 
 ### `.close()` 
 Use this method to close an opened connection. This method instantly closes the socket and terminates the communication loop. After this the `Dorna` object is unable to send or receive any message from (to) the controller server.  
 
-> It is a good practice to close an open socket connection when your task is over and the connection is no longer required.  
+> It is required to close an open connection when your task is over and the connection is no longer required.  
 
 ``` python
 from dorna2 import Dorna
 
 robot = Dorna()
-robot.connect("10.0.0.10") # connect to ws://10.0.0.10:443
+robot.connect("10.0.0.10") # connect to the robot at ws://10.0.0.10:443
 
 # your code
 
