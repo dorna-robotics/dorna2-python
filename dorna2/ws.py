@@ -11,7 +11,7 @@ class WS(object):
         super(WS, self).__init__()
         self.channel = channel
         self.msg = queue.Queue(100)
-        self.sys = {}
+        self._sys = {}
         self.callback = None
         self._connected = False
         
@@ -184,7 +184,7 @@ class WS(object):
                     pass 
 
                 # update sys           
-                self.sys = dict(sys)
+                self._sys = dict(sys)
 
 
             except Exception as ex:

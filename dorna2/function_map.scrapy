@@ -1,0 +1,73 @@
+* Do not implement functions with
+# General
+## If and loop
+	- If statement
+	- Loop
+
+## Boolean
+	
+## Tag
+	- one line comment
+	- multi line comment
+
+## Raw code
+	- Raw python field
+
+
+# Dorna
+## Connection
+	- connect(host="localhost", port=443) 
+	- close()
+
+## Play
+	- play()  
+	- play_script(timeout=-1, script_path="")
+
+## Messages
+	- recv()
+	- send()
+	- *msg
+	- sys()
+	- track()
+	- get()
+	- val()
+
+## Move
+	- jmove(timeout=-1, **kwargs)
+	- lmove(timeout=-1, **kwargs)
+	- cmove(timeout=-1, **kwargs)
+
+## Stop
+	- halt(accel=None)
+	- alarm(val=None)
+
+## Joint and TCP
+	- joint(index=None, val=None)
+	- pose(index) ???
+	- toollength(val=None)
+
+## I/O
+	- output(index=None, val=None)
+	- pwm(index=None, val=None)
+	- freq(index=None, val=None)
+	- duty(index=None, val=None)
+	- input(index=None)
+	- adc(index=None)
+
+## Wait
+	- probe(index=None, val=None)
+	- iprobe(index=None, val=None)
+	- sleep(val=None)
+	- wait(**kwargs)
+
+## Info
+	- version()
+	- uid()
+
+## Setup
+	- motor(val=None)
+	- gravity()
+	- axes()
+
+## Log
+	- log()

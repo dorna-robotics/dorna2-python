@@ -18,6 +18,8 @@ class Dorna(WS):
     def send(self):
         return dict(self._send)
 
+    def sys(self):
+        return dict(self._sys)
 
     """
     return aggregate and all the messages in _msgs
@@ -119,7 +121,7 @@ class Dorna(WS):
     --------
     return number valid commands that was sent  
     """
-    def play_script(self, timeout=0, script_path=""):
+    def play_script(self, timeout=-1, script_path=""):
         with open(script_path, 'r') as f:
             lines = f.readlines()
             num_cmd = 0
@@ -173,7 +175,7 @@ class Dorna(WS):
     if no *args is present it will return a copy of sys
     """        
     def get(self, *args):
-        sys = dict(self.sys)
+        sys = self.sys()
         return [sys[k] for k in args]
 
     """
