@@ -24,7 +24,7 @@ Notice that, on UNIX systems you need to use `sudo` prefix for admin previliages
 sudo python3 setup.py install --force
 ```
 
-### Getting started
+### Getting Started
 First, import `Dorna` class from the `dorna2` module, and then create a `Dorna` object.
 ``` python
 from dorna2 import Dorna
@@ -34,15 +34,15 @@ robot = Dorna()
 ```  
 
 ## Connection
-The robot websocket server runs on `ws://robot_ip_address:443`, where `robot_ip_address` is the IP address (host) of the robot, and `443` is the port number. Once the connection has been established between the robot and the client (user), they start communicating with each other by sending and receiving data in [JSON][json] format. 
+The robot websocket server runs on `ws://robot_host_address:443`, where `robot_host_address` is the host address (IP) of the robot controller, and `443` is the port number. Once the connection has been established between the robot and the client (user), they start communicating with each other by sending and receiving data in [JSON][json] format. 
 
-### `.connect(host="localhost", port=443, timeout=5)` 
-Connect to the robot controller socket server at `ws://host:port`. Returns `True` on a sucessful connection, otherwise `False`.
+### `.connect(host="localhost", port=443, handshake_timeout=5)` 
+Connect to the robot controller server at `ws://host:port`, and returns `True` on a successful connection, otherwise `False`.
 
 #### Parameter
 - *host*: (string) The controller host address. The default value is `"localhost"`.
 - *port*: (int) The controller port number. The default value is `443`.
-- *timeout*: (float > 0) Wait maximum of `timeout` seconds to establish a connection to the robot controller. The default value is `5` seconds.
+- *handshake_timeout*: (float > 0) Wait maximum of `handshake_timeout` seconds to establish a connection to the robot controller. The default value is `5` seconds.
 
 > The `host` (string) and `port` (integer) arguments are similar to the Python `socket.connect((host, port))` method.
 
@@ -55,43 +55,99 @@ Use this method to close an opened connection. This method instantly closes the 
 from dorna2 import Dorna
 
 robot = Dorna()
-robot.connect("10.0.0.10") # connect to the robot at ws://10.0.0.10:443
+robot.connect("10.0.0.10") # connect to the robot server at ws://10.0.0.10:443
 
 # your code
 
 robot.close() # always close the socket when you are done
 ``` 
 
-## Send and Receive 
-Once you connected to the controller, you can start sending valid messages (commands) to the robot, and receiving  
+## Send and Receive Data
+Once you are  connected to the robot controller, you can start sending valid commands to the robot, and receive messages from it.   
 
-### Command status and execution
-We need to first get familiar with the status of a command first. When sending a valid command to the robot, the controller reports the status of the command from the time that the command is submitted, to the time that the execution of the command is completed using a `stat` key and the unique `id` send initially with the command. An example of such a message is as follows:
+### Command Status and Execution
+We need to first get familiar with the status of a command. When sending a valid command to the robot, the controller reports the status of the command from the time that the command is submitted, to the time that the execution of that command is completed using a `stat` key and the unique `id` send initially with the command. An example of such a message is as follows:
 ``` python
-{"id":12, "stat":2}
+# send a command to read the alarm status of the system
+{"cmd":"alarm","id":10}
+
+# receive the following messages one by one from the controller
+{"id":10,"stat":0}
+{"id":10,"stat":1}
+{"cmd":"alarm","id":10,"alarm":0}
+{"id":10,"stat":2}
 ```
-It means that the command with `id` equal to `12`, is in status `2`. The `stat` field can take different values with the following interpretations:
+#### ID Key
+As you can see in the above example, we sent a command to the robot controller to get the alarm status of the robot. 
+The robot replies back by sending multiple messages. Our initial command had an `id` field equal to `10`. So, any messages from the robot related to this command has the same `id` value.  
+
+#### Stat Key
+Another important key in the replies is the `stat` key. The `stat` field can take different values with the following interpretations:
 - `stat = 0`: The command has been received by the controller with no error.
 - `stat = 1`: The command execution has begun.
-- `stat = 2`: The execution of the command is now completed.
-- `stat < 0`: An eeror happened during the execution of the command and it will not be executed.
+- `stat = 2`: The execution of the command is now completed, with no error.
+- `stat < 0`: An error happened during the execution of the command and it will not be executed.
 
-> Notice, that we say thta a command is done if get `stat = 2` or `stat < 0` of that command.
+> Notice, that we say that a command is completed if get `stat = 2` or `stat < 0` of that command.
 
 ### `timeout` variable
 Throughout this document we use and refer to the `timeout` key as an arguments inside methods that are sending command to the robot.  
 Functions that are sending command to the robot are using the `timeout` argument for tracking the completion or any error during the execution of the command that they are sending. 
 - `timeout < 0`: Send a command and wait for the command to get done ( `stat = 2` or `stat < 0`) and then return. At this moment we are sure that the command is no longer running.
-- `timeout >= 0`: Send a command and wait for A maximum of `timeout` seconds for its execution. Notice that in this case, we might have returned from the fuction but the command which was sent by the fuction to the robot is still runnning or wating inside the controller for its time to run. If we do not want to wait for the execution of a command at all we can always set `timeout = 0`.
+- `timeout >= 0`: Send a command and wait for A maximum of `timeout` seconds for its execution. Notice that in this case, we might have returned from the function but the command which was sent by the fuction to the robot is still runnning or wating inside the controller for its time to run. If we do not want to wait for the execution of a command at all we can always set `timeout = 0`.
 
 ### `.play(timeout=-1, msg=None, **kwargs):`  
-Send a message to the robot. There are multiple ways to send a message via `.play()`. For a better understanding, we send a simple `alarm` status command in three different ways:
-1. Key and value format: `play(cmd='alarm', id=100})`
-2. Python dictionary format: `play({'cmd': 'alarm', 'id': 100})` 
-3. JSON string format: `play('{"cmd": "alarm", "id": 100}')`
+Send a message to the robot, and return `.track()`.  
+There are multiple ways to send a message via `.play()`. For a better understanding, we send a simple `alarm` status command in three different ways:
+- **Case 1:** (*Recommended*) Key and value format: `play(cmd='alarm', id=10})`
+- **Case 2:** Python dictionary format: `play({'cmd': 'alarm', 'id': 10})` 
+- **Case 3:** JSON string format: `play('{"cmd": "alarm", "id": 10}')`
+
+#### Parameter
+- *timeout*: (float) Throughout this document we use and refer to the `timeout` key as an arguments inside methods that are sending command to the robot. Use the `timeout` argument for tracking the completion or any error during the execution of the command.
+    - `timeout < 0`: Send a command and wait for the command completion ( `stat = 2` or `stat < 0`) and then exit the function and  return. At this moment we are sure that the command is no longer running.
+    - `timeout >= 0`: Send a command and wait for A maximum of `timeout` seconds for its completion. Notice that in this case, we might have returned from the function but the command is still running or waiting inside the controller queue for its time to run. If we do not want to wait for the execution of a command at all we can always set `timeout = 0`.
+
+- *msg*: (Python dictionary or JSON string) Use this parameter if you want to send your command in a Python dictionary format (**Case 2**), or in a JSON format (**Case 3**).
+- *kwargs*: Use this to send your command in a key and value format (**Case 1**).
+
+> Notice that the `.play()` method always include a random `id` filed to your command if it is not present.
+
+#### Usage
+For better understanding of the `timeout` parameter, we send a joint move command to the robot.
+``` python
+# motion 1
+start = time.time()
+robot.play(timeout=-1, cmd="jmove", rel=1, j0=10, vel=1)
+print(f"Motion 1 is completed, and took {time.time()-start} seconds.")
+
+# motion 2
+start = time.time()
+robot.play(timeout=100, cmd="jmove", rel=1, j0=10, vel=1)
+print(f"Motion 2 is completed, and took {time.time()-start} seconds.")
+
+# motion 3
+robot.play(timeout=2, cmd="jmove", rel=1, j0=10, vel=1)
+print("2 second has passed and motion 3 is still running.")
+
+# motion 4
+robot.play(timeout=0, cmd="jmove", rel=1, j0=10, vel=1)
+print("Motion 3 is still running and motion 4 is waiting for its execution.")
+
+# Output:
+#
+#     The motion is completed
+#     Motion 1 is completed, and took 10.199519157409668 seconds.
+#     Motion 2 is completed, and took 10.207868814468384 seconds.
+#     2 second has passed and motion 3 is still running.
+#     Motion 3 is still running and motion 4 is waiting for its execution.
+```
+
 
 ### `play_script(script_path, timeout=0)`
-Send all the messages that are stored in a script file to the robot controller. The method opens the script file located at `script_path`, read the file line by line and send each line as a command. 
+Send all the messages that are stored in a script file to the robot controller. The method opens the script file located at `script_path`, read the file line by line and send each line as a command.  
+The function returns the number of commands which was sent to the robot controller.  
+> Use this function to send multiple messages at once to the robot.
 > Notice that each message has to occupy exactly one line. Multiple messages in one line or one message in multiple line is not a valid format. As an example, here we show a valid and invalid script format:
 ``` python
 # valid format: Each message occupy exactly one line
@@ -104,72 +160,99 @@ Send all the messages that are stored in a script file to the robot controller. 
 {"cmd":"jmove","rel":0,
 "j0":-10}
 ``` 
-Use the `timeout` parameter for waiting or not waiting for the execution of the commands in the script file.
+#### Parameter
+- *script_path*: (string) The path to the script file. 
+- *timeout*: (float) Similar to the `timeout` parameter of the `.play()` method. The default value is `0`, which means that the function just sends the commands in the script file and return.
 
 ## Move
 In this section we cover functions which are used for the robot motion. 
 
 ### `.jmove(**kwargs)`
-A helper function to send a joint move (`jmove`) command. `jmove(rel=0, j0=0, id=100)` is equivalent to `play(cmd='jmove', rel=0, j0=0, id=100)`. Basically the `cmd` key is set to `"jmove"`. Similar to the [`.play()`](#play) method, this method returns a `.track()` object.
-``` python
-robot.jmove(rel=1, j0=10, j2=20) # move j0, 10 degrees and j2, 20 degrees relative to their last position, and wait for the motion to
-robot.jmove()
-robot.joint(1) # return the value of j1
-robot.joint(1, 3.14) # set the value of j1 to 3.14
-robot.joint(j0=1, j2=3.14) # set the value of j0 to 1 and j2 to 3.14
-``` 
-
-
-### `.rmove(**kwargs)`
-Similar to `.jmove()` but the command key is equal to `"rmove"`.
+A helper function to send a joint move (`jmove`) command, and return a `.track()` object associated to the `jmove` command sent.  
+This method is basically similar to the [`.play()`](#???) method but the `cmd` key is set to `"jmove"`. So, `jmove(rel=1, j0=10, id=10)` is equivalent to `play(cmd='jmove', rel=1, j0=10, id=10)`.
 
 ### `.lmove(**kwargs)`
-Similar to `.jmove()` but the command key is equal to `"lmove"`.
+A helper function to send a line move (`lmove`) command, and return a `.track()` object associated to the `lmove` command sent.  
+This method is basically similar to the [`.play()`](#???) method but the `cmd` key is set to `"lmove"`. So, `lmove(rel=1, x=10, id=10)` is equivalent to `play(cmd='lmove', rel=1, x=10, id=10)`.
 
 ### `.cmove(**kwargs)`
-Similar to `.jmove()` but the command key is equal to `"cmove"`.
+A helper function to send a circle move (`cmove`) command, and return a `.track()` object associated to the `cmove` command sent.  
+This method is basically similar to the [`.play()`](#???) method but the `cmd` key is set to `"cmove"`.
 
-## Robot orientation
+## Stop
+Series of helper function to send halt, read and set the alarm.
+
+### `.halt(accel=None, **kwargs)`
+Send a halt command to the robot. with a given acceleration ratio (`accel`), and return the final status of the command (`stat`).
+
+#### Parameter
+- *accel*: (float >= 1) The acceleration ratio parameter associated to the `halt`. Larger `accel` means faster and sharper halt (stop).
+
+#### Usage
+- `.halt()`: Send a halt command to the robot. Return the status of the command. For example, `2` if the halt is completed properly, and negative number in case of any error.
+- `.halt(accel)`: Similar to the `.halt()` but this time with the specified acceleration.
+- `.halt(**kwargs)`: A helper function to send a `halt` command. It is similar to [`.play(cmd="halt", **kwargs)`](#???), and return `.halt()`.
+
+``` python
+robot.halt() # send a halt command to the controller
+robot.halt(5) # send a halt  command with acceleration ratio equal to 5 
+``` 
+
+### `.alarm(self, val=None, **kwargs)`
+Set (disable or enable) or get the alarm status.
+
+#### Parameter
+- *val*: (0 or 1) Use this parameter to set the robot alarm. 0 for disabling and 1 for enabling the alarm.
+
+#### Usage
+- `.alarm()`: Get the robot alarm status (0 for disabled and 1 for enabled).
+- `.alarm(val)`: Set the alarm status of the robot to `val` (0 or 1), and return `.alarm()`.
+- `.alarm(**kwargs)`: A helper function to send a `alarm` command. It is similar to [`.play(cmd="alarm", **kwargs)`](#???), and return `.halt()`.
+``` python
+robot.alarm() # get the alarm status of the controller
+robot.alarm(0) # clear the alarm (set alarm to 0)  
+``` 
+
+## Joint and TCP
 In this section we cover methods that are related to the robot orientation.
 
 ### `.joint(index=None, val=None, **kwargs)`
 Set or get the value of an specific joint (or joints), and return its value (their values).
 
 #### Parameter
-- *index*: (0<= int < 8) The index of the joint that we are interested in, to set or get its value.
-- *val*: (float) The value we want to assign to the specific joint.
-- *kwargs*: ???
+- *index*: (0 <= int < 8) The index of the joint that we are interested in, to set or get its value.
+- *val*: (float) The value we want to assign to the specific joint in degree.
 
 #### Usage
 - `.joint()`: Get the joint values of the robot, in a list of size 8. Where index `i` in the list is the value of joint `i` (`ji`). 
 - `.joint(index)`: Get the value of the joint `index`. 
 - `.joint(index, val)`: Set the value of the joint `index` to `val` and return `.joint(index)`. 
-- `.joint(**kwargs)`: A helper function to send a `joint` command. It is similar to [`.play(cmd="joint", **kwargs)`](#jointindexnone-valnone-kwargs), and return `.joint()`.
+- `.joint(**kwargs)`: A helper function to send a `joint` command. It is similar to [`.play(cmd="joint", **kwargs)`](#???), and return `.joint()`.
 
 ``` python
 robot.joint() # return the value of all the 8 joints of the robot
 robot.joint(1) # return the value of j1
-robot.joint(1, 3.14) # set the value of j1 to 3.14
-robot.joint(j0=1, j2=3.14) # set the value of j0 to 1 and j2 to 3.14
+robot.joint(1, 30) # set the value of j1 to 30
+robot.joint(j0=10, j2=20) # set the value of j0 to 10 and j2 to 20
 ``` 
 
 ### `.pose()`
-Get the value of the robot toolhead in Cartesian coordinate system in a list of size 8. Where indices 0 to 7 in this list are associated to `x`, `y`, `z`, `a`, `b`, `c`, `d` and `e`, respectively.
+Get the value of the robot toolhead (TCP) in Cartesian coordinate system (with respect to the robot base frame) in a list of size 8. Where indices 0 to 7 in this list are associated to `x`, `y`, `z`, `a`, `b`, `c`, `d` and `e`, respectively.
 
 ``` python
 robot.pose() # return [x, y, z, a, b, c, d, e] 
 ``` 
 
 ### `.toollength(val=None, **kwargs)`
-Set or get the value of the robot toollength, and return its value.
+Set or get the value of the robot toollength (in the Z direction with respect to the TCP frame), and return its value.
 
 #### Parameter
-- *val*: (float >= 0) The length of the toolhead from the base of the robot flange to the tip of the toolhead in mm.
+- *val*: (float >= 0) The length of the toolhead in the Z direction from the base of the robot flange to the tip of the toolhead in mm.
 
 ### Usage
 - `.toollength()`: Get the robot toollength in mm.
 - `.toollength(val)`: Set the robot toollength to `val` mm and return `.toollength()`.
-- `.toollength(**kwargs)`: ??? A helper function to send a `toollength` command. It is similar to the [`.play(cmd="toollength", **kwargs)`](#jointindexnone-valnone-kwargs)
+- `.toollength(**kwargs)`: A helper function to send a `toollength` command. It is similar to [`.play(cmd="toollength", **kwargs)`](#???), and return `.toollength()`.
 
 ``` python
 robot.toollength() # get the robot toollength in mm
@@ -291,48 +374,40 @@ robot.adc() # return the value of all the 5 adc channels in a list of size 5
 #### Return
 Returns the value of adc channel(s). If the `index` parameter is presented then the value of adc channel `index` is returnred. Otherwise, the value of all the 5 adc channels are returned in a list of size 5, where item `i` in the list is the value of `adci`.
 
+## Wait
+Wait for an input pins pattern, encoder indices, received message pattern or certain amount of time in your program.
+
 ### `.probe(index=None, val=None, **kwargs)`
-Set the probe input pin and return the the value of the joints the moment that the input pin was matched to the probe patteren.
-- `.probe(index, val)`: Return the joint values of the robot in a list of size 8, the moment input `index` (0 <= int < 16), matched to `val` (0 or 1).
-- `.probe(**kwargs)`: A helper function to send a `probe` command. It is similar to the [`.play(cmd="probe", **kwargs)`](#jointindexnone-valnone-kwargs), and return the joint values the moment the probe was triggered. 
+Set the probe input pin and return the the value of the joints the moment that the input pin was matched to the probe pattern.
+> Use this method to wait for a pattern in the input pin(s).
+
+#### Parameter
+- *index*: (0 <= int < 16) The index of the input pin that we are interested to track and wait for it to get low (0) or high (1).
+- *val*: (0 or 1) The value that the input pin matches to.
+
+## Usage
+- `.probe(index, val)`: Return the joint values of the robot in a list of size 8 ([`.joint()`](#???)), the moment input pin `index` (0 <= int < 16), is equal to the `val` (0 or 1).
+- `.probe(**kwargs)`: A helper function to send a `probe` command. It is similar to [`.play(cmd="probe", **kwargs)`](#???), and return [`.joint()`](#???). 
 
 ``` python
 robot.probe(1, 0) # return the joint values, the moment in1 gets 0
 ``` 
 
 ### `.iprobe(index=None, val=None, **kwargs)`
-This method is similar to the `probe` function but here we are matching an encoder index with a value, instead of an input pin. The encoder on the robot gets 1 8 times during one full rotation of the encoder, and we can locate this points by calling this function.
-``` python
-robot.iprobe(1, 1) # return the value of joints, the moment index1 (encoder 1 index) gets 1
-robot.iprobe(in0=1, in3=1) # return the value of joints the moment index0 is 1 and index3 is 1 
-``` 
+This method is similar to the `probe` function but here we are waiting for an specific patter in the encoder indices, instead of the input pins. Similar to the `probe` function, it will return [`.joint()`](#???), the moment the matching occurs.    
+> Notice that the encoder on the motors gets high (1), 8 times during one full rotation of the encoder, and we can locate these points by calling the `.iprobe` function.
+
 #### Parameters
-- *index*: (None or 0 <= int < 16) The index of the encoder that we are interested to set for iprobe.
+- *index*: (None or 0 <= int < 8) The index of the encoder that we are interested to set for iprobe.
 - *val*: (None or binary) The value we want to assign to the encoder index `index` for the iprobe process. This basically means to return the joints value of the robot when encoder index `index` is equal to `val`.   
 - *kwargs*: Other key and value parameters associated to this method. Including `timeout`, `queue`, `id`, etc. 
 
-#### Return
-Return the values of the robot joints the mooment the index pattern matches the value, in a list of size 8. Where index `i` in the list is the value of joint joint `i` (`ji`).
-
-### `.halt(accel=None, **kwargs)`
-Send a halt command to the robot. with a given accelration ratio (`accel`), and return the
-- `.halt()`: Send a halt command to the robot. Retun the status of the command: `2` if the command is completed properly, and negative number in case of any error.
-- `.halt(accel)`: Similar to the `.halt()` but this time the `accel` (float >=1) parameter associated to the halt command is specified. Larger number means faster and sharper halt (stop).
-- `.halt(**kwargs)`: A helper function to send an `halt` command. It is similar to the [`.play(cmd="halt", **kwargs)`](#jointindexnone-valnone-kwargs), and return `.halt()`.
-
+## Usage
+- `.iprobe(index, val)`: Return the joint values of the robot in a list of size 8 ([`.joint()`](#???)), the moment that the encoder index `index` (0 <= int < 8), is equal to the `val` (0 or 1).
+- `.iprobe(**kwargs)`: A helper function to send a `iprobe` command. It is similar to [`.play(cmd="iprobe", **kwargs)`](#???), and return [`.joint()`](#???). 
 ``` python
-robot.halt() # send a halt command to the controller
-robot.halt(5) # send a halt  command with accelration ratio equal to 5 
-``` 
-
-### `.alarm(self, val=None, **kwargs)`
-Set (disable or enable) or get the alarm status.
-- `.alarm()`: Get the robot alarm status (0 for disabled and 1 for enabled).
-- `.alarm(val)`: Set the alarm status of the robot to `val` (0 or 1), and return `.alarm()`.
-- `.alarm(**kwargs)`: A helper function to send an `alarm` command. It is similar to the [`.play(cmd="alarm", **kwargs)`](#jointindexnone-valnone-kwargs), and return `.alarm()`.
-``` python
-robot.alarm() # get the alarm status of the controller
-robot.alarm(0) # clear the alarm (set alarm to 0)  
+robot.iprobe(1, 1) # return the value of joints, the moment index1 (encoder 1 index) gets 1
+robot.iprobe(in0=1, in3=1) # return the value of joints the moment index0 is 1 and index3 is 1 
 ``` 
 
 ### `.sleep(val=None, **kwargs)`

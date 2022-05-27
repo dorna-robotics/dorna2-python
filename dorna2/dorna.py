@@ -32,9 +32,9 @@ class Dorna(WS):
         rtn["merge"] = merge
         return rtn
 
-    def connect(self, host="localhost", port=443, timeout=5):
+    def connect(self, host="localhost", port=443, handshake_timeout=5):
         # Check the connection
-        if not self.server(host, port, timeout):
+        if not self.server(host, port, handshake_timeout):
             return False
 
         # initialize
@@ -78,7 +78,7 @@ class Dorna(WS):
             msg = dict(kwargs)
 
         # check the id
-        if type(msg["id"]) == int and msg["id"] > 0:
+        if "id" in msg and type(msg["id"]) == int and msg["id"] > 0:
             pass
         else:
             msg["id"] = self.rand_id(100, 1000000)
@@ -96,7 +96,7 @@ class Dorna(WS):
         start = time.time()
         while self._track["id"] == msg["id"]:            
             # positive timeout
-            if timeout >=0 and time.time() >= start + timeout
+            if timeout >=0 and time.time() >= start + timeout:
                 break
             time.sleep(0.001)
 
@@ -164,7 +164,7 @@ class Dorna(WS):
 
         # return stat
         try:
-            return rtn["stat"]
+            return rtn["merge"]["stat"]
         except:
             return None
 
@@ -215,9 +215,9 @@ class Dorna(WS):
         # return
         try:
             if rtn_key:
-                return rtn[rtn_key]
+                return rtn["merge"][rtn_key]
             else:
-                return [rtn[k] for k in rtn_keys]
+                return [rtn["merge"][k] for k in rtn_keys]
         except Exception as ex:
             print("error key and value: ", ex)
             return None
