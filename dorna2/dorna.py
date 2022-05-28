@@ -86,6 +86,12 @@ class Dorna(WS):
             msg["id"] = self.rand_id(100, 1000000)
 
 
+        # remove all the None keys
+        _msg = dict(msg)
+        for key in _msg:
+            if _msg[key] == None:
+                del msg['key']
+        
         # set the tracking id
         self._track["id"] =  msg["id"]
         
@@ -244,6 +250,16 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+    def get_all_output(self):
+        return self.output()
+
+    def get_output(self, index=None):
+        return self.output(index=index)
+
+    def set_output(self, index=None, val=None, queue=None):
+        return self.output(index=index, val=val, queue=queue)
+
+
     """
     read pwm, or set its parameters
     pwm(0): return the value of the pwm0
@@ -296,6 +312,25 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+    def get_pwm(self, index=None):
+        return self.pwm(index=index)
+
+    def get_freq(self, index=None):
+        return self.freq(index=index)
+
+    def get_duty(self, index=None):
+        return self.duty(index=index) 
+
+    def set_pwm(self, index=None, enable=None, queue=None):
+        return self.pwm(index=index, val=enable, queue=queue)
+
+    def set_freq(self, index=None, freq=None, queue=None):
+        return self.freq(index=index, freq=freq, queue=queue)
+
+    def set_duty(self, index=None, duty=None, queue=None):
+        return self.duty(index=index, duty=index, queue=queue)
+
+
     """
     read input
     """
@@ -310,6 +345,12 @@ class Dorna(WS):
         val = None
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
+    def get_all_input(self):
+        return self.input()
+
+    def get_input(self, index=None):
+        return self.input(index=index)
 
     """
     read adc
@@ -326,6 +367,8 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+    def get_adc(self, index=None):
+        return self.adc(index=index)
     
     """
     probe
@@ -381,6 +424,11 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+    def get_alarm(self):
+        return self.alarm()
+
+    def set_alarm(self, enable=None):
+        return self.alarm(val=enable)
 
     """
     sleep the controller for certain amount of time (seconds)
@@ -399,6 +447,13 @@ class Dorna(WS):
     [list]: return the joint values in a list format
     """
     def joint(self, index=None, val=None, **kwargs):
+        # read the joints
+        if not val and not kwargs:
+            if index:
+                return self.val("j0")
+            else:
+                return [self.val("j"+str(key)) for k in range(8)]
+
         key = None
         if index !=None:
             key = "j"+str(index)
@@ -408,16 +463,34 @@ class Dorna(WS):
         rtn_keys = ["j"+str(i) for i in range(8)]
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
+    def get_all_joint(self):
+        return self.joint()
+
+    def get_joint(self, index=None):
+        return self.joint(index=index)
+
+    def set_joint(self, index=None, val=None):
+        return self.joint(index=index, val=val)
     
-    def pose(self):
+    def pose(self, index=None):
         """
         Get the robot x, y, z, a, b, c, d and e poses. 
 
         Returns:
             (list of length 8): The robot pose.
         """
-        return self.get("x", "y", "z", "a", "b", "c", "d", "e")
-    
+        _pose = self.get("x", "y", "z", "a", "b", "c", "d", "e")
+        if index:
+            return _pose[index]
+        return _pose
+
+    def get_pose_all(self):
+        return self.pose()    
+
+    def get_pose(self, index=None):
+        return self.pose(index=index)
+
 
     def motor(self, val=None, **kwargs):
         """
@@ -437,6 +510,11 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+    def get_motor(self):
+        return self.motor()
+
+    def set_motor(self, enable=None):
+        return self.motor(val=enable)
 
     def toollength(self, val=None, **kwargs):
         """
@@ -455,7 +533,13 @@ class Dorna(WS):
         rtn_keys = None
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
-    
+
+    def get_toollength(self):
+        return self.toollength()
+
+    def set_toollength(self, length=None):
+        return self.toollength(val=length)
+
 
     def version(self, **kwargs):
         """
@@ -489,3 +573,53 @@ class Dorna(WS):
         rtn_keys = None
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
+    def gravity(self, **kwargs):
+        key = None
+        val = None        
+        cmd = "gravity"
+        rtn_key = key
+        rtn_keys = ["gravity", "m", "x", "y", "z"]
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
+    def get_gravity(self):
+        return self.gravity()
+
+    def set_gravity(self, enable=None, mass=None, **kwargs):
+        return self.gravity(gravity=enable, m=mass, **kwargs)
+
+    def axis(self, index=None, val=None, **kwargs):
+        key = None
+        if index !=None:
+            key = "ratio"+str(index)
+        
+        cmd = "axis"
+        rtn_key = key
+        rtn_keys = ["ratio"+str(i) for i in range(5,8)]
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
+    def get_axis(self, index=None):
+        return self.axis(index=index)
+
+    def set_axis(self, axis=None, ratio=None):
+        return self.axis(axis=axis, val=ratio)
+
+    def pid(self, **kwargs):
+        key = None
+        val = None        
+        cmd = "pid"
+        rtn_key = key
+        rtn_keys = ["threshold", "duration"]
+
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
+    def get_pid(self):
+        return self.pid()
+
+    def set_pid(self, threshold=None, duration=None):
+        return self.pid(threshold=threshold, duration=duration)
+
+    def reset_pid(self):
+        return set_pid(threshold=75, duration=3000)
