@@ -452,7 +452,7 @@ class Dorna(WS):
             if index:
                 return self.val("j0")
             else:
-                return [self.val("j"+str(key)) for k in range(8)]
+                return [self.val("j"+str(k)) for k in range(8)]
 
         key = None
         if index !=None:
