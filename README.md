@@ -5,21 +5,21 @@ This is the Python API tutorial for [Dorna][dorna] robotic arm.
 Notice that the program has been tested only on Python 3.7+.
 
 ### Repository
-You can find the code repositry on [GitHub](https://github.com/dorna-robotics/dorna2-python), and report your technical issues [there](https://github.com/dorna-robotics/dorna2-python/issues).
+You can find the code repositry on [GitHub](https://github.com/dorna-robotics/dorna2-python), and report your technical issues [here](https://github.com/dorna-robotics/dorna2-python/issues).
 
 ### Download
 First, use `git clone` to download the repository:  
 ```bash
 git clone https://github.com/dorna-robotics/dorna2-python.git
 ```
-Or simply download the [zip file](https://github.com/dorna-robotics/dorna2-python/archive/master.zip), and uncompress the file.  
+Or simply download the [zip file](https://github.com/dorna-robotics/dorna2-python/archive/master.zip), and unzip the file.  
 
 ### Install
 Next, go to the downloaded directory, where the `setup.py` file is located, and run:
 ```bash
 python setup.py install --force
 ```
-Notice that, on UNIX systems you need to use `sudo` prefix for admin previliages and installing the requirements:
+Notice that, on UNIX systems you need to use `sudo` prefix for admin privileges and installing the requirements. Depending on your Python setup environment, you might also call `python3` instead of `python`:
 ```bash
 sudo python3 setup.py install --force
 ```
@@ -33,20 +33,22 @@ from dorna2 import Dorna
 robot = Dorna()
 ```  
 
-## Connection
-The robot websocket server runs on `ws://robot_host_address:443`, where `robot_host_address` is the host address (IP) of the robot controller, and `443` is the port number. Once the connection has been established between the robot and the client (user), they start communicating with each other by sending and receiving data in [JSON][json] format. 
+## Open and Close a Connection to the Robot
+The robot server runs on `ws://robot_host_address:443`, where `robot_host_address` is the host address (IP) of the robot controller, and `443` is the port number. Once the connection has been established between the robot and the client (user), they start communicating with each other by sending and receiving data in [JSON][json] format. 
 
-### `.connect(host="localhost", port=443, handshake_timeout=5)` 
-Connect to the robot controller server at `ws://host:port`, and returns `True` on a successful connection, otherwise `False`.
+### Connect to the Robot
+Connect to the robot controller server at `ws://host:port`. Returns `True` on a successful connection, otherwise `False`.
 
-#### Parameter
+#### `.connect(host="localhost", port=443, handshake_timeout=5)`
+Connects to the robot server at `ws://host:port`.
 - *host*: (string) The controller host address. The default value is `"localhost"`.
 - *port*: (int) The controller port number. The default value is `443`.
 - *handshake_timeout*: (float > 0) Wait maximum of `handshake_timeout` seconds to establish a connection to the robot controller. The default value is `5` seconds.
 
 > The `host` (string) and `port` (integer) arguments are similar to the Python `socket.connect((host, port))` method.
 
-### `.close()` 
+### Close the Connection
+#### `.close()` 
 Use this method to close an opened connection. This method instantly closes the socket and terminates the communication loop. After this the `Dorna` object is unable to send or receive any message from (to) the controller server.  
 
 > It is required to close an open connection when your task is over and the connection is no longer required.  
