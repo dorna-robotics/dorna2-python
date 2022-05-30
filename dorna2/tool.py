@@ -109,7 +109,9 @@ class link(trans):
 	find pc3, given pc4, theta4 and the position of c4 in c3: l = (l30, l31, l32) 
 	"""
 	def pc3_c4(self, p, theta, **arg):
-		M = self.l[3] + np.matrix(p) * self.rot_z(theta) * self.rot_z(-90) * self.rot_y(-90)
+		#M = self.l[3] + np.matrix(p) * self.rot_z(theta) * self.rot_z(-90) * self.rot_y(-90)
+		M = self.l[3] + np.matrix(p) * self.rot_y(90) * self.rot_z(theta) * self.rot_x(90)
+		print("test: ", np.asarray(M).reshape(-1))
 		return np.asarray(M).reshape(-1)
 
 	def pc4_c3(self, p, theta, **arg):
@@ -126,11 +128,9 @@ class kinematic(link):
 	"""
 	forward kinematics: joint to xyz
 	"""
-	def forward(self, joint):
+	def forward(self, joint, p4=[0, 0, 0]):
 		a = joint[1] + joint[2] + joint[3]
-		b = joint[4]	
-			
-		p4 = [0, 0, 0]
+		b = joint[4]
 		p3 = self.pc3_c4(p4, joint[4])
 		p2 = self.pc2_c3(p3, joint[3])
 		p1 = self.pc1_c2(p2, joint[2])
@@ -208,19 +208,18 @@ class kinematic(link):
 						self.adjust_degree(math.degrees(j1)), 
 						self.adjust_degree(math.degrees(j2)), 
 						self.adjust_degree(math.degrees(j3)), 
-						b
+						math.degrees(b)
 					])
-			except:
+			except Exception as ex:
 				pass
 
 		return np.matrix(joint)
 
 if __name__ == '__main__':
 	k = kinematic()
-	joint = [61, 11, 75, -30, 0]
-	xyz = k.forward(joint)
+	joint = [9.996, 10.004, 9.996, 10.001, 10.001]
+	xyz = k.forward(joint, [0, 0, 60.61])
 	print("joint: ", joint)
 	print("forward: ", xyz)
 	print("inverse: ", k.inverse(xyz))
-
 

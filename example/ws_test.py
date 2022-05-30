@@ -1,31 +1,30 @@
-from __future__ import print_function
-import sys
 import time
 import json
-sys.path.append('..')
-from dorna2 import dorna
-
+from dorna2 import Dorna
 
 def main(config_path):
-    # arguments
-    with open(config_path) as json_file:
-        arg = json.load(json_file)
-
     # tik
     start = time.time()
-    robot = dorna()
-    robot.connect(arg["ip"], arg["port"])
     for cmd in 10 * ["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"]:
-        arg = {"cmd": cmd, "id": robot.rand_id()}
-        print(arg)
-        trk = robot.play(True, **arg)
-        trk.complete()
-
+        print("####")
+        print("receive: ", robot.cmd(cmd))
     # tok
-    print(time.time()-start)
-
-    # close connection
-    robot.close()
+    print("####")
+    print("total time: ",time.time()-start)
 
 if __name__ == '__main__':
-    main("config.json")
+    config_path = "config.json"
+    
+    for i in range(1):
+        # arguments
+        with open(config_path) as json_file:
+            arg = json.load(json_file)
+
+        robot = Dorna()
+        print("connecting")
+        if not robot.connect(arg["ip"], arg["port"]):
+            print("not connected")
+        else:
+            print("connected")
+            main(robot)
+        robot.close()

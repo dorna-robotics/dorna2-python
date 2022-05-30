@@ -1,19 +1,22 @@
-from __future__ import print_function
-import sys
 import json
-sys.path.append('..')
 from dorna2 import dorna
 
+def main(robot):
+    # use probe to wait for input0 turns 1
+    robot.probe(in0=1)
 
-def main(config_path):
+if __name__ == '__main__':
+    config_path = "config.json"
+    
     # arguments
     with open(config_path) as json_file:
         arg = json.load(json_file)
 
     robot = dorna()
-    robot.connect(arg["ip"], arg["port"])
-    robot.wait(in0=1)
+    print("connecting")
+    if not robot.connect(arg["ip"], arg["port"]):
+        print("not connected")
+    else:
+        print("connected")
+        main(robot)
     robot.close()
-
-if __name__ == '__main__':
-    main("config.json")

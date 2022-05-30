@@ -1,124 +1,205 @@
-import socket
 import threading
 import queue
 import json
 import time
+import asyncio
 
 
-class ws(object):
-    def __init__(self, read_len=10000):
-        super(ws, self).__init__()
-
-        self.read_len = read_len
-        self.write_q = queue.Queue()
+class WS(object):
+    """docstring for comm"""
+    def __init__(self, channel="websocket"):
+        super(WS, self).__init__()
+        self.channel = channel
         self.msg = queue.Queue(100)
-        self.id_q = queue.Queue(100)
-        self.sys = {}
-        self.connected = False
+        self._sys = {}
+        self.callback = None
+        self._connected = False
+        
+        # wait
+        self._ptrn = {"wait": None, "sys": None} # wait for a given pattern
+        self._track = {"id": None, "msgs": []} # track a given id until it is done 
+        self._recv = {} # last message recived
 
-    def socket_loop(self):
-        # initialize read buffer
-        state = 0
-        buff = b""
-        waiting_len = 1
+        # last message sent
+        self._send = {}
+    """
+    server 
+    """
+    async def server_init(self, ip, port, timeout):
 
-        while self.connected:
-            time.sleep(0)
-            # write 2 commands
-            for _ in range(2):
-                if not self.write_q.empty():
-                    msg = self.write_q.get()
-                    self.sock.send(msg)
-            # read
+        handshake = False
+        self._connected = False
+
+        # define the loop
+        self.loop = asyncio.get_running_loop()            
+
+        # reader and writer
+        try:
+            self.reader, self.writer = await asyncio.wait_for(asyncio.open_connection(ip, port), timeout=1)
+        except:
+            return await self.close_coro()
+
+        # handshake
+        if self.channel == "websocket":                
             try:
-                # read data
-                data = self.sock.recv(self.read_len)
+                handshake = await asyncio.wait_for(self._handshake_ws(), timeout=timeout)
+            except asyncio.TimeoutError:
+                return await self.close_coro()
+        else:
+            handshake = True
+        
+        # read loop
+        if handshake:
+            await self.read_loop()
+        
+        await self.close_coro()
 
-                if len(data):
-                    # add to the buffer
-                    buff += data
-                    # process buffer
-                    buff, waiting_len, state = self.process_buffer(buff, waiting_len, state)
-            except socket.error as error:
-                pass
 
-        self.close()
+    def server(self, ip, port, timeout=5):
+        # start a new thread
+        self.server_thread = threading.Thread(target=asyncio.run, args=(self.server_init(ip, port, timeout),))
+        self.server_thread.start()
 
-    def close(self):
-        self.connected = False
-        self.sock.close()
+        # check for the connection
+        self._thr = True
+        s = time.time()
+        while time.time()-s < timeout:
+            if self._connected or not self._thr:
+                break
+            time.sleep(0.001)
+        
+        return self._connected        
 
-    """
-    decode the read data
-    """
-    def process_buffer(self, buff, waiting_len, state):
-        while len(buff) >= waiting_len:  # make sure buffer has enough length
-            if state == 0:
-                if buff[0] == 129:  # message start
-                    state = 21
-                    buff = buff[waiting_len:]
-                    waiting_len = 1
+    def write(self, msg = "", mode="cmd"):
+        #asyncio.create_task(self.write_coro(msg, mode))
+        asyncio.run_coroutine_threadsafe(self.write_coro(msg, mode), self.loop)
 
-                else:  # basically remove the byte
-                    state = 0
-                    buff = buff[waiting_len:]
-                    waiting_len = 1
 
-            elif state == 21:  # length type
-                if buff[0] <= 125:
-                    state = 25
-                    waiting_len = buff[0]
-                    buff = buff[1:]
+    # write coroutine
+    async def write_coro(self, msg="", mode="cmd"):
+        try:
+            # msg to byte
+            msg_byte = self.write_process(msg, mode)            
+            self.writer.write(msg_byte)
+            await self.writer.drain()
+            return True
+        except:
+            return False
 
-                elif buff[0] == 126:
-                    state = 22
-                    buff = buff[waiting_len:]
-                    waiting_len = 2
+
+    # register a callback
+    def register_callback(self, fn):
+        ''' fn must accept one input, e.g. fn(msg, sys) '''
+        self.callback = fn
+
+
+    async def _handshake_ws(self):
+        try:
+            # send the handshake and wait for its reply
+            await self.write_coro("", mode="handshake")
+            data = str(await self.reader.readuntil(separator=b'\r\n\r\n'))
+            if "Sec-WebSocket-Accept" in data:
+                return True
+
+        except:
+            pass
+        return False
+
+
+    # read loop
+    async def read_loop(self):
+        sys = {}
+        self._connected = True
+        while self._connected:
+            msg = None
+            try:
+                if self.channel == "websocket":
+                    # raw data
+                    try:
+                        data_byte = await self.reader.readuntil(separator=b'}')
+                        data_str = str(data_byte)
+                    except Exception as ex:
+                        # close connection
+                        break
+
+                    # find the index
+                    index_start = data_str.find("{")
+
+                    # get the message
+                    msg = json.loads(data_str[index_start:-1])
                 else:
-                    state = 23
-                    buff = buff[waiting_len:]
-                    waiting_len = 8
+                    try:
+                        # read header
+                        data_length_byte = await self.reader.readexactly(2)
 
-            elif state == 22 or state == 23:
-                state = 25
-                waiting_len_tmp = waiting_len
-                waiting_len = sum([
-                    int(buff[i] << (8*(waiting_len_tmp-i-1)))
-                    for i in range(waiting_len_tmp)
-                ])
-                buff = buff[waiting_len_tmp:]
+                        # read data
+                        data_byte = await self.reader.readexactly(int.from_bytes(data_length_byte, byteorder='big'))
+                    except:
+                        break
+                       
+                    # get the message
+                    msg = json.loads(data_byte.decode("utf-8") )                    
+                
+                # message queue
+                if not self.msg.full():
+                    self.msg.put(msg)
+                else:
+                    self.msg.get()
+                    self.msg.put(msg)
 
-            elif state == 25:  # add to the message queue
+                # update _msg
+                self._recv = dict(msg)
+
+                # update sys
+                sys.update(msg)
+
+                # callback
+                if self.callback:
+                    asyncio.create_task(self.callback(msg, sys.copy()))
+                
+
+                # track a given id
+                if self._track["id"]:
+                    try:
+                        # message contains an id
+                        if "id" in msg and self._track["id"] == msg["id"]:
+                            # update the resp_id
+                            self._track["msgs"].append(dict(msg))
+
+                            # end the track
+                            if "stat" in msg and any([msg["stat"] < 0, msg["stat"] >= 2]):
+                                self._track["id"] = None                              
+                    except:
+                        pass
+
+                # pattern wait
                 try:
-                    msg = json.loads(str(buff[:waiting_len], "utf-8"))
+                    if type(self._ptrn["wait"])== dict:
+                        # update sys
+                        self._ptrn["sys"] = dict(sys)
+                        # search for it
+                        if all([k in sys for k in self._ptrn["wait"]]) and all([self._ptrn["wait"][k] == sys[k] for k in self._ptrn["wait"]]):
+                            self._ptrn["wait"] = None
+                except:
+                    pass 
 
-                    # message queue
-                    if not self.msg.full():
-                        self.msg.put(msg)
-                    else:
-                        self.msg.get()
-                        self.msg.put(msg)
+                # update sys           
+                self._sys = dict(sys)
 
-                    # track queue
-                    if "id" in msg:
-                        self.id_q.put(msg)
 
-                    # update sys
-                    self.sys = {**dict(self.sys), **msg}  # update sys
-                except Exception as ex:
-                    pass
+            except Exception as ex:
+                print("socket read error: ", ex)
 
-                state = 0
-                buff = buff[waiting_len:]
-                waiting_len = 1
-                self.b = len(buff)
+        # close connection
+        await self.close_coro()
 
-        return buff, waiting_len, state
+    # encode the write data
+    def write_process(self, msg, mode):
+        # handle socket
+        if self.channel == "socket":
+            return (len(msg)).to_bytes(2, byteorder='big') + msg.encode("utf-8")
 
-    """
-    encode the write data and add it to write_q
-    """
-    def send(self, msg="", mode="cmd"):
+        # handle websocket
         if mode == "cmd" and msg:
             # cmd command
             header = [129]
@@ -146,10 +227,10 @@ class ws(object):
                 header.append((msg_len << 48) >> 56)
                 header.append((msg_len << 56) >> 56)
 
-            self.write_q.put(bytes(header + mask) + msg.encode("utf-8"))
+            return bytes(header + mask) + msg.encode("utf-8")
 
         elif mode == "handshake":
-            self.write_q.put((
+            return (
                 b"GET /chat HTTP/1.1\r\n"
                 b"Host: localhost:443\r\n"
                 b"Connection: Upgrade\r\n"
@@ -164,29 +245,19 @@ class ws(object):
                 b"Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n"
                 b"Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits\r\n"
                 b"\r\n"
-            ))
+            )
 
-    def _connect(self, host, port, time_out=1):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect((host, port))
+    async def close_coro(self):
+        if self._connected:
+            try:
+                self.writer.close()
+                await self.writer.wait_closed()
+            except:
+                pass
+        self._connected = False
+        self._thr = False
 
-        self.connected = True
-        # handshake
-        self.send(mode="handshake")
-
-        # socket thread
-        self.socket_thread = threading.Thread(
-            target=self.socket_loop
-        )
-        self.socket_thread.start()
-
-        time.sleep(time_out)
-        self.sock.setblocking(0)
-
-
-def main():
-    web_socket = ws()
-    web_socket._connect("dorna", 443)
-
-if __name__ == '__main__':
-    main()
+    def close(self):
+        if self._connected:
+            future = asyncio.run_coroutine_threadsafe(self.close_coro(), self.loop)
+        #asyncio.run(self.close_coro())
