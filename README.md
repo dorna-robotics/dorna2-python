@@ -180,83 +180,69 @@ A helper function to send a circle move (`cmove`) command, and return a `.track(
 This method is basically similar to the [`.play()`](#???) method but the `cmd` key is set to `"cmove"`.
 
 ## Stop
-Series of helper function to send halt, read and set the alarm.
+Series of helper function to send stop (halt) command, read and set the alarm status of the robot.
 
-### `.halt(accel=None, **kwargs)`
-Send a halt command to the robot. with a given acceleration ratio (`accel`), and return the final status of the command (`stat`).
-
-#### Parameter
-- *accel*: (float >= 1) The acceleration ratio parameter associated to the `halt`. Larger `accel` means faster and sharper halt (stop).
+### Halt
+Send a halt command to the robot. with a given acceleration ratio (`accel`), and return the final status of the halt command (`stat`).
 
 #### Usage
-- `.halt()`: Send a halt command to the robot. Return the status of the command. For example, `2` if the halt is completed properly, and negative number in case of any error.
-- `.halt(accel)`: Similar to the `.halt()` but this time with the specified acceleration.
-- `.halt(**kwargs)`: A helper function to send a `halt` command. It is similar to [`.play(cmd="halt", **kwargs)`](#???), and return `.halt()`.
-
+- `.halt(accel=1)`: The acceleration ratio parameter associated to the `halt`. Larger `accel` means faster and sharper halt (stop). The default value is `1`.
 ``` python
 robot.halt() # send a halt command to the controller
 robot.halt(5) # send a halt  command with acceleration ratio equal to 5 
 ``` 
 
-### `.alarm(self, val=None, **kwargs)`
-Set (disable or enable) or get the alarm status.
-
-#### Parameter
-- *val*: (0 or 1) Use this parameter to set the robot alarm. 0 for disabling and 1 for enabling the alarm.
+### Alarm
+Set (enable and disable) or get the alarm status of the robot.
 
 #### Usage
-- `.alarm()`: Get the robot alarm status (0 for disabled and 1 for enabled).
-- `.alarm(val)`: Set the alarm status of the robot to `val` (0 or 1), and return `.alarm()`.
-- `.alarm(**kwargs)`: A helper function to send a `alarm` command. It is similar to [`.play(cmd="alarm", **kwargs)`](#???), and return `.halt()`.
+- `.get_alarm()`: Get the robot alarm status (0 for disabled and 1 for enabled).
+- `.set_alarm(val)`: Set the alarm status of the robot to `val` (0 for disabling and 1 for enabling the alarm), and return `.get_alarm()`.
 ``` python
-robot.alarm() # get the alarm status of the controller
-robot.alarm(0) # clear the alarm (set alarm to 0)  
+"""
+Disable the alarm, if alarm exists
+"""
+if robot.get_alarm():
+    robot.set_alarm(0)
 ``` 
 
 ## Joint and TCP
 In this section we cover methods that are related to the robot orientation.
 
-### `.joint(index=None, val=None, **kwargs)`
+### Joint
 Set or get the value of an specific joint (or joints), and return its value (their values).
 
-#### Parameter
-- *index*: (0 <= int < 8) The index of the joint that we are interested in, to set or get its value.
-- *val*: (float) The value we want to assign to the specific joint in degree.
+#### Usage
+- `.get_all_joint()`: Get the joint values of the robot, in a list of size 8. Where index `i` in the list is the value of joint `i` (`ji`). 
+- `.get_joint(index)`: Get the value of the joint `index` (0 <= int < 8)
+- `.set_joint(index, val)`: Set the value of the joint `index` (0 <= int < 8) to `val` (float) and return `.get_joint(index)`.
+
+``` python
+robot.get_all_joint() # return the value of all the 8 joints of the robot
+robot.get_joint(1) # return the value of j1
+robot.set_joint(1, 30) # set the value of j1 to 30
+``` 
+
+### Pose
+Get the value of the robot toolhead (TCP) in Cartesian coordinate system (with respect to the robot base frame). in a list of size 8. Where indices 0 to 7 in this list are associated to `x`, `y`, `z`, `a`, `b`, `c`, `d` and `e`, respectively.
 
 #### Usage
-- `.joint()`: Get the joint values of the robot, in a list of size 8. Where index `i` in the list is the value of joint `i` (`ji`). 
-- `.joint(index)`: Get the value of the joint `index`. 
-- `.joint(index, val)`: Set the value of the joint `index` to `val` and return `.joint(index)`. 
-- `.joint(**kwargs)`: A helper function to send a `joint` command. It is similar to [`.play(cmd="joint", **kwargs)`](#???), and return `.joint()`.
-
+- `.get_all_pose()`: Get the robot TCP position in a list of size 8. Where indices 0 to 7 in this list are associated to `x`, `y`, `z`, `a`, `b`, `c`, `d` and `e`, respectively.
+- `.get_pose(index)`: ???Get the value of the `index`th (0 <= int < 8) position of  the robot TCP position.
 ``` python
-robot.joint() # return the value of all the 8 joints of the robot
-robot.joint(1) # return the value of j1
-robot.joint(1, 30) # set the value of j1 to 30
-robot.joint(j0=10, j2=20) # set the value of j0 to 10 and j2 to 20
+robot.get_all_pose() # return [x, y, z, a, b, c, d, e] 
+robot.get_pose(2) # return the value of the z coordinate 
 ``` 
 
-### `.pose()`
-Get the value of the robot toolhead (TCP) in Cartesian coordinate system (with respect to the robot base frame) in a list of size 8. Where indices 0 to 7 in this list are associated to `x`, `y`, `z`, `a`, `b`, `c`, `d` and `e`, respectively.
-
-``` python
-robot.pose() # return [x, y, z, a, b, c, d, e] 
-``` 
-
-### `.toollength(val=None, **kwargs)`
+### Tool Length
 Set or get the value of the robot toollength (in the Z direction with respect to the TCP frame), and return its value.
 
-#### Parameter
-- *val*: (float >= 0) The length of the toolhead in the Z direction from the base of the robot flange to the tip of the toolhead in mm.
-
 ### Usage
-- `.toollength()`: Get the robot toollength in mm.
-- `.toollength(val)`: Set the robot toollength to `val` mm and return `.toollength()`.
-- `.toollength(**kwargs)`: A helper function to send a `toollength` command. It is similar to [`.play(cmd="toollength", **kwargs)`](#???), and return `.toollength()`.
-
+- `.get_toollength()`: Get the robot toollength in mm.
+- `.set_toollength(val)`: Set the robot toollength to `val` mm and return `.get_toollength()`. `val` is the length of the toolhead in the Z direction from the base of the robot flange to the tip of the toolhead in mm.
 ``` python
-robot.toollength() # get the robot toollength in mm
-robot.toollength(10) # set the robot toollength to 10 mm  
+robot.get_toollength() # get the robot toollength in mm
+robot.set_toollength(10) # set the robot toollength to 10 mm  
 ``` 
 
 ## I/O
@@ -377,7 +363,7 @@ Returns the value of adc channel(s). If the `index` parameter is presented then 
 ## Wait
 Wait for an input pins pattern, encoder indices, received message pattern or certain amount of time in your program.
 
-### `.probe(index=None, val=None, **kwargs)`
+### Probe
 Set the probe input pin and return the the value of the joints the moment that the input pin was matched to the probe pattern.
 > Use this method to wait for a pattern in the input pin(s).
 
@@ -385,16 +371,14 @@ Set the probe input pin and return the the value of the joints the moment that t
 - *index*: (0 <= int < 16) The index of the input pin that we are interested to track and wait for it to get low (0) or high (1).
 - *val*: (0 or 1) The value that the input pin matches to.
 
-## Usage
-- `.probe(index, val)`: Return the joint values of the robot in a list of size 8 ([`.joint()`](#???)), the moment input pin `index` (0 <= int < 16), is equal to the `val` (0 or 1).
-- `.probe(**kwargs)`: A helper function to send a `probe` command. It is similar to [`.play(cmd="probe", **kwargs)`](#???), and return [`.joint()`](#???). 
-
+#### Usage
+- `.probe(index, val)`: Return the joint values of the robot in a list of size 8 ([`.get_all_joint()`](#???)), the moment that input pin `index` (0 <= int < 16), is equal to the `val` (0 or 1).
 ``` python
 robot.probe(1, 0) # return the joint values, the moment in1 gets 0
 ``` 
 
-### `.iprobe(index=None, val=None, **kwargs)`
-This method is similar to the `probe` function but here we are waiting for an specific patter in the encoder indices, instead of the input pins. Similar to the `probe` function, it will return [`.joint()`](#???), the moment the matching occurs.    
+### Iprobe
+This method is similar to the `probe` function but here we are waiting for an specific pattern in the encoder indices, instead of the input pins. Similar to the `probe` function, it will return [`.get_all_joint()`](#???), the moment the matching occurs.    
 > Notice that the encoder on the motors gets high (1), 8 times during one full rotation of the encoder, and we can locate these points by calling the `.iprobe` function.
 
 #### Parameters
@@ -402,42 +386,78 @@ This method is similar to the `probe` function but here we are waiting for an sp
 - *val*: (None or binary) The value we want to assign to the encoder index `index` for the iprobe process. This basically means to return the joints value of the robot when encoder index `index` is equal to `val`.   
 - *kwargs*: Other key and value parameters associated to this method. Including `timeout`, `queue`, `id`, etc. 
 
-## Usage
-- `.iprobe(index, val)`: Return the joint values of the robot in a list of size 8 ([`.joint()`](#???)), the moment that the encoder index `index` (0 <= int < 8), is equal to the `val` (0 or 1).
-- `.iprobe(**kwargs)`: A helper function to send a `iprobe` command. It is similar to [`.play(cmd="iprobe", **kwargs)`](#???), and return [`.joint()`](#???). 
+#### Usage
+- `.iprobe(index, val)`: Return the joint values of the robot in a list of size 8 ([`.get_all_joint()`](#???)), the moment that the encoder index `index` (0 <= int < 8), is equal to the `val` (0 or 1).
 ``` python
 robot.iprobe(1, 1) # return the value of joints, the moment index1 (encoder 1 index) gets 1
-robot.iprobe(in0=1, in3=1) # return the value of joints the moment index0 is 1 and index3 is 1 
 ``` 
 
-### `.sleep(val=None, **kwargs)`
+### Sleep
 Send a `sleep` command to the controller and sleep for certain amount of time.
-- `.sleep(val)`: Sleep for `val` (float >=0) seconds and return the status of the command. A successful sleep returns 2. A negative integer return means that there was an error during the excution of this command. 
-- `.sleep(**kwargs)`: A helper function to send a `sleep` command. It is similar to the [`.play(cmd="sleep", **kwargs)`](#jointindexnone-valnone-kwargs), and return the final status of the executed command (2 or negative integer for an error).
+
+#### Usage
+- `.sleep(val)`: Sleep for `val` (float >=0) seconds and return the status of the command. A successful sleep returns `2`. A negative integer return means that there was an error during the execution of this command.
 ``` python
-robot.sleep(10) # the controller sleepsfor 10 seconds
+robot.sleep(10) # the controller sleeps for 10 seconds
 ``` 
 
-### `.version(**kwargs)`
+## Setting
+### Motor
+Set (disable or enable) or get the motor status.
+
+#### Usage
+- `.get_motor()`: Get the robot motor status (0 for disabled and 1 for enabled).
+- `.set_motor(val)`: Set the value of the motors to `val` (0 for disable and 1 of enable), and return `.get_motor()`.
+``` python
+robot.get_motor() # get the robot motor status
+robot.set_motor(0) # disable the motors  
+``` 
+
+### Gravity Compensation
+Configure the gravity compensation parameters.
+
+#### Usage
+- `.get_gravity()`: Get the gravity parameters of the robot in a list of size 5. The list consists of `[enable, mass, x, y, z]`. Where:
+    - `enable` (0 or 1): Indicates that if the gravity is enabled (1) or disabled (0).
+    - `m`: Mass of the payload in gram.
+    - `x` ,`y`, `z`: Center of pass of the payload with respect to the robot TCP in `mm`.
+- `.set_gravity(enable=None, mass=None, x=None, y=None, z=None)`: Set and configure the gravity compensation and return `.get_gravity()` .
+``` python
+robot.set_gravity(enable=1, mass=100, z=10) # enable gravity compensation, with 100 g mass, located at z=10 mm far from the robot flange.    
+``` 
+
+### Auxiliary Axes
+Read and configure the ratio of the 3 additional axes (axis 5, axis 6, axis 7).
+
+#### Usage
+- `.get_axis(index)`: Get the ratio of the axes `index` (5<= int < 8).
+- `.set_axis(index, ratio)`: Set the ratio of the axis `index` to `ratio`.
+``` python
+robot.set_axis(5, 1200) # 1 turn of the motor 5 is equal to 1200 unit.    
+``` 
+
+### PID
+Get and configure the PID threshold and duration.
+
+#### Usage
+- `.get_pid()`: Return the PID threshold and duration, in a list of size 2 (`[threshold, duration]`.
+- `.set_pid(threshold=None, duration=None)`: Set the threshold and duration parameter of the robot, and return `.get_pid()`.
+- `.reset_pid(threshold=None, duration=None)`: Restore the PID to the default value: `threshold = 75` and `duration = 3000`, and return `.get_pid()`. 
+``` python
+robot.set_pid(20, 50) # set threshold to 20 and duration to 50.    
+``` 
+
+## Info
+### Version
 Get the firmware version of the controller.
 ``` python
 robot.version() # get the firmware version
 ``` 
 
-### `.uid(**kwargs)`
-Get the controller ID.
+### UID
+Get the controller Universal Identification number.
 ``` python
 robot.uid() # get the controller 
-``` 
-
-### `.motor(self, val=None, **kwargs)`
-Set (disable or enable) or get the motor status.
-- `.motor()`: Get the robot motor status (0 for disabled and 1 for enabled).
-- `.motor(val)`: Set the value of the motors to `val` (0 or 1), and return `.motor()`.
-- `.motor(**kwargs)`: A helper function to send a `motor` command. It is similar to the [`.play(cmd="motor", **kwargs)`](#jointindexnone-valnone-kwargs), and return `.motor()`.
-``` python
-robot.motor() # get the robot motor status
-robot.motor(0) # disable the motors  
 ``` 
 
 ## Example
