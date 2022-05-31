@@ -448,7 +448,7 @@ robot.set_pid(20, 50) # set threshold to 20 and duration to 50.
 ``` 
 
 ## Info
-### `version`
+### `.version()`
 Get the firmware version of the controller.
 ``` python
 robot.version() # get the firmware version
