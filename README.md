@@ -37,11 +37,13 @@ robot = Dorna()
 The robot server runs on `ws://robot_host_address:443`, where `robot_host_address` is the host address (IP) of the robot controller, and `443` is the port number. Once the connection has been established between the robot and the client (user), they start communicating with each other by sending and receiving data in [JSON][json] format. 
 
 ### Connect to the Robot
-Connect to the robot controller server at `ws://host:port`. Returns `True` on a successful connection, otherwise `False`.
-- `.connect(host="localhost", port=443, handshake_timeout=5)`: Connect to the robot server at `ws://host:port`.
-    - *host*: (string) The controller host address. The default value is `"localhost"`.
-    - *port*: (int) The controller port number. The default value is `443`.
-    - *handshake_timeout*: (float > 0) Wait maximum of `handshake_timeout` seconds to establish a connection to the robot controller. The default value is `5` seconds.
+Connect to the robot controller server at `ws://host:port`. Returns `True` on a successful connection, otherwise `False`.  
+
+#### `.connect(host="localhost", port=443, handshake_timeout=5)`
+Connect to the robot server at `ws://host:port`.
+- *host*: (string) The controller host address. The default value is `"localhost"`.
+- *port*: (int) The controller port number. The default value is `443`.
+- *handshake_timeout*: (float > 0) Wait maximum of `handshake_timeout` seconds to establish a connection to the robot controller. The default value is `5` seconds.
 
 > The `host` (string) and `port` (integer) arguments are similar to the Python `socket.connect((host, port))` method.
 
