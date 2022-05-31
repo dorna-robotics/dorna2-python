@@ -448,13 +448,13 @@ robot.set_pid(20, 50) # set threshold to 20 and duration to 50.
 ``` 
 
 ## Info
-### Version
+### `version`
 Get the firmware version of the controller.
 ``` python
 robot.version() # get the firmware version
 ``` 
 
-### UID
+### `.uid()`
 Get the controller Universal Identification number.
 ``` python
 robot.uid() # get the controller 
