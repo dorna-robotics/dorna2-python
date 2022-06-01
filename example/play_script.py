@@ -3,9 +3,7 @@ from dorna2 import Dorna
 
 
 def main(robot):
-    print(1)
     robot.play_script("script.txt")
-    print(2)
 if __name__ == '__main__':
     config_path = "config.json"
     
