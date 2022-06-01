@@ -1,13 +1,11 @@
 import json
-from dorna2 import dorna
+from dorna2 import Dorna
 
 
 def main(robot):
+    print(1)
     robot.play_script("script.txt")
-
-    # wait little bit before closing the connection, so the script can be executed
-    robot.sleep(time=1)
-    
+    print(2)
 if __name__ == '__main__':
     config_path = "config.json"
     
@@ -15,7 +13,7 @@ if __name__ == '__main__':
     with open(config_path) as json_file:
         arg = json.load(json_file)
 
-    robot = dorna()
+    robot = Dorna()
     print("connecting")
     if not robot.connect(arg["ip"], arg["port"]):
         print("not connected")

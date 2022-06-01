@@ -127,17 +127,21 @@ class Dorna(WS):
     --------
     return number valid commands that was sent  
     """
-    def play_script(self, timeout=-1, script_path=""):
-        with open(script_path, 'r') as f:
-            lines = f.readlines()
-            num_cmd = 0
-            for l in lines:
-                try:
-                    self.play(timeout=0, msg=l)
-                    num_cmd += 1
-                except:
-                    pass
-        self.sleep(0, timeout=timeout)
+    def play_script(self, script_path="", timeout=-1):
+        num_cmd = 0
+        try:
+            with open(script_path, 'r') as f:
+                lines = f.readlines()
+                for l in lines:
+                    try:
+                        self.play(timeout=0, msg=l)
+                        num_cmd += 1
+                    except:
+                        pass
+            if timeout < 0:
+                self.sleep(0, timeout=timeout)
+        except Exception as ex:
+            print(ex)
         return num_cmd
 
     """
@@ -603,8 +607,8 @@ class Dorna(WS):
     def get_axis(self, index=None):
         return self.axis(index=index)
 
-    def set_axis(self, axis=None, ratio=None):
-        return self.axis(axis=axis, val=ratio)
+    def set_axis(self, index=None, ratio=None):
+        return self.axis(index=index, val=ratio)
 
     def pid(self, **kwargs):
         key = None

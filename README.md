@@ -144,7 +144,7 @@ print("Motion 3 is still running and motion 4 is waiting for its execution.")
 ```
 
 
-### `play_script(script_path, timeout=0)`
+### `play_script(script_path, timeout=-1)`
 Send all the messages that are stored in a script file to the robot controller. The method opens the script file located at `script_path`, read the file line by line and send each line as a command.  
 The function returns the number of commands which was sent to the robot controller.  
 > Use this function to send multiple messages at once to the robot.
@@ -402,32 +402,48 @@ robot.sleep(10) # the controller sleeps for 10 seconds
 ``` 
 
 ## Setting
-### Motor
-Set (disable or enable) or get the motor status.
+### `.get_motor()`
+Get the robot motor status (0 for disabled and 1 for enabled).
 
-#### Usage
-- `.get_motor()`: Get the robot motor status (0 for disabled and 1 for enabled).
-- `.set_motor(val)`: Set the value of the motors to `val` (0 for disable and 1 of enable), and return `.get_motor()`.
+### `.set_motor(enable=None)`
+Enable or disable the motors and return `.get_motor()???`.
+#### Arguments
+- *enable*: (0 or 1) Use `0` or `1` to disable or enable the motors, respectively.
+
 ``` python
 robot.get_motor() # get the robot motor status
 robot.set_motor(0) # disable the motors  
 ``` 
 
-### Gravity Compensation
-Configure the gravity compensation parameters.
+### `.get_gravity()`
+Get the gravity parameters of the robot in a list of size 5. The list consists of `[enable, mass, x, y, z]`. Where:
+- `enable` (0 or 1): Indicates that if the gravity is enabled (1) or disabled (0).
+- `mass`: Mass of the payload in gram.
+- `x` ,`y`, `z`: Center of mass of the payload with respect to the robot TCP in `mm`.
 
-#### Usage
-- `.get_gravity()`: Get the gravity parameters of the robot in a list of size 5. The list consists of `[enable, mass, x, y, z]`. Where:
-    - `enable` (0 or 1): Indicates that if the gravity is enabled (1) or disabled (0).
-    - `m`: Mass of the payload in gram.
-    - `x` ,`y`, `z`: Center of pass of the payload with respect to the robot TCP in `mm`.
-- `.set_gravity(enable=None, mass=None, x=None, y=None, z=None)`: Set and configure the gravity compensation and return `.get_gravity()` .
+### `.set_gravity(enable=None, mass=None, x=None, y=None, z=None)`: 
+Set and configure the gravity compensation parameters and return `.get_gravity()???`.
+#### Arguments
+- *enable*: (0 or 1) Use `0` or `1` to disable or enable the gravity compensation feature, respectively.
+- *mass*: (float >=0) Mass of the payload in gram.
+- *x*: (float) The location of center of mass of the payload in X direction and `mm` unit, with respect to the robot flange frame.
+- *y*: (float) The location of center of mass of the payload in Y direction and `mm` unit, with respect to the robot flange frame.
+- *z*: (float) The location of center of mass of the payload in Z direction and `mm` unit, with respect to the robot flange frame.
+
 ``` python
 robot.set_gravity(enable=1, mass=100, z=10) # enable gravity compensation, with 100 g mass, located at z=10 mm far from the robot flange.    
 ``` 
 
-### Auxiliary Axes
-Read and configure the ratio of the 3 additional axes (axis 5, axis 6, axis 7).
+### `.get_axis(index=None)`
+Get the ratio (unit per motor turn) of any of the auxiliary axes (axis 5, axis 6 and axis 7).
+#### Arguments
+- *index*: (5<= int < 8) Index of the axis that we are interested.
+
+### `.set_axis(index=None, ratio=None)`
+Set the ratio (unit per motor turn) of any of the auxiliary axes (axis 5, axis 6 and axis 7). Return `.get_axis(index=None)???`
+#### Arguments
+- *index*: (5<= int < 8) Index of the axis that we are interested.
+- *ratio*: (int > 0) The value of the ratio we want to assign to the axis `index`.
 
 #### Usage
 - `.get_axis(index)`: Get the ratio of the axes `index` (5<= int < 8).
