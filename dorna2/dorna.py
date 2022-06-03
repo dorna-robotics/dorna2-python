@@ -41,7 +41,7 @@ class Dorna(WS):
 
         # initialize
         for cmd in self.config["cmd_init"]:
-            self.cmd(cmd)
+            self.cmd(cmd, timeout=1)
 
         return True
 
