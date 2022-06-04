@@ -29,6 +29,7 @@ if __name__ == '__main__':
     f = open("log.txt", "a")
     f.write("starting: "+str(datetime.now())+" \n")
 
+    # dorna object
     robot = Dorna()
 
     # connecting
