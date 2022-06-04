@@ -1,0 +1,73 @@
+starting: 2022-06-04 14:08:34.220792 
+### round 1 ###
+go to the rest position
+turn the motors off
+starting: 2022-06-04 14:11:34.147580 
+### round 1 ###
+go to the rest position
+turn the motors off
+starting: 2022-06-04 14:12:47.426571 
+### round 1 ###
+go to the rest position
+turn the motors off
+starting: 2022-06-04 14:13:46.734167 
+### round 1 ###
+go to the rest position
+turn the motors off
+starting: 2022-06-04 14:14:21.912140 
+### round 1 ###
+go to the rest position
+turn the motors off
+starting: 2022-06-04 14:15:12.483336 
+### round 1 ###
+### round 2 ###
+### round 3 ###
+### round 4 ###
+### round 5 ###
+go to the rest position
+turn the motors off
+starting: 2022-06-04 14:16:43.382367 
+### round 1 ###
+### round 2 ###
+### round 3 ###
+### round 4 ###
+### round 5 ###
+go to the rest position
+turn the motors off
+starting: 2022-06-04 14:44:04.878986 
+### round 1 ###
+### round 2 ###
+go to the rest position
+turn the motors off
+starting: 2022-06-04 14:44:45.566849 
+go to the rest position
+turn the motors off
+starting: 2022-06-04 14:44:54.397320 
+go to the rest position
+turn the motors off
+starting: 2022-06-04 14:46:15.430841 
+go to the rest position
+turn the motors off
+starting: 2022-06-04 14:46:28.775220 
+go to the rest position
+turn the motors off
+starting: 2022-06-04 14:59:36.991305 
+### round 1 ###
+### round 2 ###
+### round 3 ###
+### round 4 ###
+### round 5 ###
+### round 6 ###
+### round 7 ###
+### round 8 ###
+### round 9 ###
+### round 10 ###
+### round 11 ###
+### round 12 ###
+### round 13 ###
+### round 14 ###
+### round 15 ###
+### round 16 ###
+### round 17 ###
+go to the rest position
+turn the motors off

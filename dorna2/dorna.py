@@ -32,6 +32,7 @@ class Dorna(WS):
             merge = {**merge, **_track["msgs"][i]}
         rtn["all"] = _track["msgs"]
         rtn["merge"] = merge
+        rtn["cmd"] = _track["cmd"]
         return rtn
 
     def connect(self, host="localhost", port=443, handshake_timeout=5):
@@ -63,7 +64,7 @@ class Dorna(WS):
     return a dictionary formed by the union of the messages associated to this command 
     """
     def play(self, timeout=-1, msg=None, **kwargs):
-        self._track = {"id": None, "msgs": []} # init track 
+        self._track = {"id": None, "msgs": [], "cmd": {}} # init track 
         
         # find msg
         if msg:
@@ -93,6 +94,7 @@ class Dorna(WS):
                 del msg['key']
         
         # set the tracking id
+        self._track["cmd"] = dict(msg) 
         self._track["id"] =  msg["id"]
         
         # take a copy
@@ -128,7 +130,6 @@ class Dorna(WS):
     return number valid commands that was sent  
     """
     def play_script(self, script_path="", timeout=-1):
-        num_cmd = 0
         try:
             with open(script_path, 'r') as f:
                 lines = f.readlines()
@@ -138,11 +139,9 @@ class Dorna(WS):
                         num_cmd += 1
                     except:
                         pass
-            if timeout < 0:
-                self.sleep(0, timeout=timeout)
         except Exception as ex:
             print(ex)
-        return num_cmd
+        return self.sleep(0, timeout=timeout)
 
     """
     wait for a given patter in received signal
