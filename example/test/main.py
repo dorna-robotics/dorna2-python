@@ -36,8 +36,7 @@ if __name__ == '__main__':
     robot.log("connecting...")
     if robot.connect():
         robot.log("connected")
-
-        main(robot)
+        main(robot, f)
 
     # close the file
     f.write("ending: "+str(datetime.now())+ " \n")
