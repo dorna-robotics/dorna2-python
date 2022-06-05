@@ -41,5 +41,8 @@ config = {
             "lmove":{"vel": 0, "accel": 0, "jerk": 0},
             "cmove":{"vel": 0, "accel": 0, "jerk": 0}
         }                                        
-    }       
+    },
+    "log":{
+        "path":"dorna.log",
+    }     
 }

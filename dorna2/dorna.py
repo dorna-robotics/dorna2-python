@@ -3,13 +3,37 @@ import random
 import time
 from dorna2.ws import WS
 from dorna2.config import config
+import logging
+import logging.handlers
+
 
 class Dorna(WS):
     """docstring for Dorna"""
     def __init__(self, config=config):
         super(Dorna, self).__init__()
         self.config = config
-    
+        
+        # setup log
+        self._logger_setup()
+
+
+    def _logger_setup(self):
+        """Set up logging to log to rotating files and also console output."""
+        formatter = logging.Formatter('%(asctime)s %(message)s')
+        self.logger = logging.getLogger("dorna_log")
+        self.logger.setLevel(logging.INFO)
+
+        # rotating file handler
+        fh = logging.handlers.RotatingFileHandler("dorna.log", maxBytes=100000, backupCount=1)
+        fh.setFormatter(formatter)
+        self.logger.addHandler(fh)
+
+        # console handler
+        ch = logging.StreamHandler()
+        ch.setFormatter(formatter)
+        self.logger.addHandler(ch)
+
+
     # last message received
     def recv(self):
         return dict(self._recv)
@@ -47,7 +71,7 @@ class Dorna(WS):
         return True
 
     def log(self, msg=""):
-        return print(msg, flush=True)        
+        self.logger.info(msg)
     
     def rand_id(self, thr_low=100, thr_high= 1000000):
         return random.randint(thr_low, thr_high)
