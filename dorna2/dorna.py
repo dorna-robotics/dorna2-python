@@ -13,18 +13,18 @@ class Dorna(WS):
         super(Dorna, self).__init__()
         self.config = config
         
-        # setup log
-        self._logger_setup()
+        # init logger
+        self.logger = None
 
 
-    def _logger_setup(self):
+    def logger_setup(self, log_path="dorna.log", maxBytes=100000, backupCount=1):
         """Set up logging to log to rotating files and also console output."""
         formatter = logging.Formatter('%(asctime)s %(message)s')
         self.logger = logging.getLogger("dorna_log")
         self.logger.setLevel(logging.INFO)
 
         # rotating file handler
-        fh = logging.handlers.RotatingFileHandler("dorna.log", maxBytes=100000, backupCount=1)
+        fh = logging.handlers.RotatingFileHandler(log_path, maxBytes=maxBytes, backupCount=backupCount)
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
 
@@ -71,6 +71,11 @@ class Dorna(WS):
         return True
 
     def log(self, msg=""):
+        # setup log
+        if self.logger == None:
+            self.logger_setup()
+
+        # print log
         self.logger.info(msg)
     
     def rand_id(self, thr_low=100, thr_high= 1000000):
