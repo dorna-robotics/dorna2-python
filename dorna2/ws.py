@@ -12,7 +12,7 @@ class WS(object):
         self.channel = channel
         self.msg = queue.Queue(100)
         self._sys = {}
-        self.callback = None
+        self.deregister_callback()
         self._connected = False
         
         # wait
@@ -93,6 +93,10 @@ class WS(object):
         self.callback = fn
 
 
+    def deregister_callback(self):
+        self.register_callback(None)
+
+
     async def _handshake_ws(self):
         try:
             # send the handshake and wait for its reply
@@ -155,7 +159,7 @@ class WS(object):
 
                 # callback
                 if self.callback:
-                    asyncio.create_task(self.callback(msg, sys.copy()))
+                    asyncio.create_task(self.callback(msg.copy(), sys.copy(), *args, **kwargs))
                 
 
                 # track a given id
