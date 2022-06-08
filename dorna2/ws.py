@@ -159,7 +159,7 @@ class WS(object):
 
                 # callback
                 if self.callback:
-                    asyncio.create_task(self.callback(msg.copy(), sys.copy(), *args, **kwargs))
+                    asyncio.create_task(self.callback(msg.copy(), sys.copy()))
                 
 
                 # track a given id
