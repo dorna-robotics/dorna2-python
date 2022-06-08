@@ -6,15 +6,19 @@ id_list = None
 flag = None
 
 async def track_id(msg, sys):
-    if "stat" in msg and  "id" in msg:
-        _id = msg["id"] - 2
-        _stat = msg["stat"]
+    global id_list
+    global flag
 
+    if all(["stat" in msg, "id" in msg]):
+        _id = int(msg["id"] - 2)
+        _stat = int(msg["stat"])
         id_list[_stat][_id] +=1
 
         # multiple stat
         if id_list[_stat][_id] > 1:
-            flag = 1 
+            flag = 1
+
+            print(id_list, _stat, _id) 
             return False
 
         # check for 0, 1, 2
@@ -23,11 +27,11 @@ async def track_id(msg, sys):
             return False
 
         # check for stat pattern
-        if id_list[_stat][_id] != id_list[_stat][max(0, _id-1)]
+        if id_list[_stat][_id] != id_list[_stat][max(0, _id-1)]:
             flag=3
             return False
 
-        if id_list[2][-1] == 1
+        if id_list[2][-1] == 1:
             flag=4
             return False 
 
@@ -37,17 +41,22 @@ def init_id_list(num_cmd):
 
 
 def random_pose(x, y, z, a, b):
-    return [x + 0.1 * random.random(), y + 0.1 * random.random(), z + 0.1 * random.random(), a + 0.1 * random.random(), b + 0.1 * random.random()]
+    return [x + 0.05 * random.random(), y + 0.05 * random.random(), z + 0.05 * random.random(), a + 0.05 * random.random(), b + 0.05 * random.random()]
 
 
 def main(robot):
+    num_loop = 5000
     num_cmd = 100
+    global id_list
+    global flag
+
     # get the initial point
     x0, y0, z0, a0, b0, _, _, _ = robot.get_all_pose()
 
-    for i in range(1000):
-        # init id_dict
-        id_dict = init_id_list(num_cmd)
+    for i in range(num_loop):
+        robot.log("round "+str(i))
+        # init id_list
+        id_list = init_id_list(num_cmd)
         flag = None
 
         # set_callback
@@ -62,8 +71,7 @@ def main(robot):
             time.sleep(0.001)        
 
         if flag != 4:
-            robot.log("error")
-            robot.log(id_list)
+            robot.log("error: "+ str(id_list))
             return flag
 
 

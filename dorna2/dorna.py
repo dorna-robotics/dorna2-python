@@ -517,7 +517,7 @@ class Dorna(WS):
             return _pose[index]
         return _pose
 
-    def get_pose_all(self):
+    def get_all_pose(self):
         return self.pose()    
 
     def get_pose(self, index=None):
