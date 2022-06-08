@@ -9,7 +9,7 @@ def main(robot):
     # go to the stat position
     robot.jmove(rel=0, j0=0, j1=0, j2=0, j3=0, j4=0)
 
-    seconds = 2* 60 * 60
+    seconds = 1 * 60 * 60
     i = 1
     # tik
     start = time.time()
