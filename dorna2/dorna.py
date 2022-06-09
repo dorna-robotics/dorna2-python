@@ -70,13 +70,13 @@ class Dorna(WS):
 
         return True
 
-    def log(self, msg=""):
+    def log(self, msg, *args, **kwargs):
         # setup log
         if self.logger == None:
             self.logger_setup()
 
         # print log
-        self.logger.info(msg)
+        self.logger.info(msg, *args, **kwargs)
     
     def rand_id(self, thr_low=100, thr_high= 1000000):
         return random.randint(thr_low, thr_high)
