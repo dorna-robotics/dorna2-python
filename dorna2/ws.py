@@ -4,7 +4,7 @@ import json
 import time
 import asyncio
 
-123
+
 class WS(object):
     """docstring for comm"""
     def __init__(self, channel="websocket"):
