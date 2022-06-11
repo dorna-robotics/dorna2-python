@@ -1,7 +1,63 @@
 from __future__ import print_function
 import math
 import numpy as np
-123
+
+"""
+grid is a structure in 3d space
+There are 3 types of grid
+	line: Elements are listed on a line (1D space)
+	plane: Elements are positioned on a plane (2D space) 
+	3d: Elements are positioned in a cube (3D space) 
+	
+	0(O) 1 2 3(A)
+	1
+	2
+	3
+	4(B)
+	A_index = 3
+	B_index = 4
+"""
+class grid(object):
+	"""docstring for grid"""
+
+	def __init__(self, O, A=None, A_index=0, B=None, B_index=0, C=None, C_index=0):
+		super(grid, self).__init__()
+		# corners
+		self.O = np.array(O)
+		if A == None:
+			self.A = np.array(O)
+		else:
+			self.A = np.array(A)
+
+		if B == None:
+			self.B = np.array(O)
+		else:
+			self.B = np.array(B)
+
+		if C == None:
+			self.C = np.array(O)
+		else:
+			self.C = np.array(C)
+
+		# grid
+		self.A_index = A_index
+		self.B_index = B_index
+		self.C_index = C_index
+
+
+	def point(self, i=0, j=0, k=0):
+		rtn = np.array(O)
+		# axes
+		for indx, unit, corner in zip([i, j, k], [self.A_index, self.B_index, self.C_index], [self.A, self.B, self.C]) 
+			try:
+				rtn += (indx/unit) * (corner - self.O)
+			except:
+				pass
+
+		# to list
+		return rtn.tolist()
+
+
 """
 All the dimensions are in mm
 
