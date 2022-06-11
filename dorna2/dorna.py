@@ -654,4 +654,4 @@ class Dorna(WS):
         return self.pid(threshold=threshold, duration=duration)
 
     def reset_pid(self):
-        return set_pid(threshold=75, duration=3000)
+        return self.set_pid(threshold=75, duration=3000)
