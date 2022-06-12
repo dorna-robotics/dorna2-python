@@ -48,7 +48,7 @@ class grid(object):
 	def point(self, i=0, j=0, k=0):
 		rtn = np.array(O)
 		# axes
-		for indx, unit, corner in zip([i, j, k], [self.A_index, self.B_index, self.C_index], [self.A, self.B, self.C]) 
+		for indx, unit, corner in zip([i, j, k], [self.A_index, self.B_index, self.C_index], [self.A, self.B, self.C]): 
 			try:
 				rtn += (indx/unit) * (corner - self.O)
 			except:
