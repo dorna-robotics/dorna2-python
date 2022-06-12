@@ -120,7 +120,7 @@ class Dorna(WS):
         _msg = dict(msg)
         for key in _msg:
             if _msg[key] == None:
-                del msg['key']
+                del msg[key]
         
         # set the tracking id
         self._track["cmd"] = dict(msg) 
