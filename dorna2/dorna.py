@@ -399,6 +399,9 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+    def get_all_adc(self):
+        return self.adc()
+
     def get_adc(self, index=None):
         return self.adc(index=index)
     
