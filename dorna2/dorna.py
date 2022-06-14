@@ -259,7 +259,7 @@ class Dorna(WS):
             else:
                 return [rtn["merge"][k] for k in rtn_keys]
         except Exception as ex:
-            print("error key and value: ", ex)
+            print("error key and value: ", ex, rtn)
             return None
     
     """
