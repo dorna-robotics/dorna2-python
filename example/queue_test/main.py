@@ -6,7 +6,7 @@ import time
 id_list = None
 flag = None
 
-async def track_id(msg, sys):
+async def track_id(self, msg, sys):
     global id_list
     global flag
     if all(["stat" in msg, "id" in msg]):
@@ -15,7 +15,7 @@ async def track_id(msg, sys):
 
         # id range
         if _id > 99:
-            robot.log("out of range: "+ str(_id + 2))
+            self.log("out of range: "+ str(_id + 2))
             return False
 
         id_list[_stat][_id] +=1
@@ -23,19 +23,19 @@ async def track_id(msg, sys):
         # multiple stat
         if id_list[_stat][_id] > 1:
             flag = 1
-            robot.log("stat: " + str(_stat) + " id: " + str( _id + 2))
+            self.log("stat: " + str(_stat) + " id: " + str( _id + 2))
             return False
 
         # check for 0, 1, 2
         if id_list[_stat][_id] !=  id_list[max(0, _stat-1)][_id]:
             flag=2
-            robot.log("stat: " + str(_stat) + " id: " + str( _id + 2))
+            self.log("stat: " + str(_stat) + " id: " + str( _id + 2))
             return False
 
         # check for stat pattern
         if id_list[_stat][_id] != id_list[_stat][max(0, _id-1)]:
             flag=3
-            robot.log("stat: " + str(_stat) + " id: " + str( _id + 2))
+            self.log("stat: " + str(_stat) + " id: " + str( _id + 2))
             return False
 
         if id_list[2][-1] == 1:

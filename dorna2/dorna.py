@@ -48,7 +48,7 @@ class Dorna(WS):
     """
     return aggregate and all the messages in _msgs
     """
-    def track(self):
+    def track_cmd(self):
         rtn = {}
         merge = {}
         _track = dict(self._track)
@@ -104,7 +104,7 @@ class Dorna(WS):
             elif type(msg) == dict:
                 msg = dict(msg)
             else:
-                return self.track()
+                return self.track_cmd()
 
         else:
             msg = dict(kwargs)
@@ -141,7 +141,7 @@ class Dorna(WS):
 
         # finish tracking
         self._track["id"] = None
-        return self.track()
+        return self.track_cmd()
 
 
     """

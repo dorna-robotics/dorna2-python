@@ -33,24 +33,22 @@ from dorna2 import Dorna
 robot = Dorna()
 ```  
 
-## Open and Close a Connection to the Robot
-The robot server runs on `ws://robot_host_address:443`, where `robot_host_address` is the host address (IP) of the robot controller, and `443` is the port number. Once the connection has been established between the robot and the client (user), they start communicating with each other by sending and receiving data in [JSON][json] format. 
+## Communication
+The robot server runs on `ws://host:443`, where `host` is the host address (IP) of the robot controller, and `443` is the default port number. Once the connection has been established between the robot and the client (user), they start communicating with each other by sending and receiving data in [JSON][json] format. 
 
-### Connect to the Robot
-#### `.connect(host="localhost", port=443, handshake_timeout=5)`
+### `.connect(host="localhost", port=443, handshake_timeout=5)`
 Connect to the robot controller server at `ws://host:port`. Returns `True` on a successful connection, otherwise `False`.  
+#### Parameter
 - *host*: (string, default value = `"localhost"`) The controller host address.
 - *port*: (int, default value = `443`) The controller port number.
 - *handshake_timeout*: (float > 0, default value = `5`) Wait maximum of `handshake_timeout` seconds to establish a connection to the robot controller.
 
 > The `host` (string) and `port` (integer) arguments are similar to the Python `socket.connect((host, port))` method.
 
-### Close the Connection
-#### `.close()` 
+### `.close()` 
 Use this method to close an opened connection. This method instantly closes the socket and terminates the communication loop. After this the `Dorna` object is unable to send or receive any message from (to) the controller server.  
 
 > It is required to close an open connection when your task is over and the connection is no longer required.  
-
 ``` python
 from dorna2 import Dorna
 
@@ -61,9 +59,8 @@ robot.connect("10.0.0.10") # connect to the robot server at ws://10.0.0.10:443
 
 robot.close() # always close the socket when you are done
 ``` 
-
-## Send and Receive Data
-Once you are  connected to the robot controller, you can start sending valid commands to the robot, and receive messages from it.   
+## Controller Replies and Command Status
+Once you are  connected to the robot controller, you can start sending valid commands to the robot, and receive messages and replies from it.   
 
 ### Command Status and Execution
 We need to first get familiar with the status of a command sent to the robot. When sending a valid command to the robot, the controller reports the status of the command from the time that the command is submitted, to the time that the execution of that command is completed using a `stat` key and the unique `id` send initially with the command. An example of such a message is as follows:
@@ -91,28 +88,47 @@ Another important key in the replies is the `stat` key. The `stat` field can tak
 
 > Notice, that we say that a command is completed if get `stat = 2` or `stat < 0` of that command. That basically means the command is completed, no longer running and its life cycle is over.
 
-### `timeout` variable
-Throughout this document we use and refer to the `timeout` key as an arguments inside methods that are sending command to the robot.  
-Functions that are sending command to the robot are using the `timeout` argument for tracking the completion or any error during the execution of the command that they are sending. As an argument, you can assign different values to the `timeout` parameter depending on your need: 
-- `timeout < 0`: Send a command and wait for the command completion ( `stat = 2` or `stat < 0`) and then return. At this moment we are sure that the command is no longer running.
-- `timeout >= 0`: Send a command and wait for A maximum of `timeout` seconds for its completion. Notice that in this case, we might have returned from the function but the command which was sent by the function to the robot is still running or waiting inside the controller queue for its time to run. If we do not want to wait for the execution of a command at all, then we can always set `timeout = 0`.
+### `.track_cmd()`
+Return the replies of the last commands sent to the robot by the API.
+This method returns a Python dictionary with three main keys as follow:
+- `"cmd"`: The value assigned to this key, is a Python dictionary of the initial command sent to the robot.
+- `"all"`: The value assigned to this key is a list of all replies from the controller, that has the same `id` as the initial command. Each element in the list is a reply from the controller and is in a Python dictionary. Elements in the list are also sorted ascending, based on the time they have received by the API.
+- `"merger"`: This is a Python dictionary formed by merging all the elements in the `"all"` list, and keep the latest value for each key.  
 
+Here is an example of showing the result of `.track_cmd()`, based on the replies we got from the `alarm` command we sent in the [Command Status and Execution section](#command-status-and-execution):
+``` python
+robot.track_cmd()
+"""
+{
+    "cmd": {"cmd":"alarm","id":10},
+    "all": [{"id":10,"stat":0},
+            {"id":10,"stat":1},
+            {"cmd":"alarm","id":10,"alarm":0},
+            {"id":10,"stat":2}],
+    "merge": {"id":10,"stat":2,"cmd":"alarm","alarm":0} 
+}
+```
+
+## Send Commands 
+In this section we cover two main methods to send commands to the robot.
 ### `.play(timeout=-1, msg=None, **kwargs):`  
-Send a message to the robot, and return [`.track()`](???).  
+Send a message to the robot, and return [`.track_cmd()`](#track).  
 There are multiple ways to send a message via `.play()`. For a better understanding, we send a simple `alarm` status command in three different ways:
 - **Case 1:** (*Recommended*) Key and value format: `play(cmd='alarm', id=10})`
 - **Case 2:** Python dictionary format: `play({'cmd': 'alarm', 'id': 10})` 
 - **Case 3:** JSON string format: `play('{"cmd": "alarm", "id": 10}')`
 
 #### Parameter
-- *timeout*: (float, default value = `-1`) Similar to the `[timeout` parameter](#???).
+- *timeout*: (float, default value = `-1`) We can assign different values to the `timeout` parameter depending on your need:
+    - `timeout < 0`: Send a command and wait for the command completion (`stat = 2` or `stat < 0`) and then return. At this moment we are sure that the command is no longer running.
+    - `timeout >= 0`: Send a command and wait for A maximum of `timeout` seconds for its completion. Notice that in this case, we might have returned from the `.play` method but the command which was sent to the robot is still running or waiting inside the controller queue for its turn to get executed. If we do not want to wait for the execution of a command at all, then we can always set `timeout = 0`.
 - *msg*: (Python dictionary or JSON string, default value = `None`) Use this parameter if you want to send your command in a Python dictionary format (**Case 2**), or in a JSON format (**Case 3**).
 - *kwargs*: Use this to send your command in a key and value format (**Case 1**).
 
-> Notice that the `.play()` method always includes a random `id` filed to your command if it is not present.
+> Throughout this document we use and refer to the `timeout` key as an arguments inside methods that are sending command to the robot. These functions are using the `timeout` argument for tracking the completion or any error during the execution of the command that they are sending.
+> Notice that the `.play()` method always includes a random `id` field to your command if it is not present.
 
-#### Usage
-For better understanding of the `timeout` parameter, we send a joint move command to the robot.
+For better understanding of the `timeout` parameter, we send a joint move command to the robot in four different ways.
 ``` python
 # motion 1
 start = time.time()
@@ -158,26 +174,41 @@ Once the commands in the script are sent to the robot, the function runs a `0` s
 {"cmd":"jmove","rel":0,
 "j0":-10}
 ``` 
-> Here is an example code, on how to run a script file multiple times, by a simple loop:
+Here are two examples, on how to run a script file multiple times using a simple loop:
 ``` python
-# script_path = "test.txt"
-# case 1: run script 10 times
+# case 1: run an script 10 times
 for i in range(10):
     robot.play_script(script_path="test.txt")
-    robot.log("Script commands are completed")
-
-# case 2: safe way of running script in a while loop, by checking the return of the script
-while True:
+    robot.log("Script is completed")
+```
+Another example (safe way):
+``` python
+# case 2: safe way of running an script in a for loop, by checking the return of the script
+for i in range(10):
     result = robot.play_script(script_path="test.txt")
     if result != 2: # stat !=2
         robot.log("Error happened")
         break
-    robot.log("Script commands are completed")
-
+    robot.log("Script is completed")
 ``` 
 #### Parameter
 - *script_path*: (string) The path to the script file. 
 - *timeout*: (float , default value = `-1`) Similar to the `[timeout` parameter](#???). By default, the method sends all the commands and waits for their completion before returning from the function.
+
+## Messages
+### `.send()`
+Return the last message sent to the controller, in a Python dictionary format.
+### `.recv()`
+Return the last message received from the controller, in a Python dictionary format.
+``` python
+print(robot.recv())
+
+# Output:
+#
+#     {'cmd':'output','id':81513,'out0':1,'out1':0,'out2':0,'out3':0,'out4':0,'out5':0,'out6':0,'out7':0,'out8':0,'out9':0,'out10':0,'out11':0,'out12':0,'out13':0,'out14':0,'out15':0}
+```
+### `.sys()`
+Return a Python dictionary, consists of all the keys and their most up to date values received from the controller, since the connection has been established.
 
 ## Move
 In this section we cover robot motion functions.
@@ -203,7 +234,6 @@ Series of helper function to send stop (halt) command, read and set the alarm st
 Send a halt command to the robot, with a given acceleration ratio (`accel`), and return the final status of the halt command (`stat`).
 #### Parameter
 - *accel*: (float > 1, default value = `None`) The acceleration ratio parameter associated to the `halt`. Larger `accel` means faster and sharper halt (stop). When this parameter is not present, the robot stops with the default acceleration.
-#### Usage
 ``` python
 robot.halt() # send a halt command to the controller
 robot.halt(5) # send a halt  command with acceleration ratio equal to 5 
@@ -405,12 +435,93 @@ Get the firmware version of the controller.
 ``` python
 robot.version() # get the firmware version
 ``` 
+### `.uid()`
+Get the controller Universal Identification number.
+``` python
+robot.uid() # get the controller 
+``` 
+
+## Messages
+### `.recv()`
+Return the last message received from the controller, in a python dictionary format.
+``` python
+print(robot.recv())
+"""
+{"cmd":"output","id":81513,"out0":1,"out1":0,"out2":0,"out3":0,"out4":0,"out5":0,"out6":0,"out7":0,"out8":0,"out9":0,"out10":0,"out11":0,"out12":0,"out13":0,"out14":0,"out15":0}
+"""
+```
+### `.send()`
+Return last message sent to the controller, in a python dictionary format.
+
+
+
 
 ### `.uid()`
 Get the controller Universal Identification number.
 ``` python
 robot.uid() # get the controller 
 ``` 
+
+## Callback Event
+Every time a message received from the robot controller, we can call (trigger) a function. This is useful when someone wants to create an event, based on the message received from the controller.
+
+### `.register_callback(fn)`
+Register an *asynchronous* function `fn` to be called every time a message received from the controller.  
+#### Format of the Function `fn(msg, sys)`
+As we mentioned `fn` is a [asynchronous python function](https://docs.python.org/3/library/asyncio.html), and it is important that we define it in `async` format, otherwise it will cause problem to the robot and API communication.  
+This method takes two parameters `msg` and `sys`. 
+- `msg` is the message received from the controller, the moment that `fn` was called.
+- `sys` is the dictionary defined in [`.sys()`](#???), the moment that `fn` was called.
+
+### `.deregister_callback()`
+This method acts opposite of[`.register_callback(fn)`](#???) and it removes any function `fn` from the callback once a message received from the controller.
+> It is important to call this method, when we do not need the registered callback function `fn` anymore.
+
+### Example
+Assume that you have a program running a script in while loop. Meanwhile your robot input is connected to an external device.  
+We want to stop the robot (put the robot in alarm mode) and end the while loop, one second after an input 0 is enabled (`in0 == 1`).  
+So, we register a callback method, that looks at the received message from the controller, and send an alarm message if `in0 == 1`.   
+``` python
+from dorna2 import Dorna
+import asyncio
+
+async def alarm_condition(self, msg, sys):
+    # alarm condition
+    if "in0" in msg and msg["in0"] == 1:
+        # de register callback
+        self.deregister_callback()
+
+        # sleep for 1 seconds
+        await asyncio.sleep(1)
+
+        # activate the alarm
+        self.log("activating alarm")
+        self.alarm(1, timeout=0)
+    return 0
+
+# create the Dorna object and connect
+robot = Dorna()
+robot.connect()
+
+# register the callback
+robot.register_callback(alarm_condition)
+
+while True:
+    # run the script
+    result = robot.play_script("test.txt")
+    
+    # The robot is in alarm mode
+    if result < 0:
+        break
+
+# close the connection at the end
+robot.close()
+```
+Consider the following points in this example:
+- We defined `alarm_condition` with the three arguments: `self`, `msg` and `sys`.
+- If `in0` is high then we first `deregister_callback` to avoid calling `alarm_condition` multiple times.
+- Notice how we use `await asyncio.sleep(1)` instead of `time.sleep(1)`. Because `alarm_condition` is an `async` function and any blocking method like `sleep` should be awaited.
+- For the same reason we used `timeout=0` in the `.alarm` method to make it a non-blocking function. 
 
 ## Example
 To learn more about the API, navigate to the main directory of the repository and check the `example` folder for more examples.  
