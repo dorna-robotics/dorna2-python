@@ -2,11 +2,10 @@ import time
 import json
 from dorna2 import Dorna
 
-def main(config_path):
+def main(robot):
     # tik
     start = time.time()
     for cmd in 10 * ["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"]:
-        print("####")
         print("receive: ", robot.cmd(cmd))
     # tok
     print("####")
