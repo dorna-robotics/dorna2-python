@@ -163,7 +163,6 @@ class Dorna(WS):
                 for l in lines:
                     try:
                         self.play(timeout=0, msg=l)
-                        num_cmd += 1
                     except Exception as ex:
                         self.log(ex)
         except Exception as ex:
