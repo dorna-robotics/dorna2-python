@@ -128,7 +128,6 @@ class Dorna(WS):
         self._send = dict(msg)
         
         # write the message
-        print("send: ", self._send)
         self.write(json.dumps(msg))
 
         start = time.time()
@@ -561,9 +560,7 @@ class Dorna(WS):
         return self.motor(**kwargs)
 
     def set_motor(self, enable=None, **kwargs):
-        print(11)
         self.motor(val=enable, **kwargs)
-        print(12, self.track_cmd())
         return self._track_cmd_stat()
 
     def toollength(self, val=None, **kwargs):

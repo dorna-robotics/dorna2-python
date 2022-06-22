@@ -20,21 +20,18 @@ homing process for joint i starts
 2,000,0i7: error, clear alarm
 2,000,0i8: error, reset pid 
 """
-def home(robot, index, **kwargs):
-    print(1)
+def home(robot, index, val, **kwargs):
     # activate the motors
     result = robot.set_motor(1)
     if result != 2:
         # error happened
         return home_error_handling(robot, index)     
-    print(2)
     # set thereshould
     id = 2000000+10*index # 0
     result = robot.set_pid(threshold=10, duration=5, id=id)
     if result != 2:
         # error happened
         return home_error_handling(robot, index) 
-    print(3)
     # set joint
     id += 1 # 1
     joint = "j"+str(index)
@@ -45,7 +42,6 @@ def home(robot, index, **kwargs):
         # error happened
         return home_error_handling(robot, index) 
 
-    print(4)
     # sleep
     time.sleep(0.2)
 
@@ -56,7 +52,6 @@ def home(robot, index, **kwargs):
         # error happened
         return home_error_handling(robot, index)
 
-    print(5)
     # reset pid
     id += 1 # 3
     result = robot.reset_pid(id=id)
@@ -64,7 +59,6 @@ def home(robot, index, **kwargs):
         # error happened
         return home_error_handling(robot, index) 
     
-    print(6)
     for i in range(kwargs["trigger_count"]):
         # move backward
         arg = {"timeout": 0, "vel": kwargs["vel_backward"], "rel":1, joint: kwargs["backward"] * kwargs["direction"]}  
@@ -74,7 +68,6 @@ def home(robot, index, **kwargs):
         id += 1 # 4
         iprobe = robot.iprobe(index, kwargs["iprobe_val"], id=id) # wait for the input trigger
 
-        print(7)
         # halt
         id += 1 # 5
         result = robot.halt(kwargs["halt_accel"], id=id)
@@ -84,16 +77,14 @@ def home(robot, index, **kwargs):
 
     time.sleep(1)
 
-    print(8)
     # set joint
-    joint_assignment = kwargs["joint_val"] + robot.val(joint) - iprobe[index]
+    joint_assignment = val + robot.val(joint) - iprobe[index]
     id += 1 # 6
     result = robot.set_joint(index, joint_assignment, id=id)
     if result != 2:
         # error happened
         return home_error_handling(robot, index)
 
-    print(9)
     arg = {"rel": 0, joint: kwargs["stop"]}
     robot.jmove(**arg)
     return True
@@ -101,12 +92,9 @@ def home(robot, index, **kwargs):
 
 def home_error_handling(robot, index):
     id = 2000000+10*index+7 # 7
-    print(10)
     robot.set_alarm(0, id=id)
-    print(20)
     id += 1 # 8
     robot.reset_pid(id=id)
-    print(30)
 if __name__ == '__main__':
     # Initialize parser
     parser = argparse.ArgumentParser()
@@ -114,21 +102,21 @@ if __name__ == '__main__':
     # Adding optional argument
     parser.add_argument("--Index")
     parser.add_argument("--Host")
-
+    parser.add_argument("--Value")
     # Read arguments from command line
     args = parser.parse_args()
     
     # assign index
     index = int(args.Index)        
     host = args.Host
+    val = float(args.Value)
 
     robot = Dorna()
     robot.connect(host)
 
     robot.log("connected")
-    for i in range(10):
-        home(robot, index, **config["j"+ str(index)])
+    for i in range(1):
+        home(robot, index, val, **config["j"+ str(index)])
         time.sleep(1)
-    print(40)
     robot.close()
     

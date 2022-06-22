@@ -6,10 +6,9 @@ def main(robot):
     # tik
     start = time.time()
     for cmd in 10 * ["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"]:
-        print("receive: ", robot.cmd(cmd))
+        robot.log(robot.cmd(cmd))
     # tok
-    print("####")
-    print("total time: ",time.time()-start)
+    robot.log(time.time()-start)
 
 if __name__ == '__main__':
     config_path = "config.json"
@@ -20,10 +19,10 @@ if __name__ == '__main__':
             arg = json.load(json_file)
 
         robot = Dorna()
-        print("connecting")
+        robot.log("connecting")
         if not robot.connect(arg["ip"], arg["port"]):
-            print("not connected")
+            robot.log("not connected")
         else:
-            print("connected")
+            robot.log("connected")
             main(robot)
         robot.close()
