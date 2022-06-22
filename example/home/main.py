@@ -85,8 +85,8 @@ def home(robot, index, val, **kwargs):
         # error happened
         return home_error_handling(robot, index)
 
-    arg = {"rel": 0, joint: kwargs["stop"]}
-    robot.jmove(**arg)
+    #arg = {"rel": 0, joint: kwargs["stop"]}
+    #robot.jmove(**arg)
     return True
 
 
