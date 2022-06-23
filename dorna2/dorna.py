@@ -203,9 +203,8 @@ class Dorna(WS):
         # return stat
         try:
             return rtn["merge"]["stat"]
-        except Exception as ex:
-            self.log(ex)
-            return None
+        except:
+            return False
 
     """
     return a dictionary based on keys
@@ -257,16 +256,14 @@ class Dorna(WS):
                 return rtn["merge"][rtn_key]
             else:
                 return [rtn["merge"][k] for k in rtn_keys]
-        except Exception as ex:
-            self.log(ex)
-            return None
+        except:
+            return False
     
     def _track_cmd_stat(self):
         rtn = self.track_cmd()
         try:
             return rtn["merge"]["stat"]
-        except Exception as ex:
-            self.log(ex)
+        except:
             return False
     """
     read output i, or turn it on or off
