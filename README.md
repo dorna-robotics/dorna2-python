@@ -520,7 +520,7 @@ Consider the following points in this example:
 
 ## Example
 To learn more about the API, navigate to the following link for more examples:  
-https://github.com/dorna-robotics/example
+https://github.com/dorna-robotics/library_examples
 
 [dorna]: https://dorna.ai
 [json]: https://www.json.org
