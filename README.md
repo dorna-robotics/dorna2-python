@@ -237,7 +237,7 @@ A helper function to send a [circle move](https://doc.dorna.ai/docs/cmd/circle%2
 ## Stop
 Series of helper function to send stop (halt) command, read and set the alarm status of the robot.
 
-### `.halt(accel=None, **kwargs)`
+### `.halt(accel=None)`
 A helper function to send a [halt](https://doc.dorna.ai/docs/cmd/halt/) command to the robot, with a given acceleration ratio (`accel`), and return the final status of the command (`stat`).
 #### Parameter
 - *accel*: (float > 1, default value = `None`) The acceleration ratio parameter associated to the `halt`. Larger `accel` means faster and sharper halt (stop). When this parameter is not present, the robot stops with the default acceleration.
@@ -365,21 +365,21 @@ robot.get_adc(0) # return the value of adc0
 ## Wait
 Wait for an input pins pattern, encoder indices or certain amount of time in your program.
 
-### `probe(index=None, val=None, **kwargs)`
+### `probe(index=None, val=None)`
 Return the joint values of the robot in a list of size 8 ([`.get_all_joint()`](#get_all_joint)), the moment that the input pin `index` (0 <= int < 16), is equal to the `val` (0 or 1).
 > Use this method to wait for a pattern in an input pin.
 ``` python
 robot.probe(1, 0) # return the joint values, the moment in1 gets equal to 0
 ``` 
 
-### `iprobe(index=None, val=None, **kwargs)`
+### `iprobe(index=None, val=None)`
 This method is similar to the `probe` function but here we are waiting for an specific pattern in the encoder indices, instead of the input pins.
 Return the joint values of the robot in a list of size 8 ([`.get_all_joint()`](#get_all_joint)), the moment that the encoder index `index` (0 <= int < 8), is equal to the `val` (0 or 1).    
 > Notice that the encoder on the motors gets high (1), 8 times during one full rotation of the encoder, and we can locate these points by calling the `.iprobe` function.
 ``` python
 robot.iprobe(1, 1) # return the value of the joints, the moment that index1 (encoder 1 index) gets 1
 ``` 
-### `.sleep(val=None, **kwargs)`
+### `.sleep(val=None)`
 Sleep for `val` (float >= 0) seconds and return the status of the command.
 ``` python
 robot.sleep(10) # the controller sleeps for 10 seconds
