@@ -72,8 +72,7 @@ class WS(object):
 
     def write(self, msg = "", mode="cmd"):
         #asyncio.create_task(self.write_coro(msg, mode))
-        asyncio.run_coroutine_threadsafe(self.write_coro(msg, mode), self.loop)
-
+        future = asyncio.run_coroutine_threadsafe(self.write_coro(msg, mode), self.loop)
 
     # write coroutine
     async def write_coro(self, msg="", mode="cmd"):
@@ -84,7 +83,8 @@ class WS(object):
             await self.writer.drain()
             return True
         except:
-            return False
+            pass
+        return False
 
 
     # register a callback
