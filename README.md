@@ -2,6 +2,7 @@
 This is the Python API tutorial for [Dorna][dorna] robotic arm.
 
 ## Setup
+> Follow the [upgrade process](https://doc.dorna.ai/docs/guides/update-robot/) to make sure that you have the latest Firmware, API and software on your robot controller.
 Notice that the program has been tested only on Python 3.7+.
 
 ### Repository
