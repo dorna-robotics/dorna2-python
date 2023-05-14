@@ -36,30 +36,42 @@ class Dorna(WS):
     def recv(self):
         return dict(self._recv)
 
+    
+    def last_msg(self):
+        return dict(self._recv)
+
+
     # last message sent
     def send(self):
         return dict(self._send)
 
+
+    def last_cmd(self):
+        return dict(self._send)
+
+
     def sys(self):
+        return dict(self._sys)
+
+
+    def union(self):
         return dict(self._sys)
 
     """
     return aggregate and all the messages in _msgs
+    cmd, msgs, union
     """
     def track_cmd(self):
-        rtn = {}
-        merge = {}
         _track = dict(self._track)
+        union = {}
         for i in range(len(_track["msgs"])):
-            merge = {**merge, **_track["msgs"][i]}
-        rtn["all"] = _track["msgs"]
-        rtn["merge"] = merge
-        rtn["cmd"] = _track["cmd"]
-        return rtn
+            union = {**union, **_track["msgs"][i]}
+        return {** _track, "union": union}
 
-    def connect(self, host="localhost", port=443, handshake_timeout=5):
+
+    def connect(self, host="localhost", port=443, timeout=5):
         # Check the connection
-        if not self.server(host, port, handshake_timeout):
+        if not self.server(host, port, timeout):
             return False
 
         # initialize
@@ -156,7 +168,7 @@ class Dorna(WS):
     --------
     return number valid commands that was sent  
     """
-    def play_script(self, script_path="", timeout=-1):
+    def play_script(self, timeout=-1, script_path=""):
         try:
             with open(script_path, 'r') as f:
                 lines = f.readlines()
@@ -169,6 +181,12 @@ class Dorna(WS):
             self.log(ex)
 
         return self.sleep(0, timeout=timeout)
+
+    def play_json(self, timeout=-1, cmd='{}'):
+        return self.play(timeout=timeout, msg=cmd)
+
+    def play_dict(self, timeout=-1, cmd={}):
+        return self.play(timeout=timeout, msg=cmd)
 
     """
     wait for a given patter in received signal
@@ -262,7 +280,7 @@ class Dorna(WS):
     def _track_cmd_stat(self):
         rtn = self.track_cmd()
         try:
-            return rtn["merge"]["stat"]
+            return rtn["union"]["stat"]
         except:
             return False
     """
@@ -490,10 +508,10 @@ class Dorna(WS):
     def joint(self, index=None, val=None, **kwargs):
         # read the joints
         if not val and not kwargs:
-            if index:
-                return self.val("j0")
-            else:
-                return [self.val("j"+str(k)) for k in range(8)]
+            try:
+                self.val("j"+str(index))
+            except:
+                return [self.val("j"+str(k)) for k in range(8)]  
 
         key = None
         if index !=None:
@@ -523,9 +541,10 @@ class Dorna(WS):
             (list of length 8): The robot pose.
         """
         _pose = self.get("x", "y", "z", "a", "b", "c", "d", "e")
-        if index:
+        try:
             return _pose[index]
-        return _pose
+        except:
+            return _pose
 
     def get_all_pose(self):
         return self.pose()    
