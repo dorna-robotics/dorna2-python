@@ -5,6 +5,7 @@ from dorna2.ws import WS
 from dorna2.config import config
 import logging
 import logging.handlers
+import copy
 
 
 class Dorna(WS):
@@ -34,35 +35,39 @@ class Dorna(WS):
 
     # last message received
     def recv(self):
-        return dict(self._recv)
+        return copy.deepcopy(self._recv)
 
     
     def last_msg(self):
-        return dict(self._recv)
+        return copy.deepcopy(self._recv)
 
 
     # last message sent
     def send(self):
-        return dict(self._send)
+        return copy.deepcopy(self._send)
 
 
     def last_cmd(self):
-        return dict(self._send)
+        return copy.deepcopy(self._send)
 
 
     def sys(self):
-        return dict(self._sys)
+        return copy.deepcopy(self._sys)
 
 
     def union(self):
-        return dict(self._sys)
+        return copy.deepcopy(self._sys)
 
     """
     return aggregate and all the messages in _msgs
     cmd, msgs, union
     """
     def track_cmd(self):
-        _track = dict(self._track)
+        # make a copy and rem
+        _track = copy.deepcopy(self._track)
+        del _track["id"]
+
+        # create union
         union = {}
         for i in range(len(_track["msgs"])):
             union = {**union, **_track["msgs"][i]}
@@ -112,12 +117,12 @@ class Dorna(WS):
                 msg = json.loads(msg)
 
             elif type(msg) == dict:
-                msg = dict(msg)
+                msg = copy.deepcopy(msg)
             else:
                 return self.track_cmd()
 
         else:
-            msg = dict(kwargs)
+            msg = copy.deepcopy(kwargs)
 
         # check the id
         if "id" in msg and type(msg["id"]) == int and msg["id"] > 0:
@@ -127,17 +132,17 @@ class Dorna(WS):
 
 
         # remove all the None keys
-        _msg = dict(msg)
+        _msg = copy.deepcopy(msg)
         for key in _msg:
             if _msg[key] == None:
                 del msg[key]
         
         # set the tracking id
-        self._track["cmd"] = dict(msg) 
+        self._track["cmd"] = copy.deepcopy(msg) 
         self._track["id"] =  msg["id"]
         
         # take a copy
-        self._send = dict(msg)
+        self._send = copy.deepcopy(msg)
         
         # write the message
         self.write(json.dumps(msg))
@@ -193,7 +198,7 @@ class Dorna(WS):
     """
     def wait(self, timeout=-1, **kwargs):
         # set wait dict
-        self._ptrn["wait"] = dict(kwargs)
+        self._ptrn["wait"] = copy.deepcopy(kwargs)
         # track
         if timeout >= 0:
             start = time.time()
@@ -204,7 +209,7 @@ class Dorna(WS):
             while self.ptrn:
                 time.sleep(0.001)
 
-        return dict(set( kwargs.items()) & set( self._ptrn["sys"].items()))
+        return copy.deepcopy(set( kwargs.items()) & set( self._ptrn["sys"].items()))
     
     """
     send a motion command
@@ -213,14 +218,14 @@ class Dorna(WS):
         cmd = {"cmd": method}
         
         if "pace" in kwargs:
-            cmd = {**dict(cmd), **self.config["pace"][kwargs["pace"]][method]}
-        cmd = {**dict(cmd), **kwargs}
+            cmd = {**copy.deepcopy(cmd), **self.config["pace"][kwargs["pace"]][method]}
+        cmd = {**copy.deepcopy(cmd), **kwargs}
 
         rtn = self.play(**cmd)
 
         # return stat
         try:
-            return rtn["merge"]["stat"]
+            return rtn["union"]["stat"]
         except:
             return False
 
@@ -271,9 +276,9 @@ class Dorna(WS):
         # return
         try:
             if rtn_key:
-                return rtn["merge"][rtn_key]
+                return rtn["union"][rtn_key]
             else:
-                return [rtn["merge"][k] for k in rtn_keys]
+                return [rtn["union"][k] for k in rtn_keys]
         except:
             return False
     
