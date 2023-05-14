@@ -75,6 +75,10 @@ class Dorna(WS):
 
 
     def connect(self, host="localhost", port=443, timeout=5):
+        # close the connection first
+        if not self.close(timeout):
+            return False 
+
         # Check the connection
         if not self.server(host, port, timeout):
             return False

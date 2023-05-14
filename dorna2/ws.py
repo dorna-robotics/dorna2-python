@@ -3,7 +3,7 @@ import queue
 import json
 import time
 import asyncio
-
+import copy
 
 class WS(object):
     """docstring for comm"""
@@ -22,17 +22,21 @@ class WS(object):
 
         # last message sent
         self._send = {}
+
+        # loop and socket
+        self.loop = None
+        self.reader = None
+        self.writer = None
     """
     server 
     """
     async def server_init(self, ip, port, timeout):
 
         handshake = False
-        self._connected = False
 
         # define the loop
-        self.loop = asyncio.get_running_loop()            
-
+        self.loop = asyncio.get_running_loop()
+        
         # reader and writer
         try:
             self.reader, self.writer = await asyncio.wait_for(asyncio.open_connection(ip, port), timeout=1)
@@ -52,7 +56,7 @@ class WS(object):
         if handshake:
             await self.read_loop()
         
-        await self.close_coro()
+        return await self.close_coro()
 
 
     def server(self, ip, port, timeout=5):
@@ -61,12 +65,11 @@ class WS(object):
         self.server_thread.start()
 
         # check for the connection
-        self._thr = True
         s = time.time()
         while time.time()-s < timeout:
-            if self._connected or not self._thr:
-                break
             time.sleep(0.001)
+            if self._connected or not self.server_thread.is_alive():
+                break
         
         return self._connected        
 
@@ -152,7 +155,7 @@ class WS(object):
                     self.msg.put(msg)
 
                 # update _msg
-                self._recv = dict(msg)
+                self._recv = copy.deepcopy(msg)
 
                 # update sys
                 sys.update(msg)
@@ -168,7 +171,7 @@ class WS(object):
                         # message contains an id
                         if "id" in msg and self._track["id"] == msg["id"]:
                             # update the resp_id
-                            self._track["msgs"].append(dict(msg))
+                            self._track["msgs"].append(copy.deepcopy(msg))
 
                             # end the track
                             if "stat" in msg and any([msg["stat"] < 0, msg["stat"] >= 2]):
@@ -180,7 +183,7 @@ class WS(object):
                 try:
                     if type(self._ptrn["wait"])== dict:
                         # update sys
-                        self._ptrn["sys"] = dict(sys)
+                        self._ptrn["sys"] = copy.deepcopy(sys)
                         # search for it
                         if all([k in sys for k in self._ptrn["wait"]]) and all([self._ptrn["wait"][k] == sys[k] for k in self._ptrn["wait"]]):
                             self._ptrn["wait"] = None
@@ -188,7 +191,7 @@ class WS(object):
                     pass 
 
                 # update sys           
-                self._sys = dict(sys)
+                self._sys = copy.deepcopy(sys)
 
 
             except Exception as ex:
@@ -252,16 +255,37 @@ class WS(object):
             )
 
     async def close_coro(self):
+        """
         if self._connected:
             try:
                 self.writer.close()
                 await self.writer.wait_closed()
+
+                self.reader.close()
+
             except:
                 pass
+        """
+        if self.writer is not None:
+            self.writer.close()
+            await self.writer.wait_closed()
+        
         self._connected = False
-        self._thr = False
+        return True
 
-    def close(self):
+    def close(self, timeout=5):
+        """
         if self._connected:
             future = asyncio.run_coroutine_threadsafe(self.close_coro(), self.loop)
-        #asyncio.run(self.close_coro())
+        """
+        if self.loop is not None and self.loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(self.close_coro(), self.loop)
+            
+            # wait for timeout seconds
+            try:
+                return future.result(timeout=timeout)
+            except asyncio.TimeoutError:
+                # Handle the timeout error here
+                return False
+        return True
+
