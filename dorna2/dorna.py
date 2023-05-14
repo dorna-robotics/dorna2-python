@@ -509,7 +509,7 @@ class Dorna(WS):
         # read the joints
         if not val and not kwargs:
             try:
-                self.val("j"+str(index))
+                return self.val("j"+str(index))
             except:
                 return [self.val("j"+str(k)) for k in range(8)]  
 
