@@ -13,6 +13,7 @@ class WS(object):
         self.msg = queue.Queue(100)
         self._sys = {}
         self.deregister_callback()
+        self._event_list = [] # event list [{"target":fn0, "kwargs":kwargs0},...,{"target":fnn, "kwargs":kwargs0}]
         self._connected = False
         
         # wait
@@ -100,6 +101,33 @@ class WS(object):
         self.register_callback(None)
 
 
+    def get_all_event(self):
+        return list(self._event_list)
+
+    # register event
+    def add_event(self, target, kwargs={}, index=None):        
+        # find the index
+        if index is None:
+            index = len(self._event_list)
+
+        ''' fn must accept one input, e.g. fn(msg, union, **kwargs) '''
+        self._event_list.insert(index, {"target":target, "kwargs":kwargs})
+        return self.get_all_event()
+
+    def clear_all_event(self):
+        self._event_list.clear()
+        return self.get_all_event()
+
+    # first look for the index and then fn
+    def clear_event(self, target):
+        try:
+            self._event_list.pop([event["target"] for event in self._event_list].index(target))
+        except:
+            pass
+        return self.get_all_event()
+
+
+
     async def _handshake_ws(self):
         try:
             # send the handshake and wait for its reply
@@ -162,8 +190,15 @@ class WS(object):
 
                 # callback
                 if self.callback:
-                    asyncio.create_task(self.callback(msg.copy(), sys.copy()))
-                
+                    asyncio.create_task(self.callback(copy.deepcopy(msg), copy.deepcopy(sys)))
+
+                # events
+                for event in self._event_list:
+                    try:
+                        asyncio.create_task(event["target"](msg=copy.deepcopy(msg), union=copy.deepcopy(sys), **event["kwargs"]))
+                    except:
+                        # clear the event
+                        self.clear_event(event["target"])
 
                 # track a given id
                 if self._track["id"]:
