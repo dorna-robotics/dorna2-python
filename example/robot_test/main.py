@@ -13,7 +13,7 @@ def main(robot):
     i = 1
     # tik
     start = time.time()
-    while time.time() < start + seconds and robot.play_script("script.txt") == 2:
+    while time.time() < start + seconds and robot.play_script(script_path="script.txt") == 2:
         robot.log("### round "+str(i)+" ###")
         i += 1
 
