@@ -283,7 +283,7 @@ class Kinematic(object):
 		# create the 6 degree of freedom robot
 		self.dof = Dof()
 		self.model = model
-		
+
 		if self.model=="dorna_2s":
 			self.dof.n_dof = 5 # number of degrees of freedom, choose between [5,6]
 			self.dof.alpha = [0, 0, math.pi/2, 0, 0, 0, 0] 
@@ -293,10 +293,10 @@ class Kinematic(object):
 			
 		if self.model=="dorna_2":
 			self.dof.n_dof = 5 
-			self.knmtc.dof.alpha = [0, 0, math.pi/2, 0, 0, 0, 0] 
-			self.knmtc.dof.delta = [0, 0, 0, 0, 0, math.pi/2, 0] 
-			self.knmtc.dof.a = [0, 0 , 95.48, 203.2, 152.4, 0, 0]
-			self.knmtc.dof.d = [0, 206.4, 0, 0, 0,48.92, 0]
+			self.dof.alpha = [0, 0, math.pi/2, 0, 0, 0, 0] 
+			self.dof.delta = [0, 0, 0, 0, 0, math.pi/2, 0] 
+			self.dof.a = [0, 0 , 95.48, 203.2, 152.4, 0, 0]
+			self.dof.d = [0, 206.4, 0, 0, 0,48.92, 0]
 
 		if self.model=="dorna_3":
 			self.dof.n_dof = 6
