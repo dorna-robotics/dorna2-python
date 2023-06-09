@@ -1,2 +1,0 @@
-{"cmd": "jmove", "rel":1, "j4":10}
-{"cmd": "jmove", "rel":1, "j4":-10}
