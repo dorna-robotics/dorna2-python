@@ -697,3 +697,6 @@ class Dorna(WS):
 
     def reset_pid(self, **kwargs):
         return self.set_pid(threshold=75, duration=3000, **kwargs)
+
+    def set_emergency(self, enable=False, key="in0", value=1):
+        self._emergency = {"enable":enable, "key":key, "value":value}

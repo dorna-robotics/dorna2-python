@@ -4,6 +4,7 @@ import json
 import time
 import asyncio
 import copy
+import random
 
 class WS(object):
     """docstring for comm"""
@@ -28,6 +29,10 @@ class WS(object):
         self.loop = None
         self.reader = None
         self.writer = None
+
+        # emergency
+        self._emergency = {"enable": False, "key": "in0", "value":1}
+
     """
     server 
     """
@@ -192,6 +197,11 @@ class WS(object):
                 if self.callback:
                     asyncio.create_task(self.callback(copy.deepcopy(msg), copy.deepcopy(sys)))
 
+                # emergency
+                if self._emergency["enable"] and self._emergency["key"] in ["in"+str(i) for i in range(16)] and self._emergency["value"] in [i for i in range(2)]:
+                    if self._emergency["key"] in msg and msg[self._emergency["key"]] == self._emergency["value"]:
+                        msg = {"cmd":"alarm", "alarm":1, "id":100+random.randint(1,10)}
+                        asyncio.create_task(self.write_coro(json.dumps(msg)))
                 # events
                 for event in self._event_list:
                     try:
