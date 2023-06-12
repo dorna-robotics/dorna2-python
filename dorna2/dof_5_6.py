@@ -143,8 +143,7 @@ class Dof(DH):
 			if best_sol_dist < 10.0:
 				return [rtn[best_sol_indx]]
 			else:
-				print("bad")
-				return [theta_current]
+				return [rtn[0]]#[theta_current]
 
 		return rtn
 
