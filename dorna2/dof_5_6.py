@@ -327,7 +327,7 @@ class Kinematic(object):
 		abc = [math.degrees(r) for r in abc]
 
 		#give different result: fw, fw can later be changed to pos + abg
-		return [fw[0,3]/1000, fw[1,3]/1000, fw[2,3]/1000] + abc
+		return [fw[0,3], fw[1,3], fw[2,3]] + abc
 
 
 	def inv(self, xyzabc, joint_current=[0,0,0,0,0,0], all_sol=True): #xyzabg
@@ -337,9 +337,9 @@ class Kinematic(object):
 		self.dof.cf_test.set_euler(ABC)
 		rot = self.dof.cf_test.local_matrix 
 
-		xyzabc[0] = 1000*xyzabc[0]
-		xyzabc[1] = 1000*xyzabc[1]
-		xyzabc[2] = 1000*xyzabc[2]
+		xyzabc[0] = xyzabc[0]
+		xyzabc[1] = xyzabc[1]
+		xyzabc[2] = xyzabc[2]
 
 		T_f_tcp_r_base = np.matrix([
 			[rot[0,0], rot[0,1], rot[0,2], xyzabc[0]],
