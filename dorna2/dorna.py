@@ -169,7 +169,7 @@ class Dorna(WS):
 
     """
     play a text file, where each line is a valid command, if a command is not valid, it will skip it and send the next one
-    script_path: path to the script file
+    file: path to the script file
     timeout= if you want to wait for the completion of this block of scripts or not
         negative (-1): waits for its completion
         0: no wait
@@ -177,9 +177,9 @@ class Dorna(WS):
     --------
     return number valid commands that was sent  
     """
-    def play_script(self, timeout=-1, script_path=""):
+    def play_script(self, file="", timeout=-1):
         try:
-            with open(script_path, 'r') as f:
+            with open(file, 'r') as f:
                 lines = f.readlines()
                 for l in lines:
                     try:
@@ -191,10 +191,10 @@ class Dorna(WS):
 
         return self.sleep(0, timeout=timeout)
 
-    def play_json(self, timeout=-1, cmd='{}'):
+    def play_json(self, cmd='{}', timeout=-1):
         return self.play(timeout=timeout, msg=cmd)
 
-    def play_dict(self, timeout=-1, cmd={}):
+    def play_dict(self, cmd={}, timeout=-1):
         return self.play(timeout=timeout, msg=cmd)
 
     """
