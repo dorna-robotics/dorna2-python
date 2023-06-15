@@ -304,6 +304,7 @@ class Kinematic(object):
 			self.dof.a = [0, 0 , 100.0, 300.0, 208.5, 0, 0]
 			self.dof.d = [0, 309.7, 0, 0,  -133.1, 90.5, 9.707]
 
+		self.dof.cf_test.calculate_alpha_delta(self.dof.n_dof)
 
 	def joint_to_theta(self, joint):
 		theta = list(joint)
@@ -340,6 +341,9 @@ class Kinematic(object):
 		xyzabc[0] = xyzabc[0]
 		xyzabc[1] = xyzabc[1]
 		xyzabc[2] = xyzabc[2]
+
+		if(self.dof.n_dof == 5):
+			xyzabc[5] = math.atan2(xyzabc[1],xyzabc[0])
 
 		T_f_tcp_r_base = np.matrix([
 			[rot[0,0], rot[0,1], rot[0,2], xyzabc[0]],

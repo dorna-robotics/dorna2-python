@@ -24,13 +24,7 @@ class CF(object):
 		self._update()
 
 		#robot dependant vairables
-		self.sum_alpha = np.pi/2 
-		self.delta = np.pi/2 if ndof==5 else np.pi  
-
-		self.ssa = math.sin(self.sum_alpha)
-		self.cd = math.cos(self.delta)
-		self.sd = math.sin(self.delta)
-
+		self.calculate_alpha_delta(ndof)
 
 	#Evaluates global matrix for self and all children, everytime local matrix has changed, 
 	def _update(self): 
@@ -43,6 +37,15 @@ class CF(object):
 		#call update function on all children
 		for child in self.children:
 			child._update()
+
+	def calculate_alpha_delta(self,ndof):
+		self.ndof = ndof
+		self.sum_alpha = np.pi/2 
+		self.delta = np.pi/2 if self.ndof==5 else np.pi  
+		self.ssa = math.sin(self.sum_alpha)
+		self.cd = math.cos(self.delta)
+		self.sd = math.sin(self.delta)
+
 
 	def set_parent(self,parent):
 		self.parent_CF = parent
