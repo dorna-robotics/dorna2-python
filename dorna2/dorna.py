@@ -622,6 +622,7 @@ class Dorna(WS):
             (int): The version of the firmware.
         """
         key = None
+        val = None
         cmd = "version"
         rtn_key = "version"
         rtn_keys = None
@@ -639,6 +640,7 @@ class Dorna(WS):
             (str): The uid of the controller.
         """
         key = None
+        val = None
         cmd = "uid"
         rtn_key = "uid"
         rtn_keys = None
@@ -679,24 +681,38 @@ class Dorna(WS):
         self.axis(index=index, val=ratio, **kwargs)
         return self._track_cmd_stat()
 
-    def pid(self, **kwargs):
+    def pid(self, index, **kwargs):
         key = None
         val = None        
         cmd = "pid"
-        rtn_key = key
-        rtn_keys = ["threshold", "duration"]
+        rtn_key = None
+        rtn_keys = [prm+str(int(index)) for prm in ["p", "i", "d"]]
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
-    def get_pid(self, **kwargs):
-        return self.pid(**kwargs)
+    def get_pid(self, index, **kwargs):
+        return self.pid(index, **kwargs)
 
-    def set_pid(self, threshold=None, duration=None, **kwargs):
-        self.pid(threshold=threshold, duration=duration, **kwargs)
+    def set_pid(self, index=None, p=None, i=None, d=None, **kwargs):
+        self.pid(index=index, **{"p"+str(int(index)): p, "i"+str(int(index)): i, "d"+str(int(index)): d})
         return self._track_cmd_stat()
 
     def reset_pid(self, **kwargs):
         return self.set_pid(threshold=75, duration=3000, **kwargs)
+
+    def get_err_thr(self, **kwargs):
+        return self._key_val_cmd(None, None, "pid", "threshold", None, **kwargs)
+
+    def set_err_thr(self, threshold=None, **kwargs):
+        self._key_val_cmd("threshold", threshold, "pid", "threshold", None, **kwargs)
+        return self._track_cmd_stat()
+
+    def get_err_dur(self, **kwargs):
+        return self._key_val_cmd(None, None, "pid", "duration", None, **kwargs)
+
+    def set_err_dur(self, duration=None, **kwargs):
+        self._key_val_cmd("duration", duration, "pid", "duration", None, **kwargs)
+        return self._track_cmd_stat()
 
     def set_emergency(self, enable=False, key="in0", value=1):
         self._emergency = {"enable":enable, "key":key, "value":value}
