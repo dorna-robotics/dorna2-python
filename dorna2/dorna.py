@@ -690,7 +690,7 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
-    def get_pid(self, index, **kwargs):
+    def get_pid(self, index=None, **kwargs):
         return self.pid(index, **kwargs)
 
     def set_pid(self, index=None, p=None, i=None, d=None, **kwargs):
