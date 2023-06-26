@@ -250,7 +250,8 @@ class Dorna(WS):
     # It is a shorten version of play, 
     # set a parameter and wait for its reply from the controller
     def cmd(self, cmd, **kwargs):
-        kwargs = {**{"cmd": cmd}, **kwargs}
+        kwargs_clean = {k: v for k, v in kwargs.items() if v is not None}
+        kwargs = {**{"cmd": cmd}, **kwargs_clean}
         return self.play(**kwargs)
 
 
@@ -666,7 +667,7 @@ class Dorna(WS):
     def axis(self, index=None, val=None, **kwargs):
         key = None
         if index !=None:
-            key = "ratio"+str(index)
+            key = "ratio"+str(int(index))
         
         cmd = "axis"
         rtn_key = key
@@ -679,6 +680,23 @@ class Dorna(WS):
 
     def set_axis(self, index=None, ratio=None, **kwargs):
         self.axis(index=index, val=ratio, **kwargs)
+        return self._track_cmd_stat()
+
+    def get_axis_ratio(self, index=None, **kwargs):
+        return self.axis(index=index, **kwargs)
+
+    def set_axis_ratio(self, index=None, ratio=None,  **kwargs):
+        self.axis(index=index, val=ratio, **kwargs)
+        return self._track_cmd_stat()
+
+    def get_axis(self, index=None, **kwargs):
+        return_keys = [key+str(int(index)) for key in ["usem", "usee", "pprm", "tprm", "ppre", "tpre"]]
+        return self._key_val_cmd(None, None, "axis", None, return_keys, **kwargs)
+
+    def set_axis(self, index=None, usem=None, usee=None, pprm=None, tprm=None, ppre=None, tpre=None, **kwargs):
+        return_keys = [key+str(int(index)) for key in ["usem", "usee", "pprm", "tprm", "ppre", "tpre"]]
+        key_value = {k: v for k, v in zip(return_keys, [usem, usee, pprm, tprm, ppre, tpre])}
+        self._key_val_cmd(None, None, "axis", None, return_keys, **key_value, **kwargs)
         return self._track_cmd_stat()
 
     def pid(self, index, **kwargs):
@@ -712,6 +730,13 @@ class Dorna(WS):
 
     def set_err_dur(self, duration=None, **kwargs):
         self._key_val_cmd("duration", duration, "pid", "duration", None, **kwargs)
+        return self._track_cmd_stat()
+
+    def get_err(self, **kwargs):
+        return self._key_val_cmd(None, None, "pid", None, ["threshold", "duration"], **kwargs)
+
+    def set_err(self, thr=None, dur=None, **kwargs):
+        self._key_val_cmd(None, None, "pid", None, ["threshold", "duration"], threshold=thr, duration=dur)
         return self._track_cmd_stat()
 
     def set_emergency(self, enable=False, key="in0", value=1):
