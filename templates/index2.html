@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Robotic Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 600px 1fr;
+            grid-gap: 20px;
+        }
+
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            color: #ffffff;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background-color: #0069d9;
+            border-color: #0062cc;
+        }
+
+        .button-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .button-group button {
+            margin-right: 10px;
+            flex: 1;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 5px;
+        }
+
+        .store-position-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .store-position-group input[type="number"] {
+            margin-right: 10px;
+        }
+
+        .image-box {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .log-box {
+            width: 400px;
+            height: 600px;
+            border: 1px solid #ccc;
+            background-color: #ffffff;
+            padding: 10px;
+            overflow-y: auto;
+        }
+
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .bottom-buttons {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-top: 60px;
+            margin-bottom: 40px;
+            grid-column-start: 1;
+            grid-column-end: 4;
+        }
+
+        .bottom-buttons button {
+            margin-right: 10px;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .bottom-buttons .btn-primary {
+            background-color: #28a745;
+            border-color: #28a745;
+            color: #ffffff;
+        }
+
+        .bottom-buttons .btn-primary:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+
+        .bottom-buttons .btn-secondary {
+            background-color: #dc3545;
+            border-color: #dc3545;
+            color: #ffffff;
+        }
+
+        .bottom-buttons .btn-secondary:hover {
+            background-color: #c82333;
+            border-color: #bd2130;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="left-column">
+            <h1>Robotic Control</h1>
+
+            <form action="/submit" method="post">
+                <div class="form-group">
+                    <label for="dropdown">Variable Name:</label>
+                    <select id="dropdown" value="dropdownValue" class="form-control">
+                        <option value="option 1">Blot time</option>
+                        <option value="option 2">Spray time</option>
+                        <option value="option 3">Blot delay</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="inputField">Value:</label>
+                    <input type="number" id="inputField" value="inputFieldValue" class="form-control">
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" value="saveButton" value="save" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+            
+            <form action="/load_tweezers" method="post">
+            <div class="button-group">
+                <button id="loadTweezersButton" name="loadTweezersButton" value="loadTweezersButton" type="submit" class="btn btn-primary">Load Tweezers</button>
+                <button id="loadTweezersSetButton" name="loadTweezersSetButton" value="loadTweezersSetButton" type="submit" class="btn btn-secondary">Set</button>
+            </div>
+            </form>
+
+            <form action="/spray_position" method="post">
+            <div class="button-group">
+                <button id="sprayPositionButton" name="sprayPositionButton" value="sprayPositionButton" type="submit" class="btn btn-primary">Spray Position</button>
+                <button id="sprayPositionSetButton" name="sprayPositionSetButton" value="sprayPositionSetButton" type="submit" class="btn btn-secondary">Set</button>
+            </div>
+            </form>
+
+            <form action="/plunge" method="post">
+            <div class="button-group">
+                <button id="plungeButton" name="plungeButton" value="plungeButton" type="submit" class="btn btn-primary">Plunge</button>
+                <button id="plungeSetButton" class="btn btn-secondary">Set</button>
+            </div>
+            
+
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="sprayCheckbox" name="sprayCheckbox" value="sprayCheckbox"> Spray
+                </label>
+            </div>
+
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="blotCheckbox" name="blotCheckbox" value="blotCheckbox"> Blot
+                </label>
+            </div>
+
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="sonicationCheckbox" name="sonicationCheckbox" value="sonicationCheckbox"> Sonication
+                </label>
+            </div>
+            </form>
+
+            <form action="/store_grid" method="post">
+            <div class="store-position-group">
+                <label for="storePositionInput">Store Position:</label>
+                <input type="number" id="storePositionInput" name="storePositionInput" value="storePositionInput" class="form-control">
+            </div>
+
+            <div class="button-group">
+                <button id="storeGridButton" name="storeGridButton" value="storeGridButton" type="submit" class="btn btn-primary">Store Grid</button>
+            </div>
+            </form>
+        </div>
+        
+
+        <div class="image-box">
+            <img src="#" alt="Camera Image" id="cameraImage">
+        </div>
+
+        <div class="right-column">
+            <div class="log-box">
+                <textarea id="log-message" rows="10" readonly>{{ log_message }}</textarea>
+                
+            </div>
+        </div>
+        
+        <form action="/connect" method="post">
+        <div class="bottom-buttons">
+            <button id="connectButton" value="connectButton" name="controlRobot" type="submit" class="btn btn-primary">Connect to Robot</button>
+            <button id="powerOnButton" value="powerOnButton" name="controlRobot" type="submit" class="btn btn-primary">Power On Robot</button>
+            <button id="resetButton" value="resetButton" name="controlRobot" type="submit" class="btn btn-primary">Reset Robot</button>
+            <button id="highPowerButton" value="highPowerButton" name="controlRobot" type="submit" class="btn btn-primary">High Power Mode</button>
+            <button id="configurationButton" value="configurationButton" name="controlRobot" type="submit" class="btn btn-primary">Configuration</button>
+            <button id="robotManagerButton" value="robotManagerButton" name="controlRobot" type="submit" class="btn btn-primary">Robot Manager</button>
+            <button id="ioManagerButton" value="ioManagerButton" name="controlRobot" type="submit" class="btn btn-primary">I/O Manager</button>
+            <button id="powerOffButton" value="powerOffButton" name="controlRobot" type="submit" class="btn btn-primary">Power Off Robot</button>
+        </div>
+        </form>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script>
+        // JavaScript code for handling button clicks and other interactions
+        // Add your custom logic here
+    </script>
+</body>
+</html>

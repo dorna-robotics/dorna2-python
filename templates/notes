@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Dorna2 Gui</title>
+    </head>
+    <body>
+
+        <h1>Dorna2 Gui</h1>
+
+        <a href=connect><input type=”button” value=”call_flask_funtion”></a>
+
+    <h1>Dorna2 Robot Control</h1>
+    
+    <form action="/move" method="post">
+        <button type="submit" name="joint" value="joint0+">Move Joint 0 +</button>
+        <button type="submit" name="joint" value="joint0-">Move Joint 0 -</button>
+        <button type="submit" name="joint" value="joint1+">Move Joint 1 +</button>
+        <button type="submit" name="joint" value="joint1-">Move Joint 1 -</button>
+        <button type="submit" name="joint" value="joint2+">Move Joint 2 +</button>
+        <button type="submit" name="joint" value="joint2-">Move Joint 2 -</button>
+        <button type="submit" name="joint" value="joint3+">Move Joint 3 +</button>
+        <button type="submit" name="joint" value="joint3-">Move Joint 3 -</button>
+        <button type="submit" name="joint" value="joint4+">Move Joint 4 +</button>
+        <button type="submit" name="joint" value="joint4-">Move Joint 4 -</button>
+    </form>
+
+    <h2>Log</h2>
+    <div id="log-container">
+        <p id="log-message">{{ log_message }}</p>
+    </div>
+    
+    <script>
+        // Auto-scroll the log container to the bottom
+        var logContainer = document.getElementById("log-container");
+        logContainer.scrollTop = logContainer.scrollHeight;
+    </script>
+
+    </body>
+</html>

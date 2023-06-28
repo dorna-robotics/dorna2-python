@@ -1,3 +1,6 @@
 from .dorna import *
 from .ws import *
-__version__ = "2.1.0"
+from .dof_5_6 import *
+from .cf import *
+
+__version__ = "2.1.1"
