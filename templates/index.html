@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dorna2 Gui</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <style>
+        body {
+            padding-top: 50px;
+        }
+
+        .container {
+            max-width: 600px;
+        }
+
+        .connect_button {
+            margin-bottom: 50px;
+        }
+
+        /* The switch - the box around the slider */
+        .switch {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 34px;
+        }
+
+        /* Hide default HTML checkbox */
+        .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+        }
+
+        /* The slider */
+        .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        -webkit-transition: .4s;
+        transition: .4s;
+        }
+
+        .slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        -webkit-transition: .4s;
+        transition: .4s;
+        }
+
+        input:checked + .slider {
+        background-color: #2196F3;
+        }
+
+        input:focus + .slider {
+        box-shadow: 0 0 1px #2196F3;
+        }
+
+        input:checked + .slider:before {
+        -webkit-transform: translateX(26px);
+        -ms-transform: translateX(26px);
+        transform: translateX(26px);
+        }
+
+        /* Rounded sliders */
+        .slider.round {
+        border-radius: 34px;
+        }
+
+        .slider.round:before {
+        border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">Dorna2 Robot Control</h1>
+        
+        <div class="mb-4">
+            <a href=connect><input type=”button” value="Connect to Dorna" class="btn btn-primary btn-block"></a>
+        </div>
+        
+       
+        <form action="/move" method="post" class="mb-4">
+            <div class="row">
+                <div class="col">
+                    <button type="submit" name="joint" value="joint0+" class="btn btn-primary btn-block">Move Joint 0 +</button>
+                </div>
+                <div class="col">
+                    <button type="submit" name="joint" value="joint0-" class="btn btn-primary btn-block">Move Joint 0 -</button>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col">
+                    <button type="submit" name="joint" value="joint1+" class="btn btn-primary btn-block">Move Joint 1 +</button>
+                </div>
+                <div class="col">
+                    <button type="submit" name="joint" value="joint1-" class="btn btn-primary btn-block">Move Joint 1 -</button>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col">
+                    <button type="submit" name="joint" value="joint2+" class="btn btn-primary btn-block">Move Joint 2 +</button>
+                </div>
+                <div class="col">
+                    <button type="submit" name="joint" value="joint2-" class="btn btn-primary btn-block">Move Joint 2 -</button>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col">
+                    <button type="submit" name="joint" value="joint3+" class="btn btn-primary btn-block">Move Joint 3 +</button>
+                </div>
+                <div class="col">
+                    <button type="submit" name="joint" value="joint3-" class="btn btn-primary btn-block">Move Joint 3 -</button>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col">
+                    <button type="submit" name="joint" value="joint4+" class="btn btn-primary btn-block">Move Joint 4 +</button>
+                </div>
+                <div class="col">
+                    <button type="submit" name="joint" value="joint4-" class="btn btn-primary btn-block">Move Joint 4 -</button>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col">
+                    <button type="submit" name="joint" value="home" class="btn btn-primary btn-block">Move to home</button>
+                </div>
+                <div class="col">
+                    <button type="submit" name="joint" value="zero" class="btn btn-primary btn-block">Move to zero</button>
+                </div>
+            </div>
+        </form>
+        
+        <h3>Out 1</h3>
+        <label class="switch">
+            <input type="checkbox">
+            <span class="slider round"></span>
+          </label>
+
+        <div class="card">
+            <div class="card-header">
+                Log
+            </div>
+            <div class="card-body">
+                <p id="log-message">{{ log_message }}</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <script>
+        // Auto-scroll the log container to the bottom
+        var logContainer = document.getElementById("log-message");
+        logContainer.scrollTop = logContainer.scrollHeight;
+    </script>
+</body>
+</html>
