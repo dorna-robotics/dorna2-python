@@ -16,14 +16,14 @@ class Dorna(WS):
         # init logger
         self.logger = None
 
-    def logger_setup(self, log_path="dorna.log", maxBytes=100000, backupCount=1):
+    def logger_setup(self, file="dorna.log", maxBytes=100000, backupCount=1):
         """Set up logging to log to rotating files and also console output."""
         formatter = logging.Formatter('%(asctime)s %(message)s')
         self.logger = logging.getLogger("dorna_log")
         self.logger.setLevel(logging.INFO)
 
         # rotating file handler
-        fh = logging.handlers.RotatingFileHandler(log_path, maxBytes=maxBytes, backupCount=backupCount)
+        fh = logging.handlers.RotatingFileHandler(file, maxBytes=maxBytes, backupCount=backupCount)
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
 
@@ -238,14 +238,14 @@ class Dorna(WS):
     if no *args is present it will return a copy of sys
     """        
     def get(self, *args):
-        sys = self.sys()
+        sys = self.union()
         return [sys[k] for k in args]
 
     """
     return one value based on the key
     """
-    def val(self, key):
-        return self.get(key)[0]
+    def val(self, key="cmd"):
+        return self.union()[key]
 
     # It is a shorten version of play, 
     # set a parameter and wait for its reply from the controller

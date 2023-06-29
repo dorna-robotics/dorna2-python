@@ -110,13 +110,15 @@ class WS(object):
         return list(self._event_list)
 
     # register event
-    def add_event(self, target, kwargs={}, index=None):        
+    def add_event(self, target=None, kwargs={}, index=None):        
         # find the index
         if index is None:
             index = len(self._event_list)
 
-        ''' fn must accept one input, e.g. fn(msg, union, **kwargs) '''
-        self._event_list.insert(index, {"target":target, "kwargs":kwargs})
+        if target is not None:
+            ''' fn must accept one input, e.g. fn(msg, union, **kwargs) '''
+            self._event_list.insert(index, {"target":target, "kwargs":kwargs})
+        
         return self.get_all_event()
 
     def clear_all_event(self):
@@ -124,11 +126,12 @@ class WS(object):
         return self.get_all_event()
 
     # first look for the index and then fn
-    def clear_event(self, target):
-        try:
-            self._event_list.pop([event["target"] for event in self._event_list].index(target))
-        except:
-            pass
+    def clear_event(self, target=None):
+        if target is not None:
+            try:
+                self._event_list.pop([event["target"] for event in self._event_list].index(target))
+            except:
+                pass
         return self.get_all_event()
 
 
