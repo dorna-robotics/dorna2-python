@@ -167,9 +167,12 @@ class WS(object):
 
                     # find the index
                     index_start = data_str.find("{")
+                    if index_start < 0:
+                        continue
 
                     # get the message
                     msg = json.loads(data_str[index_start:-1])
+                    
                 else:
                     try:
                         # read header
@@ -181,7 +184,7 @@ class WS(object):
                         break
                        
                     # get the message
-                    msg = json.loads(data_byte.decode("utf-8") )                    
+                    msg = json.loads(data_byte.decode("utf-8"))                    
                 
                 # message queue
                 if not self.msg.full():
@@ -205,11 +208,14 @@ class WS(object):
                     if self._emergency["key"] in msg and msg[self._emergency["key"]] == self._emergency["value"]:
                         msg = {"cmd":"alarm", "alarm":1, "id":100+random.randint(1,10)}
                         asyncio.create_task(self.write_coro(json.dumps(msg)))
+                
                 # events
                 for event in self._event_list:
                     try:
-                        asyncio.create_task(event["target"](msg=copy.deepcopy(msg), union=copy.deepcopy(sys), **event["kwargs"]))
-                    except:
+                        #asyncio.create_task(event["target"](msg=copy.deepcopy(msg), union=copy.deepcopy(sys), **event["kwargs"]))
+                        asyncio.create_task(asyncio.to_thread(event["target"], copy.deepcopy(msg), copy.deepcopy(sys), **event["kwargs"]))
+
+                    except Exception as ex:
                         # clear the event
                         self.clear_event(event["target"])
 
