@@ -3,4 +3,4 @@ from .ws import *
 from .dof_5_6 import *
 from .cf import *
 
-__version__ = "2.1.2"
+__version__ = "2.1.1"
