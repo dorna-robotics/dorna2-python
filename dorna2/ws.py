@@ -32,6 +32,7 @@ class WS(object):
 
         # emergency
         self._emergency = {"enable": False, "key": "in0", "value":1}
+        self._emergency_flag = False
 
     """
     server 
@@ -205,19 +206,16 @@ class WS(object):
 
                 # emergency
                 if self._emergency["enable"] and self._emergency["key"] in ["in"+str(i) for i in range(16)] and self._emergency["value"] in [i for i in range(2)]:
-                    if self._emergency["key"] in msg and msg[self._emergency["key"]] == self._emergency["value"]:
+                    # activate emergency
+                    if not self._emergency_flag and self._emergency["key"] in msg and msg[self._emergency["key"]] == self._emergency["value"]:
                         msg = {"cmd":"alarm", "alarm":1, "id":100+random.randint(1,10)}
                         asyncio.create_task(self.write_coro(json.dumps(msg)))
-                
-                # events
-                for event in self._event_list:
-                    try:
-                        #asyncio.create_task(event["target"](msg=copy.deepcopy(msg), union=copy.deepcopy(sys), **event["kwargs"]))
-                        asyncio.create_task(asyncio.to_thread(event["target"], copy.deepcopy(msg), copy.deepcopy(sys), **event["kwargs"]))
-
-                    except Exception as ex:
-                        # clear the event
-                        self.clear_event(event["target"])
+                        self._emergency_flag = True
+                    
+                    elif self._emergency_flag and self._emergency["key"] in msg and msg[self._emergency["key"]] != self._emergency["value"]:
+                        msg = {"cmd":"alarm", "alarm":0, "id":100+random.randint(1,10)}
+                        asyncio.create_task(self.write_coro(json.dumps(msg)))
+                        self._emergency_flag = False                    
 
                 # track a given id
                 if self._track["id"]:
@@ -232,6 +230,16 @@ class WS(object):
                                 self._track["id"] = None                              
                     except:
                         pass
+
+                # events
+                for event in self._event_list:
+                    try:
+                        #asyncio.create_task(event["target"](msg=copy.deepcopy(msg), union=copy.deepcopy(sys), **event["kwargs"]))
+                        asyncio.create_task(asyncio.to_thread(event["target"], copy.deepcopy(msg), copy.deepcopy(sys), **event["kwargs"]))
+
+                    except Exception as ex:
+                        # clear the event
+                        self.clear_event(event["target"])
 
                 # pattern wait
                 try:
