@@ -718,18 +718,18 @@ class Dorna(WS):
     def reset_pid(self, **kwargs):
         return self.set_pid(threshold=75, duration=3000, **kwargs)
 
-    def get_err_thr(self, **kwargs):
-        return self._key_val_cmd(None, None, "pid", "threshold", None, **kwargs)
+    def get_err_thr(self, index=None, **kwargs):
+        return self._key_val_cmd(None, None, "pid", "threshold"+str(int(index)), None, **kwargs)
 
-    def set_err_thr(self, threshold=None, **kwargs):
-        self._key_val_cmd("threshold", threshold, "pid", "threshold", None, **kwargs)
+    def set_err_thr(self, index=None, threshold=None, **kwargs):
+        self._key_val_cmd("threshold"+str(int(index)), threshold, "pid", "threshold"+str(int(index)), None, **kwargs)
         return self._track_cmd_stat()
 
-    def get_err_dur(self, **kwargs):
-        return self._key_val_cmd(None, None, "pid", "duration", None, **kwargs)
+    def get_err_dur(self, index=None, **kwargs):
+        return self._key_val_cmd(None, None, "pid", "duration"+str(int(index)), None, **kwargs)
 
-    def set_err_dur(self, duration=None, **kwargs):
-        self._key_val_cmd("duration", duration, "pid", "duration", None, **kwargs)
+    def set_err_dur(self, index=None, duration=None, **kwargs):
+        self._key_val_cmd("duration"+str(int(index)), duration, "pid", "duration"+str(int(index)), None, **kwargs)
         return self._track_cmd_stat()
 
     def get_err(self, **kwargs):
