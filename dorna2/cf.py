@@ -80,7 +80,7 @@ class CF(object):
 				[-sa*sb*(cd*ssa*sg+cg*sd)+cb*(cg*cd-ssa*sg*sd),
 				cg*(-cd*sb-cb*sa*sd)+ssa*sg*(-cb*cd*sa+sb*sd),
 				ca*(cd*ssa*sg+cg*sd), self.local_matrix[0,3]],
-				[cg*ssa*(cd*sa*sb+cb*sd)+sg*(-cb*cd+sa*sb*sd),
+				[cg*ssa*(cd*sa*sb+cb*sd)+sg*(cb*cd-sa*sb*sd),
 				-sb*(cd*sg+cg*ssa*sd)-cb*sa*(-cg*cd*ssa+sg*sd),
 				ca*(-cg*cd*ssa+sg*sd), self.local_matrix[1,3]],
 				[ca*ssa*sb,
