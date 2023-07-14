@@ -21,7 +21,7 @@ i | alpha[i-1]        | a[i-1] | d[i] | theta[i]
 """
 
 def clamp(num, min_value, max_value):
-        num = max(min(num, max_value), min_value)
+        #num = max(min(num, max_value), min_value)
         return num
 
 def d_theta(t1,t2):
@@ -111,7 +111,7 @@ class Dof(DH):
 
 		for i in range(1, self.n_dof+1):
 			T = np.matmul(T, self.T(i, theta[i-1]))
-		
+
 		return np.matmul(T, self.T_f_tcp_r_last)
 
 	"""
@@ -133,13 +133,11 @@ class Dof(DH):
 
 		self.cf_test.set_matrix(T_f_last_r0) #the placement of these two line of codes dependes on the definition of abc
 		abc = self.cf_test.get_euler()
-
 		#initialize theta_6
 		theta_6 = 0
 		if(theta_current):
 			if(len(theta_current)>5):
 				theta_6 = theta_current[5]
-
 
 		if self.n_dof == 5 and self.rail_on: #calculate rail joint value for the 5 axis robot
 			#calculation for base_rail_r_base[2] = 0 (only horizontal rail and d[4] = 0)
@@ -150,11 +148,12 @@ class Dof(DH):
 
 			if(abs(denominator) > self.thr):
 				theta_6 = (dot(d,v)*dot(pz,pz) - (dot(d,pz)*dot(pz,v)) ) / denominator
-				T_f_last_r0[0,3] += -theta_6 * v[0]
-				T_f_last_r0[1,3] += -theta_6 * v[1]
-				T_f_last_r0[2,3] += -theta_6 * v[2]
+				
+		theta_6 = max(min(theta_6, self.rail_limit[1]), self.rail_limit[0])
 
-		theta_6 = clamp(theta_6,self.rail_limit[0], self.rail_limit[1])
+		T_f_last_r0[0,3] += - theta_6 * self.rail_vec_r_base [0]
+		T_f_last_r0[1,3] += - theta_6 * self.rail_vec_r_base [1]
+		T_f_last_r0[2,3] += - theta_6 * self.rail_vec_r_base [2]
 			
 
 		for theta_1 in self.theta_1(T_f_last_r0): # 2 x theta_1
@@ -180,12 +179,12 @@ class Dof(DH):
 					best_sol_indx = indx
 				indx  = indx + 1
 
-			return [rtn[best_sol_indx]]
-			"""
-			if best_sol_dist < 10.0:
+
+
+			if best_sol_dist < 5.0:
 				return [rtn[best_sol_indx]]
 			else:
-				return [theta_current]"""
+				return [theta_current]
 
 		return rtn
 
@@ -256,12 +255,14 @@ class Dof(DH):
 		rtn = []
 		T_f1_r0 = self.T(1, theta_1)
 		T_f5_r4 = self.T(5, theta_5)
-
-
+		
+		#print("INV T5-0:",T_f_last_r0)
 		T_f4_r1 = np.matmul(self.inv_dh(T_f1_r0), T_f_last_r0)
+
 		if(self.n_dof == 6):
 			T_f6_r5 = self.T(6, theta_6)
 			T_f4_r1 = np.matmul(T_f4_r1, self.inv_dh(T_f6_r5))
+
 		T_f4_r1 = np.matmul(T_f4_r1, self.inv_dh(T_f5_r4))
 
 		p4x = T_f4_r1[0,3]
@@ -290,8 +291,14 @@ class Dof(DH):
 					# theta_4
 					T_f3_r2 = self.T(3, theta_3)
 					T_f2_r1 = self.T(2, theta_2)
-					T_f4_r3 = np.matmul(self.inv_dh(T_f3_r2), self.inv_dh(T_f2_r1))
-					T_f4_r3 = np.matmul(T_f4_r3, T_f4_r1)
+
+					#print("(",theta_1*180/math.pi,",",theta_2*180/math.pi,",",theta_3*180/math.pi,") INV T4-1:", T_f4_r1 )
+					#print("INV T4-2:",np.matmul(self.inv_dh(T_f2_r1) , T_f4_r1 ))
+					T_f1_r3 = np.matmul(self.inv_dh(T_f3_r2), self.inv_dh(T_f2_r1))
+					T_f4_r3 = np.matmul(T_f1_r3, T_f4_r1)
+
+					#print("INV T4-3:",T_f4_r3)#np.matmul(T_f4_r1, self.inv_dh(T_f2_r1)))
+					
 					theta_4 = -math.atan2(T_f4_r3[0,1], T_f4_r3[0,0])
 					rtn.append([theta_2, theta_3, theta_4])
 				except Exception as ex:
@@ -362,7 +369,7 @@ class Kinematic(object):
 		_theta = self.joint_to_theta(joint)
 		if self.dof.n_dof == 5:
 			_theta[5] = joint[5]
-		
+
 		# fw result
 		fw = self.dof.fw(_theta)
 		# abg
@@ -381,13 +388,16 @@ class Kinematic(object):
 
 		self.dof.cf_test.set_euler(ABC)
 		rot = self.dof.cf_test.local_matrix 
-
+		#print("rot mat:",rot)
+		#print("abc:",[ABC[0]*180/math.pi,ABC[1]*180/math.pi,ABC[2]*180/math.pi])
 		xyzabc[0] = xyzabc[0]
 		xyzabc[1] = xyzabc[1]
 		xyzabc[2] = xyzabc[2]
 
+
 		if(self.dof.n_dof == 5 and not self.dof.rail_on):
 			xyzabc[5] = math.atan2(xyzabc[1],xyzabc[0])
+
 
 		T_f_tcp_r_world = np.matrix([
 			[rot[0,0], rot[0,1], rot[0,2], xyzabc[0]],
@@ -401,7 +411,11 @@ class Kinematic(object):
 		if joint_current:
 			theta_current = list(joint_current)
 			if theta_current:
+				theta_5 = theta_current[5]
 				theta_current = self.joint_to_theta(theta_current)
+				if(self.dof.n_dof==5):
+					theta_current[5] = theta_5
+
 		theta_all = self.dof.inv(T_f_tcp_r_world, theta_current=theta_current, all_sol=all_sol)
 		# all the solution
 		joint_all = [self.theta_to_joint(theta) for theta in theta_all ]
@@ -415,18 +429,17 @@ def main_dorna_c():
 	thr = 0.001
 
 	
-	knmtc = Dorna_c_knmtc()
-
+	knmtc = Kinematic("dorna_2s")
 	for i in range(1):
 		
 		flag = True
 		
-		joint = [5,10,20,30,40,0]#[0,44,-127,83,0,0]
+		joint = [90,10,10,10,90,24]
 		print("in:",joint)
 		dist_list = []
 		xyzabg = knmtc.fw(joint)
 		print("xyzabg: ",xyzabg)
-		joint_all = knmtc.inv(xyzabg, joint_current=joint, all_sol=True)
+		joint_all = knmtc.inv(xyzabg, joint_current=joint, all_sol=False)
 		print("final sol:",joint_all)
 
 
