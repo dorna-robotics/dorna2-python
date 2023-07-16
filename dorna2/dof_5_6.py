@@ -394,6 +394,9 @@ class Kinematic(Dof):
 	def inv(self, xyzabc, joint_current=[0,0,0,0,0,0], all_sol=True): #xyzabg
 		#print("inv call:",xyzabc)
 		ABC = [math.radians(t) for t in xyzabc[3:]]
+		
+		if(self.n_dof == 5 and not self.rail_on):
+			xyzabc[5] = math.atan2(xyzabc[1],xyzabc[0])
 
 		self.cf_test.set_euler(ABC)
 		rot = self.cf_test.local_matrix 
@@ -404,8 +407,7 @@ class Kinematic(Dof):
 		xyzabc[2] = xyzabc[2]
 
 
-		if(self.n_dof == 5 and not self.rail_on):
-			xyzabc[5] = math.atan2(xyzabc[1],xyzabc[0])
+
 
 
 		T_tcp_r_world = np.matrix([
