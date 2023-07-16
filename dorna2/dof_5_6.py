@@ -54,7 +54,7 @@ class DH(object):
 		self.rail_vec_r_base = [4,3,0]  #The vector that describes the motion of base on rail
 		self.rail_limit = [-100,200] #max and min value for rail joint
 		self.cf_test = CF(ndof = self.n_dof) 
-		self.rail_on = True
+		self.rail_on = False
 		self.T_f_rail_r_world = np.identity(4) # world
 		self.T_f_tcp_r_flange = np.identity(4) # TCP
 
@@ -116,7 +116,7 @@ class Dof(DH):
 	"""
 	def fw_base(self, theta):			
 		T_f_flange_r_world = self.t_f_flange_r_world(theta)
-		
+
 		return np.matmul(T_f_flange_r_world, self.T_f_tcp_r_flange)
 
 	"""
