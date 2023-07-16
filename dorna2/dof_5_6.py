@@ -56,7 +56,7 @@ class DH(object):
 		self.cf_test = CF(ndof = self.n_dof) 
 		self.rail_on = True
 		self.T_f_rail_r_world = np.identity(4) # world
-		self.T_f_tcp_r_last = np.identity(4) # TCP
+		self.T_f_tcp_r_flange = np.identity(4) # TCP
 
 	# Ti with respect to i-1 frame 
 	def T(self, i, theta):
@@ -96,11 +96,7 @@ class Dof(DH):
 		super(Dof, self).__init__()
 		self.thr = 0.0001
 
-	"""
-	joint values are given in radians
-	return T_f_tcp_r_base
-	"""
-	def fw(self, theta):			
+	def t_f_flange_r_world(self, theta):
 		T = self.T_f_rail_r_world.copy()
 
 		if self.n_dof == 5:#rail transformation
@@ -112,23 +108,32 @@ class Dof(DH):
 		for i in range(1, self.n_dof+1):
 			T = np.matmul(T, self.T(i, theta[i-1]))
 
-		return np.matmul(T, self.T_f_tcp_r_last)
+		return T
+
+	"""
+	joint values are given in radians
+	return T_f_tcp_r_base
+	"""
+	def fw_base(self, theta):			
+		T_f_flange_r_world = self.t_f_flange_r_world(theta)
+		
+		return np.matmul(T_f_flange_r_world, self.T_f_tcp_r_flange)
 
 	"""
 	The robot T_f_tcp_r_base is given
 	find all the possible robot orientations 
 	"""
 
-	def inv(self, T_f_tcp_r_world, theta_current, all_sol):
+	def inv_base(self, T_f_tcp_r_world, theta_current, all_sol):
 		
 		rtn = []
 
 		T_current = np.identity(4)
 
 		if(theta_current):
-			T_current = self.fw(theta_current)
+			T_current = self.fw_base(theta_current)
 
-		T_f_last_r0 = np.matmul(T_f_tcp_r_world, self.inv_dh(self.T_f_tcp_r_last)) 
+		T_f_last_r0 = np.matmul(T_f_tcp_r_world, self.inv_dh(self.T_f_tcp_r_flange)) 
 		T_f_last_r0 = np.matmul(self.inv_dh(self.T_f_rail_r_world), T_f_last_r0)
 
 		self.cf_test.set_matrix(T_f_last_r0) #the placement of these two line of codes dependes on the definition of abc
@@ -323,37 +328,36 @@ beta: around mobile y
 gamma: around mobile x
 """
 
-class Kinematic(object):
+class Kinematic(Dof):
 	"""docstring for Dorna_c_knmtc"""
 	def __init__(self, model="dorna_2"):
 		super(Kinematic, self).__init__()
 		
 		# create the 6 degree of freedom robot
-		self.dof = Dof()
 		self.model = model
 
 		if self.model=="dorna_2s":
-			self.dof.n_dof = 5 # number of degrees of freedom, choose between [5,6]
-			self.dof.alpha = [0, 0, math.pi/2, 0, 0, 0, 0] 
-			self.dof.delta = [0, 0, 0, 0, 0, math.pi/2, 0] 
-			self.dof.a = [0, 0 , 95.48, 203.2, 152.4, 0, 0]
-			self.dof.d = [0, 218.47, 0, 0, 0,48.92, 0]
+			self.n_dof = 5 # number of degrees of freedom, choose between [5,6]
+			self.alpha = [0, 0, math.pi/2, 0, 0, 0, 0] 
+			self.delta = [0, 0, 0, 0, 0, math.pi/2, 0] 
+			self.a = [0, 0 , 95.48, 203.2, 152.4, 0, 0]
+			self.d = [0, 218.47, 0, 0, 0,48.92, 0]
 			
 		if self.model=="dorna_2":
-			self.dof.n_dof = 5 
-			self.dof.alpha = [0, 0, math.pi/2, 0, 0, 0, 0] 
-			self.dof.delta = [0, 0, 0, 0, 0, math.pi/2, 0] 
-			self.dof.a = [0, 0 , 95.48, 203.2, 152.4, 0, 0]
-			self.dof.d = [0, 206.4, 0, 0, 0,48.92, 0]
+			self.n_dof = 5 
+			self.alpha = [0, 0, math.pi/2, 0, 0, 0, 0] 
+			self.delta = [0, 0, 0, 0, 0, math.pi/2, 0] 
+			self.a = [0, 0 , 95.48, 203.2, 152.4, 0, 0]
+			self.d = [0, 206.4, 0, 0, 0,48.92, 0]
 
 		if self.model=="dorna_3":
-			self.dof.n_dof = 6
-			self.dof.alpha = [0, 0, math.pi/2, 0, 0, 0, 0] 
-			self.dof.delta = [0, 0, 0, 0, 0, math.pi/2, math.pi/2] 
-			self.dof.a = [0, 0 , 100.0, 300.0, 208.5, 0, 0]
-			self.dof.d = [0, 309.7, 0, 0,  -133.1, 90.5, 9.707]
+			self.n_dof = 6
+			self.alpha = [0, 0, math.pi/2, 0, 0, 0, 0] 
+			self.delta = [0, 0, 0, 0, 0, math.pi/2, math.pi/2] 
+			self.a = [0, 0 , 100.0, 300.0, 208.5, 0, 0]
+			self.d = [0, 309.7, 0, 0,  -133.1, 90.5, 9.707]
 
-		self.dof.cf_test.calculate_alpha_delta(self.dof.n_dof)
+		self.cf_test.calculate_alpha_delta(self.n_dof)
 
 	def joint_to_theta(self, joint):
 		theta = list(joint)
@@ -362,20 +366,20 @@ class Kinematic(object):
 
 	def theta_to_joint(self, theta):
 		joint = [math.degrees(t) for t in theta]
-		return [self.dof.adjust_degree(j) for j in joint]
+		return [self.adjust_degree(j) for j in joint]
 
 	def fw(self, joint):
 		# adjust theta to dof
 		_theta = self.joint_to_theta(joint)
-		if self.dof.n_dof == 5:
+		if self.n_dof == 5:
 			_theta[5] = joint[5]
 
 		# fw result
-		fw = self.dof.fw(_theta)
+		fw = self.fw_base(_theta)
 		# abg
 
-		self.dof.cf_test.set_matrix(fw)
-		abc = self.dof.cf_test.get_euler()
+		self.cf_test.set_matrix(fw)
+		abc = self.cf_test.get_euler()
 		abc = [math.degrees(r) for r in abc]
 
 		#give different result: fw, fw can later be changed to pos + abg
@@ -386,8 +390,8 @@ class Kinematic(object):
 		#print("inv call:",xyzabc)
 		ABC = [math.radians(t) for t in xyzabc[3:]]
 
-		self.dof.cf_test.set_euler(ABC)
-		rot = self.dof.cf_test.local_matrix 
+		self.cf_test.set_euler(ABC)
+		rot = self.cf_test.local_matrix 
 		#print("rot mat:",rot)
 		#print("abc:",[ABC[0]*180/math.pi,ABC[1]*180/math.pi,ABC[2]*180/math.pi])
 		xyzabc[0] = xyzabc[0]
@@ -395,7 +399,7 @@ class Kinematic(object):
 		xyzabc[2] = xyzabc[2]
 
 
-		if(self.dof.n_dof == 5 and not self.dof.rail_on):
+		if(self.n_dof == 5 and not self.rail_on):
 			xyzabc[5] = math.atan2(xyzabc[1],xyzabc[0])
 
 
@@ -413,13 +417,13 @@ class Kinematic(object):
 			if theta_current:
 				theta_5 = theta_current[5]
 				theta_current = self.joint_to_theta(theta_current)
-				if(self.dof.n_dof==5):
+				if(self.n_dof==5):
 					theta_current[5] = theta_5
 
-		theta_all = self.dof.inv(T_f_tcp_r_world, theta_current=theta_current, all_sol=all_sol)
+		theta_all = self.inv_base(T_f_tcp_r_world, theta_current=theta_current, all_sol=all_sol)
 		# all the solution
 		joint_all = [self.theta_to_joint(theta) for theta in theta_all ]
-		if(self.dof.n_dof==5):
+		if(self.n_dof==5):
 			joint_all = [self.theta_to_joint(theta[:5]) + [theta[5]] for theta in theta_all ]
 		#print("resulting xyzabc:",self.fw(joint_all[0]))
 
