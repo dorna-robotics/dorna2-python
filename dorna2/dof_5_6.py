@@ -51,7 +51,7 @@ class DH(object):
 		self.delta = [0, 0, 0, 0, 0, np.pi/2, np.pi/2] #Rotation of Ci with respect to C(i-1) around the y axis of Ci
 		self.a = [0, 1, 1, 1, 0,0,0] # Translation of Ci with respect to C(i-1) along the x axis of Ci
 		self.d = [0, 1, 0, 0,-1,1,1] #Translation of Ci with respect to C(i-1) along the z axis of Ci
-		self.rail_vec_r_base = [4,3,0]  #The vector that describes the motion of base on rail
+		self.rail_vec_r_base = [0,0,0]  #The vector that describes the motion of base on rail
 		self.rail_limit = [-100,200] #max and min value for rail joint
 		self.cf_test = CF(ndof = self.n_dof) 
 		self.rail_on = False
@@ -445,14 +445,15 @@ def main_dorna_c():
 		
 		flag = True
 		
-		joint = [90,10,10,10,90,24]
+		joint = [0,-10,-10,-70,-60,24]
 		print("in:",joint)
 		dist_list = []
-		xyzabg = knmtc.fw(joint)
+		xyzabg = [322.6,10,-13.7,-90,0,0]#knmtc.fw(joint)
 		print("xyzabg: ",xyzabg)
-		joint_all = knmtc.inv(xyzabg, joint_current=joint, all_sol=False)
+		joint_all = knmtc.inv(xyzabg, all_sol=False)
 		print("final sol:",joint_all)
-
+		xyz_final = knmtc.fw(joint_all[0])
+		print("final xyz:",xyz_final)
 
 
 if __name__ == '__main__':
