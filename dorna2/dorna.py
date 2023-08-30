@@ -704,40 +704,44 @@ class Dorna(WS):
         val = None        
         cmd = "pid"
         rtn_key = None
-        rtn_keys = [prm+str(int(index)) for prm in ["p", "i", "d"]]
+        rtn_keys = [prm+str(int(index)) for prm in ["p", "i", "d", "threshold", "duration"]]
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
     def get_pid(self, index=None, **kwargs):
-        return self.pid(index, **kwargs)
-
-    def set_pid(self, index=None, p=None, i=None, d=None, **kwargs):
-        self.pid(index=index, **{"p"+str(int(index)): p, "i"+str(int(index)): i, "d"+str(int(index)): d})
+        key = None
+        val = None        
+        cmd = "pid"
+        rtn_key = None
+        rtn_keys = [prm+str(int(index)) for prm in ["p", "i", "d", "threshold", "duration"]]
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+            
+    def set_pid(self, index=None, p=None, i=None, d=None, thr=None, dur=None):
+        self.get_pid(index=index, **{"p"+str(int(index)): p, "i"+str(int(index)): i, "d"+str(int(index)): d, "threshold"+str(int(index)): thr, "duration"+str(int(index)): dur})
         return self._track_cmd_stat()
 
-    def reset_pid(self, **kwargs):
-        return self.set_pid(threshold=75, duration=3000, **kwargs)
+    def get_pid_enable(self, **kwargs):
+        key = "pid"
+        val = None        
+        cmd = "pid"
+        rtn_key = "pid"
+        rtn_keys = None
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
-    def get_err_thr(self, index=None, **kwargs):
-        return self._key_val_cmd(None, None, "pid", "threshold"+str(int(index)), None, **kwargs)
-
-    def set_err_thr(self, index=None, threshold=None, **kwargs):
-        self._key_val_cmd("threshold"+str(int(index)), threshold, "pid", "threshold"+str(int(index)), None, **kwargs)
+            
+    def set_pid_enable(self, enable=None, **kwargs):
+        key = "pid"
+        val = enable        
+        cmd = "pid"
+        rtn_key = "pid"
+        rtn_keys = None
+        self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
         return self._track_cmd_stat()
 
-    def get_err_dur(self, index=None, **kwargs):
-        return self._key_val_cmd(None, None, "pid", "duration"+str(int(index)), None, **kwargs)
+    def get_emergency(self):
+        return dict(self._emergency)
 
-    def set_err_dur(self, index=None, duration=None, **kwargs):
-        self._key_val_cmd("duration"+str(int(index)), duration, "pid", "duration"+str(int(index)), None, **kwargs)
-        return self._track_cmd_stat()
-
-    def get_err(self, **kwargs):
-        return self._key_val_cmd(None, None, "pid", None, ["threshold", "duration"], **kwargs)
-
-    def set_err(self, thr=None, dur=None, **kwargs):
-        self._key_val_cmd(None, None, "pid", None, ["threshold", "duration"], threshold=thr, duration=dur)
-        return self._track_cmd_stat()
 
     def set_emergency(self, enable=False, key="in0", value=1):
         self._emergency = {"enable":enable, "key":key, "value":value}
+        return self.get_emergency()
