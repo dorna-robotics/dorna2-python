@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Configuration Page</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        table th, table td {
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .form-control {
+            width: 100%;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        .btn-primary:hover {
+            background-color: #0069d9;
+            border-color: #0062cc;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 30px;
+        }
+
+        .section-fields {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-gap: 20px;
+        }
+
+        .section-fields label {
+            font-weight: bold;
+        }
+
+        .section-fields input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Configuration Page</h1>
+        <form id="configForm" action="/configuration" method="POST">
+            <table>
+                <tr>
+                    <th>Movement</th>
+                    <th>Variable</th>
+                    <th>Value</th>
+                </tr>
+                <!-- Variables -->
+                <tr>
+                    <td rowspan="6">Variables</td>
+                    <td>Blot Time:</td>
+                    <td><input type="number" name="blotTime" class="form-control" value="{{ values.blotTime }}"></td>
+                </tr>
+                <tr>
+                    <td>Spray Time:</td>
+                    <td><input type="number" name="sprayTime" class="form-control" value="{{ values.sprayTime }}"></td>
+                </tr>
+                <tr>
+                    <td>Blot Delay:</td>
+                    <td><input type="number" name="blotDelay" class="form-control" value="{{ values.blotDelay }}"></td>
+                </tr>
+                <tr>
+                    <td>Velocity:</td>
+                    <td><input type="number" name="velocity" class="form-control" value="{{ values.acceleration }}"></td>
+                </tr>
+                <tr>
+                    <td>Acceleration:</td>
+                    <td><input type="number" name="acceleration" class="form-control" value="{{ values.acceleration }}"></td>
+                </tr>
+                <tr>
+                    <td>Jerk:</td>
+                    <td><input type="number" name="jerk" class="form-control" value="{{ values.jerk }}"></td>
+                </tr>
+                
+                
+                
+                <!-- Movement 1 -->
+                <tr>
+                    <td rowspan="8">Load Tweezers</td>
+                    <td>Velocity:</td>
+                    <td><input type="number" name="velocityl" class="form-control" value="{{ values.velocityl }}"></td>
+                </tr>
+                <tr>
+                    <td>Acceleration:</td>
+                    <td><input type="number" name="accelerationl" class="form-control" value="{{ values.accelerationl }}"></td>
+                </tr>
+                <tr>
+                    <td>Jerk:</td>
+                    <td><input type="number" name="jerkl" class="form-control" value="{{ values.jerkl }}"></td>
+                </tr>
+                <tr>
+                    <td>j0 position:</td>
+                    <td><input type="number" name="j0posl" class="form-control" value="{{ values.j0posl }}"></td>
+                </tr>
+                <tr>
+                    <td>j1 position:</td>
+                    <td><input type="number" name="j1posl" class="form-control" value="{{ values.j1posl }}"></td>
+                </tr>
+                <tr>
+                    <td>j2 position:</td>
+                    <td><input type="number" name="j2posl" class="form-control" value="{{ values.j2posl }}"></td>
+                </tr>
+                <tr>
+                    <td>j3 position:</td>
+                    <td><input type="number" name="j3posl" class="form-control" value="{{ values.j3posl }}"></td>
+                </tr>
+                <tr>
+                    <td>j4 position:</td>
+                    <td><input type="number" name="j4posl" class="form-control" value="{{ values.j4posl }}"></td>
+                </tr>
+
+                <!-- Movement 2 -->
+                <tr>
+                    <td rowspan="8">Spray Position</td>
+                    <td>Velocity:</td>
+                    <td><input type="number" name="velocitys" class="form-control" value="{{ values.velocitys }}"></td>
+                </tr>
+                <tr>
+                    <td>Acceleration:</td>
+                    <td><input type="number" name="accelerations" class="form-control" value="{{ values.accelerations }}"></td>
+                </tr>
+                <tr>
+                    <td>Jerk:</td>
+                    <td><input type="number" name="jerks" class="form-control" value="{{ values.jerks }}"></td>
+                </tr>
+                <tr>
+                    <td>j0 position:</td>
+                    <td><input type="number" name="j0posl" class="form-control" value="{{ values.j0poss }}"></td>
+                </tr>
+                <tr>
+                    <td>j1 position:</td>
+                    <td><input type="number" name="j1posl" class="form-control" value="{{ values.j1poss }}"></td>
+                </tr>
+                <tr>
+                    <td>j2 position:</td>
+                    <td><input type="number" name="j2posl" class="form-control" value="{{ values.j2poss }}"></td>
+                </tr>
+                <tr>
+                    <td>j3 position:</td>
+                    <td><input type="number" name="j3posl" class="form-control" value="{{ values.j3poss }}"></td>
+                </tr>
+                <tr>
+                    <td>j4 position:</td>
+                    <td><input type="number" name="j4posl" class="form-control" value="{{ values.j4poss }}"></td>
+                </tr>
+
+                <!-- Movement 3 -->
+                <tr>
+                    <td rowspan="8">Plunge</td>
+                    <td>Velocity:</td>
+                    <td><input type="number" name="velocityp" class="form-control" value="{{ values.velocityp }}"></td>
+                </tr>
+                <tr>
+                    <td>Acceleration:</td>
+                    <td><input type="number" name="accelerationp" class="form-control" value="{{ values.accelerationp }}"></td>
+                </tr>
+                <tr>
+                    <td>Jerk:</td>
+                    <td><input type="number" name="jerkp" class="form-control" value="{{ values.jerkp }}"></td>
+                </tr>
+                <tr>
+                    <td>j0 position:</td>
+                    <td><input type="number" name="j0posp" class="form-control" value="{{ values.j0posp }}"></td>
+                </tr>
+                <tr>
+                    <td>j1 position:</td>
+                    <td><input type="number" name="j1posp" class="form-control" value="{{ values.j1posp }}"></td>
+                </tr>
+                <tr>
+                    <td>j2 position:</td>
+                    <td><input type="number" name="j2posp" class="form-control" value="{{ values.j2posp }}"></td>
+                </tr>
+                <tr>
+                    <td>j3 position:</td>
+                    <td><input type="number" name="j3posp" class="form-control" value="{{ values.j3posp }}"></td>
+                </tr>
+                <tr>
+                    <td>j4 position:</td>
+                    <td><input type="number" name="j4posp" class="form-control" value="{{ values.j4posp }}"></td>
+                </tr>
+
+                <!-- Movement 4 -->
+                <tr>
+                    <td rowspan="8">Store Grid</td>
+                    <td>Velocity:</td>
+                    <td><input type="number" name="velocityg" class="form-control" value="{{ values.velocityg }}"></td>
+                </tr>
+                <tr>
+                    <td>Acceleration:</td>
+                    <td><input type="number" name="accelerationg" class="form-control" value="{{ values.accelerationg }}"></td>
+                </tr>
+                <tr>
+                    <td>Jerk:</td>
+                    <td><input type="number" name="jerkg" class="form-control" value="{{ values.jerkg }}"></td>
+                </tr>
+                <tr>
+                    <td>j0 position:</td>
+                    <td><input type="number" name="j0posg" class="form-control" value="{{ values.j0posg }}"></td>
+                </tr>
+                <tr>
+                    <td>j1 position:</td>
+                    <td><input type="number" name="j1posg" class="form-control" value="{{ values.j1posg }}"></td>
+                </tr>
+                <tr>
+                    <td>j2 position:</td>
+                    <td><input type="number" name="j2posg" class="form-control" value="{{ values.j2posg }}"></td>
+                </tr>
+                <tr>
+                    <td>j3 position:</td>
+                    <td><input type="number" name="j3posg" class="form-control" value="{{ values.j3posg }}"></td>
+                </tr>
+                <tr>
+                    <td>j4 position:</td>
+                    <td><input type="number" name="j4posl" class="form-control" value="{{ values.j4posg }}"></td>
+                </tr>
+            </table>
+            <button type="submit" name="saveConfig" value="saveConfig" class="btn btn-primary">Save Configuration</button>
+        </form>
+    </div>
+</body>
+</html>

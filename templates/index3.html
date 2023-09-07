@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Robotic Control</title>
+    <title>Dorna2 Control</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css">
     <style>
         body {
@@ -107,20 +107,24 @@
 
         .bottom-buttons {
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between;
             align-items: center;
             margin-top: 60px;
             margin-bottom: 40px;
             grid-column-start: 1;
             grid-column-end: 4;
+            margin-left: 20px;
+            margin-right: 20px;
         }
 
         .bottom-buttons button {
-            margin-right: 10px;
             padding: 10px 20px;
             border-radius: 4px;
             font-weight: bold;
             cursor: pointer;
+            width: 200px;
+            height: 80px;
+            margin-right: 20px;
         }
 
         .bottom-buttons .btn-primary {
@@ -149,25 +153,25 @@
 <body>
     <div class="container">
         <div class="left-column">
-            <h1>Robotic Control</h1>
+            <h1>Dorna2 Control</h1>
 
             <form action="/submit" method="post">
                 <div class="form-group">
                     <label for="dropdown">Variable Name:</label>
-                    <select id="dropdown" value="dropdownValue" class="form-control">
-                        <option value="option 1">Blot time</option>
-                        <option value="option 2">Spray time</option>
-                        <option value="option 3">Blot delay</option>
+                    <select id="dropdown" name= "dropdownValue" value="dropdownValue" class="form-control">
+                        <option value="blotTime">Blot time</option>
+                        <option value="sprayTime">Spray time</option>
+                        <option value="blotDelay">Blot delay</option>
                     </select>
                 </div>
 
                 <div class="form-group">
                     <label for="inputField">Value:</label>
-                    <input type="number" id="inputField" value="inputFieldValue" class="form-control">
+                    <input type="number" name="inputFieldValue" id="inputField" value="inputFieldValue" class="form-control">
                 </div>
 
                 <div class="button-group">
-                    <button type="submit" value="saveButton" value="save" class="btn btn-primary">Save</button>
+                    <button type="submit" value="saveButton" name="saveButton" class="btn btn-primary">Save</button>
                 </div>
             </form>
             
@@ -213,29 +217,26 @@
 
             <form action="/store_grid" method="post">
             <div class="store-position-group">
-                <label for="storePositionInput">Store Position:</label>
-                <input type="number" id="storePositionInput" name="storePositionInput" value="storePositionInput" class="form-control">
-            </div>
-
-            <div class="button-group">
+                <label for="storePositionField">Store Position:</label>
+                <input type="number" id="storePositionFieldValue" name="storePositionFieldValue" value="storePositionFieldValue" class="form-control">
                 <button id="storeGridButton" name="storeGridButton" value="storeGridButton" type="submit" class="btn btn-primary">Store Grid</button>
             </div>
             </form>
         </div>
-        
 
         <div class="image-box">
-            <img src="#" alt="Camera Image" id="cameraImage">
+            <img src="camera.jpg" alt="Camera">
         </div>
 
         <div class="right-column">
             <div class="log-box">
-                <textarea id="log-message" rows="10" readonly>{{ log_message }}</textarea>
-                
+                <h2>Log</h2>
+                <p id="log-message" rows="10" readonly>{{ log_message }}</p>            
             </div>
         </div>
-        
-        <form action="/connect" method="post">
+    </div>
+
+    <form action="/connect" method="post">
         <div class="bottom-buttons">
             <button id="connectButton" value="connectButton" name="controlRobot" type="submit" class="btn btn-primary">Connect to Robot</button>
             <button id="powerOnButton" value="powerOnButton" name="controlRobot" type="submit" class="btn btn-primary">Power On Robot</button>
@@ -251,10 +252,5 @@
         </form>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script>
-        // JavaScript code for handling button clicks and other interactions
-        // Add your custom logic here
-    </script>
 </body>
 </html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Configuration Page</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        table th, table td {
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .form-control {
+            width: 100%;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        .btn-primary:hover {
+            background-color: #0069d9;
+            border-color: #0062cc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Configuration Page</h1>
+        <form id="configForm" action="/configuration" method="POST">
+            <table>
+                <tr>
+                    <th>Variable</th>
+                    <th>Value</th>
+                </tr>
+                <tr>
+                    <td>Velocity</td>
+                    <td><input type="number" name="velocity" class="form-control" value="{{ values.velocity }}"></td>
+                </tr>
+                <tr>
+                    <td>Acceleration</td>
+                    <td><input type="number" name="acceleration" class="form-control" value="{{ values.acceleration }}"></td>
+                </tr>
+                <tr>
+                    <td>Jerk</td>
+                    <td><input type="number" name="jerk" class="form-control" value="{{ values.jerk }}"></td>
+                </tr>
+                <tr>
+                    <td>Blot Time</td>
+                    <td><input type="number" name="blotTime" class="form-control" value="{{ values.blotTime }}"></td>
+                </tr>
+                <tr>
+                    <td>Spray Time</td>
+                    <td><input type="number" name="sprayTime" class="form-control" value="{{ values.sprayTime }}"></td>
+                </tr>
+                <tr>
+                    <td>Blot Delay</td>
+                    <td><input type="number" name="blotDelay" class="form-control" value="{{ values.blotDelay }}"></td>
+                </tr>
+            </table>
+            <button type="submit" name="saveConfig" value="saveConfig" class="btn btn-primary">Save</button>
+        </form>
+    </div>
+</body>
+</html>
