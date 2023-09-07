@@ -16,14 +16,14 @@ class Dorna(WS):
         # init logger
         self.logger = None
 
-    def logger_setup(self, log_path="dorna.log", maxBytes=100000, backupCount=1):
+    def logger_setup(self, file="dorna.log", maxBytes=100000, backupCount=1):
         """Set up logging to log to rotating files and also console output."""
         formatter = logging.Formatter('%(asctime)s %(message)s')
         self.logger = logging.getLogger("dorna_log")
         self.logger.setLevel(logging.INFO)
 
         # rotating file handler
-        fh = logging.handlers.RotatingFileHandler(log_path, maxBytes=maxBytes, backupCount=backupCount)
+        fh = logging.handlers.RotatingFileHandler(file, maxBytes=maxBytes, backupCount=backupCount)
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
 
@@ -238,19 +238,20 @@ class Dorna(WS):
     if no *args is present it will return a copy of sys
     """        
     def get(self, *args):
-        sys = self.sys()
+        sys = self.union()
         return [sys[k] for k in args]
 
     """
     return one value based on the key
     """
-    def val(self, key):
-        return self.get(key)[0]
+    def val(self, key="cmd"):
+        return self.union()[key]
 
     # It is a shorten version of play, 
     # set a parameter and wait for its reply from the controller
     def cmd(self, cmd, **kwargs):
-        kwargs = {**{"cmd": cmd}, **kwargs}
+        kwargs_clean = {k: v for k, v in kwargs.items() if v is not None}
+        kwargs = {**{"cmd": cmd}, **kwargs_clean}
         return self.play(**kwargs)
 
 
@@ -622,6 +623,7 @@ class Dorna(WS):
             (int): The version of the firmware.
         """
         key = None
+        val = None
         cmd = "version"
         rtn_key = "version"
         rtn_keys = None
@@ -639,6 +641,7 @@ class Dorna(WS):
             (str): The uid of the controller.
         """
         key = None
+        val = None
         cmd = "uid"
         rtn_key = "uid"
         rtn_keys = None
@@ -664,7 +667,7 @@ class Dorna(WS):
     def axis(self, index=None, val=None, **kwargs):
         key = None
         if index !=None:
-            key = "ratio"+str(index)
+            key = "ratio"+str(int(index))
         
         cmd = "axis"
         rtn_key = key
@@ -679,24 +682,66 @@ class Dorna(WS):
         self.axis(index=index, val=ratio, **kwargs)
         return self._track_cmd_stat()
 
-    def pid(self, **kwargs):
+    def get_axis_ratio(self, index=None, **kwargs):
+        return self.axis(index=index, **kwargs)
+
+    def set_axis_ratio(self, index=None, ratio=None,  **kwargs):
+        self.axis(index=index, val=ratio, **kwargs)
+        return self._track_cmd_stat()
+
+    def get_axis(self, index=None, **kwargs):
+        return_keys = [key+str(int(index)) for key in ["usem", "usee", "pprm", "tprm", "ppre", "tpre"]]
+        return self._key_val_cmd(None, None, "axis", None, return_keys, **kwargs)
+
+    def set_axis(self, index=None, usem=None, usee=None, pprm=None, tprm=None, ppre=None, tpre=None, **kwargs):
+        return_keys = [key+str(int(index)) for key in ["usem", "usee", "pprm", "tprm", "ppre", "tpre"]]
+        key_value = {k: v for k, v in zip(return_keys, [usem, usee, pprm, tprm, ppre, tpre])}
+        self._key_val_cmd(None, None, "axis", None, return_keys, **key_value, **kwargs)
+        return self._track_cmd_stat()
+
+    def pid(self, index, **kwargs):
         key = None
         val = None        
         cmd = "pid"
-        rtn_key = key
-        rtn_keys = ["threshold", "duration"]
+        rtn_key = None
+        rtn_keys = [prm+str(int(index)) for prm in ["p", "i", "d", "threshold", "duration"]]
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
-    def get_pid(self, **kwargs):
-        return self.pid(**kwargs)
-
-    def set_pid(self, threshold=None, duration=None, **kwargs):
-        self.pid(threshold=threshold, duration=duration, **kwargs)
+    def get_pid(self, index=None, **kwargs):
+        key = None
+        val = None        
+        cmd = "pid"
+        rtn_key = None
+        rtn_keys = [prm+str(int(index)) for prm in ["p", "i", "d", "threshold", "duration"]]
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+            
+    def set_pid(self, index=None, p=None, i=None, d=None, thr=None, dur=None):
+        self.get_pid(index=index, **{"p"+str(int(index)): p, "i"+str(int(index)): i, "d"+str(int(index)): d, "threshold"+str(int(index)): thr, "duration"+str(int(index)): dur})
         return self._track_cmd_stat()
 
-    def reset_pid(self, **kwargs):
-        return self.set_pid(threshold=75, duration=3000, **kwargs)
+    def get_pid_enable(self, **kwargs):
+        key = "pid"
+        val = None        
+        cmd = "pid"
+        rtn_key = "pid"
+        rtn_keys = None
+        return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
+            
+    def set_pid_enable(self, enable=None, **kwargs):
+        key = "pid"
+        val = enable        
+        cmd = "pid"
+        rtn_key = "pid"
+        rtn_keys = None
+        self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+        return self._track_cmd_stat()
+
+    def get_emergency(self):
+        return dict(self._emergency)
+
 
     def set_emergency(self, enable=False, key="in0", value=1):
         self._emergency = {"enable":enable, "key":key, "value":value}
+        return self.get_emergency()

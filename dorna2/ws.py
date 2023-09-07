@@ -32,6 +32,7 @@ class WS(object):
 
         # emergency
         self._emergency = {"enable": False, "key": "in0", "value":1}
+        self._emergency_flag = False
 
     """
     server 
@@ -110,13 +111,15 @@ class WS(object):
         return list(self._event_list)
 
     # register event
-    def add_event(self, target, kwargs={}, index=None):        
+    def add_event(self, target=None, kwargs={}, index=None):        
         # find the index
         if index is None:
             index = len(self._event_list)
 
-        ''' fn must accept one input, e.g. fn(msg, union, **kwargs) '''
-        self._event_list.insert(index, {"target":target, "kwargs":kwargs})
+        if target is not None:
+            ''' fn must accept one input, e.g. fn(msg, union, **kwargs) '''
+            self._event_list.insert(index, {"target":target, "kwargs":kwargs})
+        
         return self.get_all_event()
 
     def clear_all_event(self):
@@ -124,11 +127,12 @@ class WS(object):
         return self.get_all_event()
 
     # first look for the index and then fn
-    def clear_event(self, target):
-        try:
-            self._event_list.pop([event["target"] for event in self._event_list].index(target))
-        except:
-            pass
+    def clear_event(self, target=None):
+        if target is not None:
+            try:
+                self._event_list.pop([event["target"] for event in self._event_list].index(target))
+            except:
+                pass
         return self.get_all_event()
 
 
@@ -164,9 +168,12 @@ class WS(object):
 
                     # find the index
                     index_start = data_str.find("{")
+                    if index_start < 0:
+                        continue
 
                     # get the message
                     msg = json.loads(data_str[index_start:-1])
+                    
                 else:
                     try:
                         # read header
@@ -178,7 +185,7 @@ class WS(object):
                         break
                        
                     # get the message
-                    msg = json.loads(data_byte.decode("utf-8") )                    
+                    msg = json.loads(data_byte.decode("utf-8"))                    
                 
                 # message queue
                 if not self.msg.full():
@@ -199,16 +206,16 @@ class WS(object):
 
                 # emergency
                 if self._emergency["enable"] and self._emergency["key"] in ["in"+str(i) for i in range(16)] and self._emergency["value"] in [i for i in range(2)]:
-                    if self._emergency["key"] in msg and msg[self._emergency["key"]] == self._emergency["value"]:
+                    # activate emergency
+                    if not self._emergency_flag and self._emergency["key"] in msg and msg[self._emergency["key"]] == self._emergency["value"]:
                         msg = {"cmd":"alarm", "alarm":1, "id":100+random.randint(1,10)}
                         asyncio.create_task(self.write_coro(json.dumps(msg)))
-                # events
-                for event in self._event_list:
-                    try:
-                        asyncio.create_task(event["target"](msg=copy.deepcopy(msg), union=copy.deepcopy(sys), **event["kwargs"]))
-                    except:
-                        # clear the event
-                        self.clear_event(event["target"])
+                        self._emergency_flag = True
+                    
+                    elif self._emergency_flag and self._emergency["key"] in msg and msg[self._emergency["key"]] != self._emergency["value"]:
+                        msg = {"cmd":"alarm", "alarm":0, "id":100+random.randint(1,10)}
+                        asyncio.create_task(self.write_coro(json.dumps(msg)))
+                        self._emergency_flag = False                    
 
                 # track a given id
                 if self._track["id"]:
@@ -223,6 +230,16 @@ class WS(object):
                                 self._track["id"] = None                              
                     except:
                         pass
+
+                # events
+                for event in self._event_list:
+                    try:
+                        #asyncio.create_task(event["target"](msg=copy.deepcopy(msg), union=copy.deepcopy(sys), **event["kwargs"]))
+                        asyncio.create_task(asyncio.to_thread(event["target"], copy.deepcopy(msg), copy.deepcopy(sys), **event["kwargs"]))
+
+                    except Exception as ex:
+                        # clear the event
+                        self.clear_event(event["target"])
 
                 # pattern wait
                 try:
