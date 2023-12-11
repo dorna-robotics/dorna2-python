@@ -16,6 +16,7 @@ class Dorna(WS):
         # init logger
         self.logger = None
 
+
     def logger_setup(self, file="dorna.log", maxBytes=100000, backupCount=1):
         """Set up logging to log to rotating files and also console output."""
         formatter = logging.Formatter('%(asctime)s %(message)s')
@@ -89,6 +90,7 @@ class Dorna(WS):
 
         return True
 
+
     def log(self, msg, *args, **kwargs):
         # setup log
         if self.logger == None:
@@ -99,6 +101,7 @@ class Dorna(WS):
     
     def rand_id(self, thr_low=100, thr_high= 1000000):
         return random.randint(thr_low, thr_high)
+
 
     """
     complete: wait for the completion or not
@@ -191,11 +194,14 @@ class Dorna(WS):
 
         return self.sleep(0, timeout=timeout)
 
+
     def play_json(self, cmd='{}', timeout=-1):
         return self.play(timeout=timeout, msg=cmd)
 
+
     def play_dict(self, cmd={}, timeout=-1):
         return self.play(timeout=timeout, msg=cmd)
+
 
     """
     wait for a given patter in received signal
@@ -214,7 +220,8 @@ class Dorna(WS):
                 time.sleep(0.001)
 
         return copy.deepcopy(set( kwargs.items()) & set( self._ptrn["sys"].items()))
-    
+
+   
     """
     send a motion command
     """
@@ -233,6 +240,7 @@ class Dorna(WS):
         except:
             return False
 
+
     """
     return a dictionary based on keys
     if no *args is present it will return a copy of sys
@@ -241,11 +249,13 @@ class Dorna(WS):
         sys = self.union()
         return [sys[k] for k in args]
 
+
     """
     return one value based on the key
     """
     def val(self, key="cmd"):
         return self.union()[key]
+
 
     # It is a shorten version of play, 
     # set a parameter and wait for its reply from the controller
@@ -261,14 +271,18 @@ class Dorna(WS):
     def jmove(self, **kwargs):
         return self._motion("jmove", **kwargs)
 
+
     def rmove(self, **kwargs):
         return self._motion("rmove", **kwargs)        
+
 
     def lmove(self, **kwargs):
         return self._motion("lmove", **kwargs)
 
+
     def cmove(self, **kwargs):
         return self._motion("cmove", **kwargs)
+
 
     def _key_val_cmd(self, key, val, cmd, rtn_key, rtn_keys, **kwargs):
         # adjust key and kwargs
@@ -286,13 +300,16 @@ class Dorna(WS):
                 return [rtn["union"][k] for k in rtn_keys]
         except:
             return False
-    
+
+  
     def _track_cmd_stat(self):
         rtn = self.track_cmd()
         try:
             return rtn["union"]["stat"]
         except:
             return False
+
+
     """
     read output i, or turn it on or off
     output(0): return the value of the out0
@@ -313,15 +330,19 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+
     def get_all_output(self, **kwargs):
         return self.output(**kwargs)
+
 
     def get_output(self, index=None, **kwargs):
         return self.output(index=index, **kwargs)
 
+
     def set_output(self, index=None, val=None, queue=None, **kwargs):
         self.output(index=index, val=val, queue=queue, **kwargs)
         return self._track_cmd_stat()
+
 
     """
     read pwm, or set its parameters
@@ -343,6 +364,7 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+
     """
     read freq, or set its parameters
     freq(0): return the value of the freq0
@@ -358,6 +380,7 @@ class Dorna(WS):
         rtn_keys = ["freq"+str(i) for i in range(5)]
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
 
     """
     read duty, or set its parameters
@@ -375,26 +398,33 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+
     def get_pwm(self, index=None, **kwargs):
         return self.pwm(index=index, **kwargs)
+
 
     def get_freq(self, index=None, **kwargs):
         return self.freq(index=index, **kwargs)
 
+
     def get_duty(self, index=None, **kwargs):
         return self.duty(index=index, **kwargs) 
+
 
     def set_pwm(self, index=None, enable=None, queue=None, **kwargs):
         self.pwm(index=index, val=enable, queue=queue, **kwargs)
         return self._track_cmd_stat()
 
+
     def set_freq(self, index=None, freq=None, queue=None, **kwargs):
         self.freq(index=index, freq=freq, queue=queue, **kwargs)
         return self._track_cmd_stat()
 
+
     def set_duty(self, index=None, duty=None, queue=None, **kwargs):
         self.duty(index=index, duty=index, queue=queue, **kwargs)
         return self._track_cmd_stat()
+
 
     """
     read input
@@ -411,11 +441,14 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+
     def get_all_input(self, **kwargs):
         return self.input(**kwargs)
 
+
     def get_input(self, index=None, **kwargs):
         return self.input(index=index, **kwargs)
+
 
     """
     read adc
@@ -437,7 +470,8 @@ class Dorna(WS):
 
     def get_adc(self, index=None, **kwargs):
         return self.adc(index=index, **kwargs)
-    
+
+ 
     """
     probe
     """
@@ -451,6 +485,7 @@ class Dorna(WS):
         rtn_keys = ["j"+str(i) for i in range(8)]
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
 
     """
     iprobe
@@ -492,12 +527,15 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+
     def get_alarm(self, **kwargs):
         return self.alarm(**kwargs)
+
 
     def set_alarm(self, enable=None, **kwargs):
         self.alarm(val=enable, **kwargs)
         return self._track_cmd_stat()
+
 
     """
     sleep the controller for certain amount of time (seconds)
@@ -509,7 +547,8 @@ class Dorna(WS):
         rtn_keys = None
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
-    
+
+   
     """
     set the value of joints / and return their values in a dictionary
 
@@ -533,15 +572,19 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+
     def get_all_joint(self):
         return self.joint()
+
 
     def get_joint(self, index=None):
         return self.joint(index=index)
 
+
     def set_joint(self, index=None, val=None, **kwargs):
         self.joint(index=index, val=val, **kwargs)
         return self._track_cmd_stat()
+
 
     def pose(self, index=None):
         """
@@ -556,8 +599,10 @@ class Dorna(WS):
         except:
             return _pose
 
+
     def get_all_pose(self):
         return self.pose()    
+
 
     def get_pose(self, index=None):
         return self.pose(index=index)
@@ -581,12 +626,15 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+
     def get_motor(self, **kwargs):
         return self.motor(**kwargs)
+
 
     def set_motor(self, enable=None, **kwargs):
         self.motor(val=enable, **kwargs)
         return self._track_cmd_stat()
+
 
     def toollength(self, val=None, **kwargs):
         """
@@ -606,12 +654,15 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+
     def get_toollength(self, **kwargs):
         return self.toollength(**kwargs)
+
 
     def set_toollength(self, length=None ,**kwargs):
         self.toollength(val=length, **kwargs)
         return self._track_cmd_stat()
+
 
     def version(self, **kwargs):
         """
@@ -648,6 +699,7 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+
     def gravity(self, **kwargs):
         key = None
         val = None        
@@ -657,12 +709,15 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+
     def get_gravity(self, **kwargs):
         return self.gravity(**kwargs)
+
 
     def set_gravity(self, enable=None, mass=None, x=None, y=None, z=None, **kwargs):
         self.gravity(gravity=enable, m=mass, x=x, y=y, z=z, **kwargs)
         return self._track_cmd_stat()
+
 
     def axis(self, index=None, val=None, **kwargs):
         key = None
@@ -675,23 +730,29 @@ class Dorna(WS):
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
 
+
     def get_axis(self, index=None, **kwargs):
         return self.axis(index=index, **kwargs)
+
 
     def set_axis(self, index=None, ratio=None, **kwargs):
         self.axis(index=index, val=ratio, **kwargs)
         return self._track_cmd_stat()
 
+
     def get_axis_ratio(self, index=None, **kwargs):
         return self.axis(index=index, **kwargs)
+
 
     def set_axis_ratio(self, index=None, ratio=None,  **kwargs):
         self.axis(index=index, val=ratio, **kwargs)
         return self._track_cmd_stat()
 
+
     def get_axis(self, index=None, **kwargs):
         return_keys = [key+str(int(index)) for key in ["usem", "usee", "pprm", "tprm", "ppre", "tpre"]]
         return self._key_val_cmd(None, None, "axis", None, return_keys, **kwargs)
+
 
     def set_axis(self, index=None, usem=None, usee=None, pprm=None, tprm=None, ppre=None, tpre=None, **kwargs):
         return_keys = [key+str(int(index)) for key in ["usem", "usee", "pprm", "tprm", "ppre", "tpre"]]
@@ -699,6 +760,16 @@ class Dorna(WS):
         self._key_val_cmd(None, None, "axis", None, return_keys, **key_value, **kwargs)
         return self._track_cmd_stat()
 
+
+    def get_emergency(self):
+        return dict(self._emergency)
+
+
+    def set_emergency(self, enable=False, key="in0", value=1):
+        self._emergency = {"enable":enable, "key":key, "value":value}
+        return self.get_emergency()
+
+    """
     def pid(self, index, **kwargs):
         key = None
         val = None        
@@ -707,6 +778,7 @@ class Dorna(WS):
         rtn_keys = [prm+str(int(index)) for prm in ["p", "i", "d", "threshold", "duration"]]
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+    """
 
     def get_pid(self, index=None, **kwargs):
         key = None
@@ -715,10 +787,12 @@ class Dorna(WS):
         rtn_key = None
         rtn_keys = [prm+str(int(index)) for prm in ["p", "i", "d", "threshold", "duration"]]
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
-            
-    def set_pid(self, index=None, p=None, i=None, d=None, thr=None, dur=None):
-        self.get_pid(index=index, **{"p"+str(int(index)): p, "i"+str(int(index)): i, "d"+str(int(index)): d, "threshold"+str(int(index)): thr, "duration"+str(int(index)): dur})
+
+
+    def set_pid(self, index=None, p=None, i=None, d=None, threshold=None, duration=None, **kwargs):
+        self.get_pid(index=index, **{"p"+str(int(index)): p, "i"+str(int(index)): i, "d"+str(int(index)): d, "threshold"+str(int(index)): threshold, "duration"+str(int(index)): duration})
         return self._track_cmd_stat()
+
 
     def get_pid_enable(self, **kwargs):
         key = "pid"
@@ -738,10 +812,3 @@ class Dorna(WS):
         self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
         return self._track_cmd_stat()
 
-    def get_emergency(self):
-        return dict(self._emergency)
-
-
-    def set_emergency(self, enable=False, key="in0", value=1):
-        self._emergency = {"enable":enable, "key":key, "value":value}
-        return self.get_emergency()
