@@ -3,7 +3,7 @@ import time
 import math
 import random
 from dorna2.cf import CF
-
+from dorna2.ik6r_2 import ik
 """
 Sources:
 	http://rasmusan.blog.aau.dk/files/ur5_kinematics.pdf
@@ -59,6 +59,7 @@ class DH(object):
 		self.T_tcp_r_flange = np.identity(4) # TCP
 
 	# Ti with respect to i-1 frame 
+	"""
 	def T(self, i, theta):
 		ct = np.cos(theta)
 		st = np.sin(theta)
@@ -74,6 +75,40 @@ class DH(object):
 			[0, 0, 0, 1]])
 
 		return result
+	"""
+	def T(self, i, theta):
+		ct = np.cos(theta+self.delta[i])
+		st = np.sin(theta+self.delta[i])
+		ca = np.cos(self.alpha[i])
+		sa = np.sin(self.alpha[i])
+		cd = np.cos(self.delta[i])
+		sd = np.sin(self.delta[i])
+		ai = self.a[i]
+		di = self.d[i]
+		result =  np.matrix([
+			[ct,-st*ca,st*sa,ai*ct],
+			[st,ct*ca,-ct*sa,ai*st],
+			[0,sa,ca,di],
+			[0, 0, 0, 1]])
+
+		return result
+
+	def dT(self, i, theta):
+		ct = np.cos(theta)
+		st = np.sin(theta)
+		ca = np.cos(self.alpha[i])
+		sa = np.sin(self.alpha[i])
+		cd = np.cos(self.delta[i])
+		sd = np.sin(self.delta[i])
+
+		result =  np.matrix([
+			[-cd*st, -cd*ct, 0, 	0],
+			[-st*sa*sd+ca*ct, -ca*st+sa*sd*ct, 0,	0],
+			[+ ca*st*sd + sa*ct, -st*sa+ca*sd*ct, 0,	0],
+			[0, 0, 0, 0]])
+
+		return result
+
 
 	def inv_dh(self, T):
 		R = np.matrix([
@@ -110,10 +145,81 @@ class Dof(DH):
 			T[1,3] += rail_d_vec[1,0]
 			T[2,3] += rail_d_vec[2,0]
 
-		for i in range(1, self.n_dof+1):
-			T = np.matmul(T, self.T(i, theta[i-1]))
+		for i in range(0, self.n_dof+1):
+			if i==0:
+				T = np.matmul(T, self.T(i, 0))
+			else:
+				T = np.matmul(T, self.T(i, theta[i-1]))
 
 		return T
+
+	def jacobian_flange_r_world(self, theta=None , joint = None ):
+
+		if(joint):
+			theta = list(joint)
+			theta =  [math.radians(j) for j in theta]
+
+		res = []
+
+		for j in range(1, self.n_dof+1):
+			T = np.identity(4)
+			for i in range(1, self.n_dof+1):
+				if i != j:
+					T = np.matmul(T, self.T(i, theta[i-1]))
+				else:
+					T = np.matmul(T, self.dT(i, theta[i-1]))
+
+			res.append(T)
+		return res
+
+
+	def recursive_inverse_kinematic(self, goal_matrix):
+
+		current_theta = [0,0,0,0,0,0]
+		scale = 1/2000
+		weight_matrix = np.matrix([[1,1,1,scale],
+									[1,1,1,scale],
+									[1,1,1,scale],
+									[1,1,1,1]])
+		for i in range(1000):
+			#print("step:",current_theta)
+			jacobian = self.jacobian_flange_r_world(theta = current_theta)
+			#if(i==0):
+			#	print(jacobian[0])
+			fw = self.t_flange_r_world(theta = current_theta)
+			delta = 0.001
+
+			for j in range(self.n_dof):
+				loss = np.sum(np.multiply(np.multiply(fw - goal_matrix, fw - goal_matrix), weight_matrix))
+				res = np.sum(np.multiply(np.multiply(fw - goal_matrix, jacobian[j]), weight_matrix))/np.sqrt(loss)
+				#print(loss)
+				current_theta[j] += -res * delta
+
+		return current_theta
+
+	def recursive_inverse_kinematic(self, goal_matrix):
+
+		current_theta = [0,0,0,0,0,0]
+		scale = 1/2000
+		weight_matrix = np.matrix([[1,1,1,scale],
+									[1,1,1,scale],
+									[1,1,1,scale],
+									[1,1,1,1]])
+		for i in range(1000):
+			#print("step:",current_theta)
+			jacobian = self.jacobian_flange_r_world(theta = current_theta)
+			#if(i==0):
+			#	print(jacobian[0])
+			fw = self.t_flange_r_world(theta = current_theta)
+			delta = 0.001
+
+			for j in range(self.n_dof):
+				loss = np.sum(np.multiply(np.multiply(fw - goal_matrix, fw - goal_matrix), weight_matrix))
+				res = np.sum(np.multiply(np.multiply(fw - goal_matrix, jacobian[j]), weight_matrix))/np.sqrt(loss)
+				#print(loss)
+				current_theta[j] += -res * delta
+
+		return current_theta
 
 	"""
 	joint values are given in radians
@@ -130,6 +236,30 @@ class Dof(DH):
 	"""
 
 	def inv_base(self, T_tcp_r_world, theta_current, all_sol):
+		sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6],T_tcp_r_world)
+		if all_sol:
+			return sol
+
+
+		if theta_current and len(sol)>0: 
+					best_sol_dist = 10000
+					best_sol_indx = 0
+					indx = 0
+					for s in sol:
+						dist = angle_space_distance(np.array(s)*180/math.pi , theta_current)
+						if dist < best_sol_dist:
+							best_sol_dist = dist
+							best_sol_indx = indx
+						indx  = indx + 1
+
+					if best_sol_dist < 5.0:
+						return [(np.array(sol[best_sol_indx])*180/math.pi).tolist()]
+					else:
+						return [theta_current]
+
+		return sol
+
+		"""
 		
 		rtn = []
 
@@ -197,7 +327,7 @@ class Dof(DH):
 				return [theta_current]
 
 		return rtn
-
+	"""
 	def theta_1(self, T_last_r0, t1=None):
 		if(self.n_dof == 6):
 			p5_0 = np.matmul(T_last_r0, [[0], [0], [-self.d[6]], [1]])
@@ -362,6 +492,13 @@ class Kinematic(Dof):
 			self.a = [0, 0 , 100.0, 300.0, 208.5, 0, 0]
 			self.d = [0, 309.7, 0, 0,  -133.1, 90.5, 9.707]
 
+		if self.model=="dorna_new":
+			self.n_dof = 6
+			self.alpha =  [0, math.pi/2, 0, math.pi/2, math.pi/2, math.pi/2, 0] 
+			self.delta = [0, 0, 0, math.pi/2, math.pi, math.pi,0]
+			self.a = [0  , 1.0, 1.0, 0 , 0 ,  0,0]
+			self.d = [1.0, 0,  0   , -1, 1,1,1]
+
 		self.cf_test.calculate_alpha_delta(self.n_dof)
 
 	def joint_to_theta(self, joint):
@@ -407,9 +544,6 @@ class Kinematic(Dof):
 		xyzabc[2] = xyzabc[2]
 
 
-
-
-
 		T_tcp_r_world = np.matrix([
 			[rot[0,0], rot[0,1], rot[0,2], xyzabc[0]],
 			[rot[1,0], rot[1,1], rot[1,2], xyzabc[1]],
@@ -437,23 +571,37 @@ class Kinematic(Dof):
 		return joint_all
 
 def main_dorna_c():
-	thr = 0.001
 
+	thr = 0.001
 	
-	knmtc = Kinematic("dorna_2s")
+	knmtc = Kinematic("dorna_new")
 	for i in range(1):
 		
 		flag = True
 		
-		joint = [0,-10,-10,-70,-60,24]
-		print("in:",joint)
-		dist_list = []
-		xyzabg = [322.6,10,-13.7,-90,0,0]#knmtc.fw(joint)
-		print("xyzabg: ",xyzabg)
-		joint_all = knmtc.inv(xyzabg, all_sol=False)
-		print("final sol:",joint_all)
-		xyz_final = knmtc.fw(joint_all[0])
-		print("final xyz:",xyz_final)
+		joint = [0.1,0.1 ,-0.1,0.1,0.1,0.0]
+		
+		print("in: ",joint)
+
+		fw = knmtc.t_flange_r_world(theta = joint)
+		#print("desired matrix:",fw)
+		#a2,a3,d1,d4,d5,d6,d7
+		#ik_result = ik(knmtc.a[1],knmtc.a[2],knmtc.d[0],-knmtc.d[3],knmtc.d[4],knmtc.d[5],knmtc.d[6], fw.tolist())
+
+		ik_result = knmtc.inv_base(fw.tolist(), (np.array(joint)*180/math.pi).tolist() , True)
+		print(ik_result)
+		#for j in ik_result:
+		#	print(knmtc.t_flange_r_world(theta = j))
+		#res = #knmtc.recursive_inverse_kinematic(fw)
+		#res = knmtc.R6_ik(fw)
+
+		#print("out: ", res)
+		#print("Acquired matrix: ", knmtc.t_flange_r_world(theta = res))
+		#end_time = time.time( )
+
+		# Calculate the elapsed time
+
+
 
 
 if __name__ == '__main__':
