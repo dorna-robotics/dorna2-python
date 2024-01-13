@@ -63,7 +63,6 @@ def det_m(g):
 	return result[0][0]
 
 def ik(a2,a3,d1,d4,d5,d6,d7,mat):
-	print(mat)
 	#name the input
 	f11=mat[0,0]
 	f12=mat[0,1]
@@ -81,7 +80,10 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 	f34=mat[2,3]
 
 	#find the matrix and make a copy of it for later
-	g = sigma_matrix(a2,a3,d1,d4,d5,d6,d7,f13,f23,f33,f14,f24,f34)
+	try:
+		g = sigma_matrix(a2,a3,d1,d4,d5,d6,d7,f13,f23,f33,f14,f24,f34)
+	except:
+		print("divison by zero")
 	original_g = copy_matrix(g)
 
 	#find the 16th order determinant polynomial
@@ -90,10 +92,10 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 	
 	for x3 in range(-8,9):
 		v = x3/4
-		det_v = -det_m(matrix_evaluated(g,v))/(1+v**2)**4
+		#det_v = -det_m(matrix_evaluated(g,v))/(1+v**2)**4
+		det_v = np.linalg.det(matrix_evaluated(g,v))/(1+v**2)**4
 		res.append([det_v] )
-		#if(v==0):
-		#	print("hiiii:",det_v)
+		
 		poly_row = []
 		for i in range(17):
 			poly_row.append(math.pow(v,i))
@@ -181,4 +183,4 @@ if __name__ == '__main__':
 			[0.25*(np.sqrt(2)-np.sqrt(6)),0,0.25*(np.sqrt(2)+np.sqrt(6)),0.25*(4+np.sqrt(2)*(3+np.sqrt(3)))],
 			[0,0,0,1]]
 	start_time = time.time()
-	ik(1,1,1,1,1,1,1,mat)
+	#ik(1,1,1,1,1,1,1,mat)

@@ -24,7 +24,7 @@ class CF(object):
 		self._update()
 
 		#robot dependant vairables
-		self.calculate_alpha_delta(ndof)
+		self.ndof = ndof
 
 	#Evaluates global matrix for self and all children, everytime local matrix has changed, 
 	def _update(self): 
@@ -37,14 +37,6 @@ class CF(object):
 		#call update function on all children
 		for child in self.children:
 			child._update()
-
-	def calculate_alpha_delta(self,ndof):
-		self.ndof = ndof
-		self.sum_alpha = np.pi/2 
-		self.delta = np.pi/2 if self.ndof==5 else np.pi  
-		self.ssa = math.sin(self.sum_alpha)
-		self.cd = math.cos(self.delta)
-		self.sd = math.sin(self.delta)
 
 
 	def set_parent(self,parent):
@@ -64,70 +56,50 @@ class CF(object):
 
 	def set_euler(self,ABC,mode='DORNA'):
 		if mode == 'DORNA':
-			ca = math.cos(ABC[0])
-			sa = math.sin(ABC[0])
+			c1 = math.cos(ABC[0])
+			s1 = math.sin(ABC[0])
 
-			cb = math.cos(ABC[1])
-			sb = math.sin(ABC[1])
+			c2 = math.cos(ABC[1])
+			s2 = math.sin(ABC[1])
 
-			cg = math.cos(ABC[2])
-			sg = math.sin(ABC[2])
+			c3 = math.cos(ABC[2])
+			s3 = math.sin(ABC[2])
 
-			ssa = self.ssa
-			cd = self.cd
-			sd = self.sd
+
 			self.local_matrix =  np.matrix([
-				[-sa*sb*(cd*ssa*sg+cg*sd)+cb*(cg*cd-ssa*sg*sd),
-				cg*(-cd*sb-cb*sa*sd)+ssa*sg*(-cb*cd*sa+sb*sd),
-				ca*(cd*ssa*sg+cg*sd), self.local_matrix[0,3]],
-				[cg*ssa*(cd*sa*sb+cb*sd)+sg*(cb*cd-sa*sb*sd),
-				-sb*(cd*sg+cg*ssa*sd)-cb*sa*(-cg*cd*ssa+sg*sd),
-				ca*(-cg*cd*ssa+sg*sd), self.local_matrix[1,3]],
-				[ca*ssa*sb,
-				ca*cb*ssa,
-				ssa*sa,self.local_matrix[2,3]],
+				[c2*c1 , s3*s2*c1 - c3*s1 , c3*s2*c1 + s3*s1, self.local_matrix[0,3]],
+				[c2*s1 , s3*s2*s1 + c3*c1 , c3*s2*s1 - s3*c1, self.local_matrix[1,3]],
+				[-s2 , s3*c2 , c3*c2,self.local_matrix[2,3]],
 				[0,0,0,1]])
 
 
 	def get_euler(self,mode='DORNA'):
-		if mode =='DORNA':
+		#if mode =='DORNA':
+		rot = self.local_matrix
 
-			thr = 0.0001
+		a=0
+		b=0
+		c=0
 
-			sgn = 1.0
+		if(1.-abs(rot[2,0])>0.0001):
+			b = -np.arcsin(rot[2,0])
 
-			ssa = self.ssa
-			cd = self.cd
-			sd = self.sd
-			rot = self.local_matrix
+			c = np.arctan2(rot[2,1]/np.cos(b) , rot[2,2]/np.cos(b))
 
-			sa = rot[2,2]*ssa
-			ca = sgn * math.sqrt(1.0 - sa*sa)
-
-			A = math.atan2(sa,ca)
-			B = 0.0
-			C = 0.0
-
-
-			if abs(ca)>thr:
-
-				sb = ssa*rot[2,0]/ca
-				cb = ssa*rot[2,1]/ca
-				B = math.atan2(sb,cb)
-
-				sc =(rot[0,2]*cd*ssa+rot[1,2]*sd)/ca
-				cc = (sd*rot[0,2]-rot[1,2]*cd*ssa) /ca
-				
-				C = math.atan2(sc,cc)
-
+			a = np.arctan2(rot[1,0]/np.cos(b) , rot[0,0]/np.cos(b))
+		else:
+			a = 0
+			if rot[2,0]<0 :
+				b = np.pi/2
+				c = a + np.arctan2(rot[0,1],rot[0,2])
+			
 			else:
+				b = -np.pi/2
+				c = -a + np.arctan2(-rot[0,1],-rot[0,2])				
 
-				sb = - ssa*(rot[1,0]*cd*sa + rot[1,1]*sd)
-				cb = ssa*(-rot[1,1]*cd*sa + rot[1,0]*sd)
+		
+		return [a,b,c];
 
-				B = math.atan2(sb,cb)
-
-			return [A, B, C]
 
 	def set_quaternion(self,quad):
 

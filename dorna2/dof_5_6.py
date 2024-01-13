@@ -240,22 +240,19 @@ class Dof(DH):
 		if all_sol:
 			return sol
 
-
 		if theta_current and len(sol)>0: 
 					best_sol_dist = 10000
 					best_sol_indx = 0
 					indx = 0
 					for s in sol:
-						dist = angle_space_distance(np.array(s)*180/math.pi , theta_current)
+						dist = angle_space_distance(np.array(s) , np.array(theta_current))
 						if dist < best_sol_dist:
 							best_sol_dist = dist
 							best_sol_indx = indx
 						indx  = indx + 1
 
-					if best_sol_dist < 5.0:
-						return [(np.array(sol[best_sol_indx])*180/math.pi).tolist()]
-					else:
-						return [theta_current]
+					#if best_sol_dist < 100.0:
+					return [sol[best_sol_indx]]
 
 		return sol
 
@@ -496,10 +493,10 @@ class Kinematic(Dof):
 			self.n_dof = 6
 			self.alpha =  [0, math.pi/2, 0, math.pi/2, math.pi/2, math.pi/2, 0] 
 			self.delta = [0, 0, 0, math.pi/2, math.pi, math.pi,0]
-			self.a = [0  , 1.0, 1.0, 0 , 0 ,  0,0]
-			self.d = [1.0, 0,  0   , -1, 1,1,1]
+			self.a = [0  , 1.0, 1.9, 0 , 0 ,  0,0]
+			self.d = [1.5, 0,  0   , -0.7, 1,1,0.2]
 
-		self.cf_test.calculate_alpha_delta(self.n_dof)
+		self.cf_test.n_dof = self.n_dof
 
 	def joint_to_theta(self, joint):
 		theta = list(joint)
@@ -532,8 +529,9 @@ class Kinematic(Dof):
 		#print("inv call:",xyzabc)
 		ABC = [math.radians(t) for t in xyzabc[3:]]
 		
-		if(self.n_dof == 5 and not self.rail_on):
-			xyzabc[5] = math.atan2(xyzabc[1],xyzabc[0])
+
+		#if(self.n_dof == 5 and not self.rail_on):
+		#	xyzabc[5] = math.atan2(xyzabc[1],xyzabc[0])
 
 		self.cf_test.set_euler(ABC)
 		rot = self.cf_test.local_matrix 
@@ -561,7 +559,10 @@ class Kinematic(Dof):
 				if(self.n_dof==5):
 					theta_current[5] = theta_5
 
+		start_time = time.time()
 		theta_all = self.inv_base(T_tcp_r_world, theta_current=theta_current, all_sol=all_sol)
+		print("time: ",time.time() - start_time )
+
 		# all the solution
 		joint_all = [self.theta_to_joint(theta) for theta in theta_all ]
 		if(self.n_dof==5):
@@ -588,8 +589,11 @@ def main_dorna_c():
 		#a2,a3,d1,d4,d5,d6,d7
 		#ik_result = ik(knmtc.a[1],knmtc.a[2],knmtc.d[0],-knmtc.d[3],knmtc.d[4],knmtc.d[5],knmtc.d[6], fw.tolist())
 
+		start_time = time.time()
 		ik_result = knmtc.inv_base(fw.tolist(), (np.array(joint)*180/math.pi).tolist() , True)
-		print(ik_result)
+		print("time: ",time.time() - start_time )
+
+		#print(ik_result)
 		#for j in ik_result:
 		#	print(knmtc.t_flange_r_world(theta = j))
 		#res = #knmtc.recursive_inverse_kinematic(fw)
