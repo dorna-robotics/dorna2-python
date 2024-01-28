@@ -3,6 +3,7 @@ import time
 import math
 import random
 from dorna2.cf import CF
+#from cf import CF
 from dorna2.ik6r_2 import ik
 """
 Sources:
@@ -55,27 +56,18 @@ class DH(object):
 		self.rail_limit = [-100,200] #max and min value for rail joint
 		self.cf_test = CF(ndof = self.n_dof) 
 		self.rail_on = False
-		self.T_rail_r_world = np.identity(4) # world
-		self.T_tcp_r_flange = np.identity(4) # TCP
 
-	# Ti with respect to i-1 frame 
-	"""
-	def T(self, i, theta):
-		ct = np.cos(theta)
-		st = np.sin(theta)
-		ca = np.cos(self.alpha[i])
-		sa = np.sin(self.alpha[i])
-		cd = np.cos(self.delta[i])
-		sd = np.sin(self.delta[i])
 
-		result =  np.matrix([
-			[cd*ct, -cd*st, sd, 	self.a[i]*cd + self.d[i]*sd],
-			[ct*sa*sd+ca*st, ca*ct-sa*sd*st, -cd*sa,	self.a[i]*(sa*sd) + self.d[i]*(-cd*sa)],
-			[-ca*ct*sd + sa*st, ct*sa+ca*sd*st, cd*ca,	self.a[i]*(-ca*sd ) + self.d[i]*(cd*ca)],
-			[0, 0, 0, 1]])
+		self.set_frame_tcp(frame = np.identity(4), tcp = np.identity(4))
 
-		return result
-	"""
+	def set_frame_tcp(self, frame, tcp):
+		if frame is not None:
+			self.T_rail_r_world =  frame# base r world
+			self.inv_T_rail_r_world =  np.linalg.inv(self.T_rail_r_world)# base r world
+		if tcp is not None:
+			self.T_tcp_r_flange = tcp # TCP r flange
+			self.inv_T_tcp_r_flange = np.linalg.inv(self.T_tcp_r_flange) # TCP r flange		
+
 	def T(self, i, theta):
 		ct = np.cos(theta+self.delta[i])
 		st = np.sin(theta+self.delta[i])
@@ -172,59 +164,6 @@ class Dof(DH):
 			res.append(T)
 		return res
 
-
-	def recursive_inverse_kinematic(self, goal_matrix):
-
-		current_theta = [0,0,0,0,0,0]
-		scale = 1/2000
-		weight_matrix = np.matrix([[1,1,1,scale],
-									[1,1,1,scale],
-									[1,1,1,scale],
-									[1,1,1,1]])
-		for i in range(1000):
-			#print("step:",current_theta)
-			jacobian = self.jacobian_flange_r_world(theta = current_theta)
-			#if(i==0):
-			#	print(jacobian[0])
-			fw = self.t_flange_r_world(theta = current_theta)
-			delta = 0.001
-
-			for j in range(self.n_dof):
-				loss = np.sum(np.multiply(np.multiply(fw - goal_matrix, fw - goal_matrix), weight_matrix))
-				res = np.sum(np.multiply(np.multiply(fw - goal_matrix, jacobian[j]), weight_matrix))/np.sqrt(loss)
-				#print(loss)
-				current_theta[j] += -res * delta
-
-		return current_theta
-
-	def recursive_inverse_kinematic(self, goal_matrix):
-
-		current_theta = [0,0,0,0,0,0]
-		scale = 1/2000
-		weight_matrix = np.matrix([[1,1,1,scale],
-									[1,1,1,scale],
-									[1,1,1,scale],
-									[1,1,1,1]])
-		for i in range(1000):
-			#print("step:",current_theta)
-			jacobian = self.jacobian_flange_r_world(theta = current_theta)
-			#if(i==0):
-			#	print(jacobian[0])
-			fw = self.t_flange_r_world(theta = current_theta)
-			delta = 0.001
-
-			for j in range(self.n_dof):
-				loss = np.sum(np.multiply(np.multiply(fw - goal_matrix, fw - goal_matrix), weight_matrix))
-				res = np.sum(np.multiply(np.multiply(fw - goal_matrix, jacobian[j]), weight_matrix))/np.sqrt(loss)
-				#print(loss)
-				current_theta[j] += -res * delta
-
-		return current_theta
-
-	"""
-	joint values are given in radians
-	return T_tcp_r_base
-	"""
 	def fw_base(self, theta):			
 		T_flange_r_world = self.t_flange_r_world(theta)
 
@@ -251,80 +190,56 @@ class Dof(DH):
 							best_sol_indx = indx
 						indx  = indx + 1
 
-					#if best_sol_dist < 100.0:
-					return [sol[best_sol_indx]]
-
+					if best_sol_dist < 4.0:
+						return [sol[best_sol_indx]]
+					else:
+						return[theta_current]
 		return sol
 
-		"""
-		
-		rtn = []
 
-		T_current = np.identity(4)
+	def approach(self, T_tcp_r_world, theta_current):
+		current_tcp = np.matrix(self.t_flange_r_world(theta = theta_current))
+		current_xyz = np.array([current_tcp[0,3], current_tcp[1,3], current_tcp[2,3]])
+		current_quat = np.array(self.cf_test.mat_to_quat(current_tcp))
 
-		if(theta_current):
-			T_current = self.fw_base(theta_current)
+		goal_xyz = np.array([T_tcp_r_world[0,3], T_tcp_r_world[1,3], T_tcp_r_world[2,3]])
+		goal_quat = np.array(self.cf_test.mat_to_quat(T_tcp_r_world))
 
-		T_last_r0 = np.matmul(T_tcp_r_world, self.inv_dh(self.T_tcp_r_flange)) 
-		T_last_r0 = np.matmul(self.inv_dh(self.T_rail_r_world), T_last_r0)
+		max_approved_joint_distance = 0.5
 
-		self.cf_test.set_matrix(T_last_r0) #the placement of these two line of codes dependes on the definition of abc
-		abc = self.cf_test.get_euler()
-		#initialize theta_6
-		theta_6 = 0
-		if(theta_current):
-			if(len(theta_current)>5):
-				theta_6 = theta_current[5]
+		tcp = T_tcp_r_world
 
-		if self.n_dof == 5 and self.rail_on: #calculate rail joint value for the 5 axis robot
-			#calculation for base_rail_r_base[2] = 0 (only horizontal rail and d[4] = 0)
-			d = [T_last_r0[0,3], T_last_r0[1,3], 0] #horizontal displacement vector of IK point from base
-			v = self.rail_vec_r_base  
-			pz = [T_last_r0[0,2], T_last_r0[1,2], 0] #horizontal direction of Z_5
-			denominator = (dot(pz,pz)*dot(v,v) - dot(pz,v)**2 )
+		for i in range(10): #at most go 4 step to find a good goal position
 
-			if(abs(denominator) > self.thr):
-				theta_6 = (dot(d,v)*dot(pz,pz) - (dot(d,pz)*dot(pz,v)) ) / denominator
-				
-		theta_6 = max(min(theta_6, self.rail_limit[1]), self.rail_limit[0])
+			tcp = np.matmul(np.matmul(self.inv_T_rail_r_world, tcp), self.inv_T_tcp_r_flange)
 
-		T_last_r0[0,3] += - theta_6 * self.rail_vec_r_base [0]
-		T_last_r0[1,3] += - theta_6 * self.rail_vec_r_base [1]
-		T_last_r0[2,3] += - theta_6 * self.rail_vec_r_base [2]
+			sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], tcp)
 			
-
-		for theta_1 in self.theta_1(T_last_r0): # 2 x theta_1
-			for theta_5 in self.theta_5(T_last_r0, theta_1 , abc = abc): # 2 x theta_5
-
-				if self.n_dof == 6:
-					theta_6 = self.theta_6(T_last_r0, theta_1, theta_5, theta_current[5])
-
-				for theta_2_3_4 in self.theta_3_2_4(T_last_r0, theta_1, theta_5, theta_6): # 1 x theta_2, # 2 x theta_3, # 1 x theta_4
-					rtn.append([theta_1]+theta_2_3_4+[theta_5, theta_6])
-		
-		if all_sol:
-			return rtn
-
-		if theta_current and len(rtn)>0: 
-			best_sol_dist = 1000
+			#find nearest sol
+			best_sol_dist = 10000
 			best_sol_indx = 0
 			indx = 0
-			for sol in rtn:
-				dist = angle_space_distance(sol,theta_current)
+			for s in sol:
+				dist = angle_space_distance(np.array(s) , np.array(theta_current))
 				if dist < best_sol_dist:
 					best_sol_dist = dist
 					best_sol_indx = indx
 				indx  = indx + 1
 
+			if best_sol_dist < max_approved_joint_distance:
+				return [sol[best_sol_indx]]
+			
+
+			t = max(0.5 , max_approved_joint_distance / best_sol_dist)
+			
+			goal_xyz = current_xyz + (goal_xyz - current_xyz) * t
+			goal_quat = self.cf_test.quat_slerp(current_quat, goal_quat, t)
+
+			tcp = self.cf_test.quat_xyz_to_mat(goal_quat, goal_xyz)
 
 
-			if best_sol_dist < 5.0:
-				return [rtn[best_sol_indx]]
-			else:
-				return [theta_current]
+		return [theta_current]
 
-		return rtn
-	"""
 	def theta_1(self, T_last_r0, t1=None):
 		if(self.n_dof == 6):
 			p5_0 = np.matmul(T_last_r0, [[0], [0], [-self.d[6]], [1]])
@@ -484,13 +399,6 @@ class Kinematic(Dof):
 
 		if self.model=="dorna_3":
 			self.n_dof = 6
-			self.alpha = [0, 0, math.pi/2, 0, 0, 0, 0] 
-			self.delta = [0, 0, 0, 0, 0, math.pi/2, math.pi/2] 
-			self.a = [0, 0 , 100.0, 300.0, 208.5, 0, 0]
-			self.d = [0, 309.7, 0, 0,  -133.1, 90.5, 9.707]
-
-		if self.model=="dorna_new":
-			self.n_dof = 6
 			self.alpha =  [0, math.pi/2, 0, math.pi/2, math.pi/2, math.pi/2, 0] 
 			self.delta = [0, 0, 0, math.pi/2, math.pi, math.pi,0]
 			self.a = [0  , 1.0, 1.9, 0 , 0 ,  0,0]
@@ -515,7 +423,8 @@ class Kinematic(Dof):
 
 		# fw result
 		fw = self.fw_base(_theta)
-		# abg
+		
+		#fw = np.matmul(self.T_rail_r_world , fw)
 
 		self.cf_test.set_matrix(fw)
 		abc = self.cf_test.get_euler()
@@ -559,9 +468,12 @@ class Kinematic(Dof):
 				if(self.n_dof==5):
 					theta_current[5] = theta_5
 
-		start_time = time.time()
-		theta_all = self.inv_base(T_tcp_r_world, theta_current=theta_current, all_sol=all_sol)
-		print("time: ",time.time() - start_time )
+		#start_time = time.time()
+		#theta_all = self.inv_base(T_tcp_r_world, theta_current=theta_current, all_sol=all_sol)
+		theta_all = self.approach(np.array(T_tcp_r_world), theta_current=theta_current)
+	
+
+		#print("time: ",time.time() - start_time )
 
 		# all the solution
 		joint_all = [self.theta_to_joint(theta) for theta in theta_all ]
@@ -575,7 +487,7 @@ def main_dorna_c():
 
 	thr = 0.001
 	
-	knmtc = Kinematic("dorna_new")
+	knmtc = Kinematic("dorna_3")
 	for i in range(1):
 		
 		flag = True
@@ -584,15 +496,16 @@ def main_dorna_c():
 		
 		print("in: ",joint)
 
-		fw = knmtc.t_flange_r_world(theta = joint)
+		#fw = knmtc.t_flange_r_world(theta = joint)
 		#print("desired matrix:",fw)
 		#a2,a3,d1,d4,d5,d6,d7
 		#ik_result = ik(knmtc.a[1],knmtc.a[2],knmtc.d[0],-knmtc.d[3],knmtc.d[4],knmtc.d[5],knmtc.d[6], fw.tolist())
 
-		start_time = time.time()
-		ik_result = knmtc.inv_base(fw.tolist(), (np.array(joint)*180/math.pi).tolist() , True)
-		print("time: ",time.time() - start_time )
-
+		#start_time = time.time()
+		#ik_result = knmtc.inv_base(fw.tolist(), (np.array(joint)*180/math.pi).tolist() , True)
+		#print("time: ",time.time() - start_time )
+		result = knmtc.cf_test.mat_to_quat(knmtc.cf_test.quat_to_mat([0.078, 0.185, 0.185,0.962]))
+		print(result)
 		#print(ik_result)
 		#for j in ik_result:
 		#	print(knmtc.t_flange_r_world(theta = j))

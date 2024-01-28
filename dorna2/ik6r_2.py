@@ -84,6 +84,7 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 		g = sigma_matrix(a2,a3,d1,d4,d5,d6,d7,f13,f23,f33,f14,f24,f34)
 	except:
 		print("divison by zero")
+		return []
 	original_g = copy_matrix(g)
 
 	#find the 16th order determinant polynomial
