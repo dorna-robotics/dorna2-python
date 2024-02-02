@@ -397,12 +397,12 @@ class Kinematic(Dof):
 			self.a = [0, 0 , 95.48, 203.2, 152.4, 0, 0]
 			self.d = [0, 206.4, 0, 0, 0,48.92, 0]
 
-		if self.model=="dorna_3":
+		if self.model=="dorna_ta":
 			self.n_dof = 6
 			self.alpha =  [0, math.pi/2, 0, math.pi/2, math.pi/2, math.pi/2, 0] 
 			self.delta = [0, 0, 0, math.pi/2, math.pi, math.pi,0]
-			self.a = [0  , 1.0, 1.9, 0 , 0 ,  0,0]
-			self.d = [1.5, 0,  0   , -0.7, 1,1,0.2]
+			self.a = [0  , 0.8 ,2.1, 0 , 0 ,  0,0]
+			self.d = [2.30324 , 0,  0   , 0.41794, 1.65001,-0.88999,0.3375]
 
 		self.cf_test.n_dof = self.n_dof
 
@@ -487,7 +487,7 @@ def main_dorna_c():
 
 	thr = 0.001
 	
-	knmtc = Kinematic("dorna_3")
+	knmtc = Kinematic("dorna_ta")
 	for i in range(1):
 		
 		flag = True
