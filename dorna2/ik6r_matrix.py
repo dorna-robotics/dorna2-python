@@ -1,8 +1,5 @@
 import numpy as np
 import math
-from dorna2.cf import CF
-from sympy.parsing.mathematica import mathematica
-from sympy import var
 from dorna2.poly import poly
 
 
