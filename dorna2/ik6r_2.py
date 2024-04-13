@@ -12,32 +12,6 @@ import time
 #The polynomial computation also takes inspiration from Gomez et al. "A faster algorithm for calculating the inverse kinematics of a general 6R manipulator for robot real time control"
 #The calculation of determinant algorithm is based on: Bird(2011) "A simple division-free algorithm for computing determinants"
 
-def matrix_multiply(A, B):#only works for our case
-    # Initialize result matrix with zeros
-	result = [[0 for _ in range(len(B[0]))] for _ in range(len(A))]
-
-	# Perform matrix multiplication
-	for i in range(len(A)):
-		for j in range(len(B[0])):
-			for k in range(i,len(B)):
-				result[i][j] += A[i][k] * B[k][j]
-
-	return result
-
-def mu_matrix(A):
-	result = [[0 for _ in range(len(A))] for _ in range(len(A))]
-	for i in range(len(A)):
-		for j in range(i+1,len(A)):
-				result[i][j] = A[i][j]
-
-	for k in range(1, len(A)):
-		m = len(A)-1-k
-		result[m][m] = result[m+1][m+1] + A[m+1][m+1]*(-1.0)
-
-	return result
-
-def FA(x,A):
-	return matrix_multiply(mu_matrix(x),A)
 
 def copy_matrix(s):
 	result = [[s[j][i] for i in range(len(s))] for j in range(len(s))]
@@ -55,12 +29,6 @@ def pstr(matrix):
 	for i in range(12):
 		print(str(matrix[i][0]) + "," + str(matrix[i][1]) + "," + str(matrix[i][2]) + "," + str(matrix[i][3]) + "," + str(matrix[i][4]) + "," + str(matrix[i][5]) + "," + str(matrix[i][6]) + "," + str(matrix[i][7]) + "," + str(matrix[i][8]) + "," + str(matrix[i][9]) + "," + str(matrix[i][10]) + "," + str(matrix[i][11]))
 
-def det_m(g):
-	result = copy_matrix(g)
-	for i in range(11):
-		result = FA(result, g)
-
-	return result[0][0]
 
 def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 	#name the input
