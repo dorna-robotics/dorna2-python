@@ -3,7 +3,9 @@ import time
 import math
 import random
 
-
+def clamp(num, min_value, max_value):
+        #num = max(min(num, max_value), min_value)
+        return num
 #Defining the class for Coordinate frames
 class CF(object): 
 	def __init__(self,parent_CF = None,local_matrix = None, ndof = 5):
@@ -187,7 +189,7 @@ class CF(object):
 		#t goes between [0,1]
 		dot_product = self.quat_dot_product(q1,q2)
 
-		theta = np.arccos(dot_product)
+		theta = np.arccos(clamp(dot_product,-1,1) )
 
 		sin1 = np.sin((1 - t) * theta);
 		sin2 = np.sin(t * theta);

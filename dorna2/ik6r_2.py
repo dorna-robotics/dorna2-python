@@ -1,6 +1,8 @@
 import numpy as np
 import math
 from dorna2.cf import CF
+from sympy.parsing.mathematica import mathematica
+from sympy import var
 from dorna2.ik6r_matrix import sigma_matrix
 from dorna2.poly import poly
 import time
@@ -65,17 +67,25 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 	f11=mat[0,0]
 	f12=mat[0,1]
 	f13=mat[0,2]
-	f14=mat[0,3]
+	f14=mat[0,3]*10.0
 
 	f21=mat[1,0]
 	f22=mat[1,1]
 	f23=mat[1,2]
-	f24=mat[1,3]
+	f24=mat[1,3]*10.0
 
 	f31=mat[2,0]
 	f32=mat[2,1]
 	f33=mat[2,2]
-	f34=mat[2,3]
+	f34=mat[2,3]*10.0
+
+	a2 *= 10.0
+	a3 *= 10.0
+	d1 *= 10.0
+	d4 *= 10.0
+	d5 *= 10.0
+	d6 *= 10.0
+	d7 *= 10.0
 
 	#find the matrix and make a copy of it for later
 	try:
@@ -113,7 +123,6 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 	roots = np.roots(det.coefficients[::-1])
 	#print("roots : ", x3_list)
 	x3_list = roots.real[abs(roots.imag)<1e-5]
-
 	res = []
 	
 
@@ -133,6 +142,7 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 		#print("ff:",ff)
 		x5 = ff[10]
 		x4 = ff[8]
+
 		theta4 = 2*math.atan(x4)
 		theta5 = 2*math.atan(x5)
 		c3 = math.cos(theta3)
