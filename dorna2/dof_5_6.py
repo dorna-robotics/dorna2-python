@@ -3,8 +3,10 @@ import time
 import math
 import random
 from dorna2.cf import CF
-#from cf import CF
+#from cf import CF #use for local import
 from dorna2.ik6r_2 import ik
+#from ik6r_2 import ik  #use for local import
+
 """
 Sources:
 	http://rasmusan.blog.aau.dk/files/ur5_kinematics.pdf
@@ -205,7 +207,7 @@ class Dof(DH):
 		goal_xyz = np.array([T_tcp_r_world[0,3], T_tcp_r_world[1,3], T_tcp_r_world[2,3]])
 		goal_quat = np.array(self.cf_test.mat_to_quat(T_tcp_r_world))
 
-		max_approved_joint_distance = 0.5
+		max_approved_joint_distance = 0.03
 
 		tcp = T_tcp_r_world
 
@@ -226,12 +228,12 @@ class Dof(DH):
 					best_sol_indx = indx
 				indx  = indx + 1
 
+			
 			if best_sol_dist < max_approved_joint_distance:
 				return [sol[best_sol_indx]]
 			
 
-			t = max(0.5 , max_approved_joint_distance / best_sol_dist)
-			
+			t = max(0.2 , max_approved_joint_distance / best_sol_dist)
 			goal_xyz = current_xyz + (goal_xyz - current_xyz) * t
 			goal_quat = self.cf_test.quat_slerp(current_quat, goal_quat, t)
 
@@ -492,21 +494,21 @@ def main_dorna_c():
 		
 		flag = True
 		
-		joint = [0.1,0.1 ,-0.1,0.1,0.1,0.0]
+		joint = [1.,0.,1.5,0.9,0.4,0.3]
 		
 		print("in: ",joint)
 
-		#fw = knmtc.t_flange_r_world(theta = joint)
-		#print("desired matrix:",fw)
+		fw = knmtc.t_flange_r_world(theta = joint)
+		print("desired matrix:",fw)
 		#a2,a3,d1,d4,d5,d6,d7
 		#ik_result = ik(knmtc.a[1],knmtc.a[2],knmtc.d[0],-knmtc.d[3],knmtc.d[4],knmtc.d[5],knmtc.d[6], fw.tolist())
 
 		#start_time = time.time()
-		#ik_result = knmtc.inv_base(fw.tolist(), (np.array(joint)*180/math.pi).tolist() , True)
+		ik_result = knmtc.inv_base(fw, (np.array(joint)*180/math.pi).tolist() , True)
 		#print("time: ",time.time() - start_time )
-		result = knmtc.cf_test.mat_to_quat(knmtc.cf_test.quat_to_mat([0.078, 0.185, 0.185,0.962]))
-		print(result)
-		#print(ik_result)
+		#result = knmtc.cf_test.mat_to_quat(knmtc.cf_test.quat_to_mat([0.078, 0.185, 0.185,0.962]))
+		#print(result)
+		print(ik_result)
 		#for j in ik_result:
 		#	print(knmtc.t_flange_r_world(theta = j))
 		#res = #knmtc.recursive_inverse_kinematic(fw)
