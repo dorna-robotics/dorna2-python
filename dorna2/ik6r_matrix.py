@@ -1,12 +1,12 @@
-import numpy as np
-import math
 from dorna2.poly import poly
 
 
 
 def sigma_matrix(a2,a3,d1,d4,d5,d6,d7,f13,f23,f33,f14,f24,f34):#polynomials over x3
+
     den1 = (f14**2 + d7**2*(f13**2 + f23**2) + f24**2 - 2*d7*(f13*f14 + f23*f24))
     den2 = ((-f13)*f14 + d7*(f13**2 + f23**2) - f23*f24)
+
     return [
 [poly([0]), poly([0]), poly([0]), poly([(a2**2*(f14*f23 - f13*f24) - 2*a2*(d4 + d6)*den2 + (f14*f23 - f13*f24)*(-a3**2 + d1**2 - d4**2 - 2*a3*d5 - d5**2 - 2*d4*d6 - d6**2 + d7**2*f13**2 - 2*d7*f13*f14 + f14**2 + d7**2*f23**2 - 2*d7*f23*f24 + f24**2 + 2*d1*d7*f33 + d7**2*f33**2 - 
 2*d1*f34 - 2*d7*f33*f34 + f34**2))/(2*a2*den2), 0, (a2**2*(f14*f23 - f13*f24) - 2*a2*(d4 + d6)*den2 + 

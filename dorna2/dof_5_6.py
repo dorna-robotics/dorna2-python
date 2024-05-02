@@ -1,7 +1,4 @@
 import numpy as np
-import time
-import math
-import random
 from dorna2.cf import CF
 #from cf import CF #use for local import
 from dorna2.ik6r_2 import ik
@@ -29,10 +26,10 @@ def clamp(num, min_value, max_value):
 
 def d_theta(t1,t2):
 	dt = t2 - t1
-	while dt > math.pi:
-		dt = dt - 2 * math.pi
-	while dt < -math.pi:
-		dt = dt + 2 * math.pi
+	while dt > np.pi:
+		dt = dt - 2 * np.pi
+	while dt < -np.pi:
+		dt = dt + 2 * np.pi
 	return dt
 
 def angle_space_distance(s1 , s2):
@@ -129,7 +126,7 @@ class Dof(DH):
 
 		if(joint):
 			theta = list(joint)
-			theta =  [math.radians(j) for j in theta]
+			theta =  [np.radians(j) for j in theta]
 
 		T = self.T_rail_r_world.copy()
 
@@ -151,7 +148,7 @@ class Dof(DH):
 
 		if(joint):
 			theta = list(joint)
-			theta =  [math.radians(j) for j in theta]
+			theta =  [np.radians(j) for j in theta]
 
 		res = []
 
@@ -252,12 +249,12 @@ class Dof(DH):
 		p5y_0 = p5_0[1,0]
 		rtn = []
 		try:
-			alpha = math.asin(clamp(-self.d[4]/math.sqrt(p5x_0**2 + p5y_0**2), -1.0 , 1.0))
-			phi_1 = math.atan2(p5y_0, p5x_0)
+			alpha = np.asin(clamp(-self.d[4]/np.sqrt(p5x_0**2 + p5y_0**2), -1.0 , 1.0))
+			phi_1 = np.atan2(p5y_0, p5x_0)
 
-			rtn = [phi_1-alpha, phi_1+alpha-math.pi]
+			rtn = [phi_1-alpha, phi_1+alpha-np.pi]
 			if t1 != None:
-				if min(abs(t1-rtn[0]%(2*math.pi)), abs(t1-rtn[0]%(-2*math.pi))) > min(abs(t1-rtn[1]%(2*math.pi)), abs(t1-rtn[1]%(-2*math.pi))):
+				if min(abs(t1-rtn[0]%(2*np.pi)), abs(t1-rtn[0]%(-2*np.pi))) > min(abs(t1-rtn[1]%(2*np.pi)), abs(t1-rtn[1]%(-2*np.pi))):
 					rtn.pop(0)
 				else:
 					rtn.pop(1)
@@ -272,7 +269,7 @@ class Dof(DH):
 		nom = T_last_r0[1,3]*np.cos(theta_1)-T_last_r0[0,3]*np.sin(theta_1)+self.d[4]
 		rtn = []
 		try:
-			phi = math.acos(clamp(nom/self.d[6],-1.0,1.0))
+			phi = np.acos(clamp(nom/self.d[6],-1.0,1.0))
 			rtn = [phi, -phi]
 			
 			if t5 !=None:
@@ -291,17 +288,17 @@ class Dof(DH):
 		if(self.n_dof==5):
 			return 0
 
-		if abs(math.sin(theta_5)) < self.thr:
+		if abs(np.sin(theta_5)) < self.thr:
 			return theta_6_init
 
 		sgn_t_5 = 1.0
-		if math.sin(theta_5)<0:
+		if np.sin(theta_5)<0:
 			sgn_t_5 = -1.0
 
-		cos = sgn_t_5*(T_last_r0[0,1]*math.sin(theta_1) - T_last_r0[1,1]*math.cos(theta_1))#/(-math.sin(theta_5))
-		sin = sgn_t_5*(T_last_r0[0,0]*math.sin(theta_1) - T_last_r0[1,0]*math.cos(theta_1))#/(-math.sin(theta_5))
+		cos = sgn_t_5*(T_last_r0[0,1]*np.sin(theta_1) - T_last_r0[1,1]*np.cos(theta_1))#/(-np.sin(theta_5))
+		sin = sgn_t_5*(T_last_r0[0,0]*np.sin(theta_1) - T_last_r0[1,0]*np.cos(theta_1))#/(-np.sin(theta_5))
 		
-		res = math.atan2(sin, cos)
+		res = np.atan2(sin, cos)
 
 		return res
 
@@ -324,8 +321,8 @@ class Dof(DH):
 
 		try:
 			# theta 3
-			p4xz_norm = math.sqrt(p4z**2+(p4x-self.a[2])**2)
-			t_3 = math.acos(clamp((p4xz_norm**2 - self.a[3]**2 - self.a[4]**2)/(2*self.a[3]*self.a[4]),-1.0,1.0))
+			p4xz_norm = np.sqrt(p4z**2+(p4x-self.a[2])**2)
+			t_3 = np.acos(clamp((p4xz_norm**2 - self.a[3]**2 - self.a[4]**2)/(2*self.a[3]*self.a[4]),-1.0,1.0))
 
 			t_3_list = [t_3, -t_3]
 			
@@ -337,23 +334,23 @@ class Dof(DH):
 			for theta_3 in t_3_list:
 				try:
 					# theta 2
-					phi_3 = math.pi - theta_3
-					phi_1 = math.atan2(p4z, (p4x-self.a[2]))
-					phi_2 = math.asin(clamp(self.a[4]*math.sin(phi_3)/math.sqrt(p4z**2+(p4x-self.a[2])**2),-1.0,1.0))
+					phi_3 = np.pi - theta_3
+					phi_1 = np.atan2(p4z, (p4x-self.a[2]))
+					phi_2 = np.asin(clamp(self.a[4]*np.sin(phi_3)/np.sqrt(p4z**2+(p4x-self.a[2])**2),-1.0,1.0))
 					theta_2 = phi_1 - phi_2
 
 					# theta_4
 					T_f3_r2 = self.T(3, theta_3)
 					T_f2_r1 = self.T(2, theta_2)
 
-					#print("(",theta_1*180/math.pi,",",theta_2*180/math.pi,",",theta_3*180/math.pi,") INV T4-1:", T_f4_r1 )
+					#print("(",theta_1*180/np.pi,",",theta_2*180/np.pi,",",theta_3*180/np.pi,") INV T4-1:", T_f4_r1 )
 					#print("INV T4-2:",np.matmul(self.inv_dh(T_f2_r1) , T_f4_r1 ))
 					T_f1_r3 = np.matmul(self.inv_dh(T_f3_r2), self.inv_dh(T_f2_r1))
 					T_f4_r3 = np.matmul(T_f1_r3, T_f4_r1)
 
 					#print("INV T4-3:",T_f4_r3)#np.matmul(T_f4_r1, self.inv_dh(T_f2_r1)))
 					
-					theta_4 = -math.atan2(T_f4_r3[0,1], T_f4_r3[0,0])
+					theta_4 = -np.atan2(T_f4_r3[0,1], T_f4_r3[0,0])
 					rtn.append([theta_2, theta_3, theta_4])
 				except Exception as ex:
 					pass
@@ -366,8 +363,8 @@ class Dof(DH):
 		return d - 360* (d > 180)
 
 	def adjust_radian(self, r):
-		r = r%(2*math.pi)
-		return r - (2*math.pi)*(r>math.pi)
+		r = r%(2*np.pi)
+		return r - (2*np.pi)*(r>np.pi)
 
 
 """
@@ -387,22 +384,22 @@ class Kinematic(Dof):
 
 		if self.model=="dorna_2s":
 			self.n_dof = 5 # number of degrees of freedom, choose between [5,6]
-			self.alpha = [0, 0, math.pi/2, 0, 0, 0, 0] 
-			self.delta = [0, 0, 0, 0, 0, math.pi/2, 0] 
+			self.alpha = [0, 0, np.pi/2, 0, 0, 0, 0] 
+			self.delta = [0, 0, 0, 0, 0, np.pi/2, 0] 
 			self.a = [0, 0 , 95.48, 203.2, 152.4, 0, 0]
 			self.d = [0, 218.47, 0, 0, 0,48.92, 0]
 			
 		if self.model=="dorna_2":
 			self.n_dof = 5 
-			self.alpha = [0, 0, math.pi/2, 0, 0, 0, 0] 
-			self.delta = [0, 0, 0, 0, 0, math.pi/2, 0] 
+			self.alpha = [0, 0, np.pi/2, 0, 0, 0, 0] 
+			self.delta = [0, 0, 0, 0, 0, np.pi/2, 0] 
 			self.a = [0, 0 , 95.48, 203.2, 152.4, 0, 0]
 			self.d = [0, 206.4, 0, 0, 0,48.92, 0]
 
 		if self.model=="dorna_ta":
 			self.n_dof = 6
-			self.alpha =  [0, math.pi/2, 0, math.pi/2, math.pi/2, math.pi/2, 0] 
-			self.delta = [0, 0, 0, math.pi/2, math.pi, math.pi,0]
+			self.alpha =  [0, np.pi/2, 0, np.pi/2, np.pi/2, np.pi/2, 0] 
+			self.delta = [0, 0, 0, np.pi/2, np.pi, np.pi,0]
 			self.a = [0  , 0.8 ,2.1, 0 , 0 ,  0,0]
 			self.d = [2.30 , 0,  0   , 0.418, 1.7500,-0.89,0.35]
 
@@ -410,11 +407,11 @@ class Kinematic(Dof):
 
 	def joint_to_theta(self, joint):
 		theta = list(joint)
-		return [math.radians(j) for j in theta]
+		return [np.radians(j) for j in theta]
 
 
 	def theta_to_joint(self, theta):
-		joint = [math.degrees(t) for t in theta]
+		joint = [np.degrees(t) for t in theta]
 		return [self.adjust_degree(j) for j in joint]
 
 	def fw(self, joint):
@@ -430,7 +427,7 @@ class Kinematic(Dof):
 
 		self.cf_test.set_matrix(fw)
 		abc = self.cf_test.get_euler()
-		abc = [math.degrees(r) for r in abc]
+		abc = [np.degrees(r) for r in abc]
 
 		#give different result: fw, fw can later be changed to pos + abg
 		return [fw[0,3], fw[1,3], fw[2,3]] + abc
@@ -438,16 +435,16 @@ class Kinematic(Dof):
 
 	def inv(self, xyzabc, joint_current=[0,0,0,0,0,0], all_sol=True): #xyzabg
 		#print("inv call:",xyzabc)
-		ABC = [math.radians(t) for t in xyzabc[3:]]
+		ABC = [np.radians(t) for t in xyzabc[3:]]
 		
 
 		#if(self.n_dof == 5 and not self.rail_on):
-		#	xyzabc[5] = math.atan2(xyzabc[1],xyzabc[0])
+		#	xyzabc[5] = np.atan2(xyzabc[1],xyzabc[0])
 
 		self.cf_test.set_euler(ABC)
 		rot = self.cf_test.local_matrix 
 		#print("rot mat:",rot)
-		#print("abc:",[ABC[0]*180/math.pi,ABC[1]*180/math.pi,ABC[2]*180/math.pi])
+		#print("abc:",[ABC[0]*180/np.pi,ABC[1]*180/np.pi,ABC[2]*180/np.pi])
 		xyzabc[0] = xyzabc[0]
 		xyzabc[1] = xyzabc[1]
 		xyzabc[2] = xyzabc[2]
@@ -504,7 +501,7 @@ def main_dorna_c():
 		#ik_result = ik(knmtc.a[1],knmtc.a[2],knmtc.d[0],-knmtc.d[3],knmtc.d[4],knmtc.d[5],knmtc.d[6], fw.tolist())
 
 		#start_time = time.time()
-		ik_result = knmtc.inv_base(fw, (np.array(joint)*180/math.pi).tolist() , True)
+		ik_result = knmtc.inv_base(fw, (np.array(joint)*180/np.pi).tolist() , True)
 		#print("time: ",time.time() - start_time )
 		#result = knmtc.cf_test.mat_to_quat(knmtc.cf_test.quat_to_mat([0.078, 0.185, 0.185,0.962]))
 		#print(result)
