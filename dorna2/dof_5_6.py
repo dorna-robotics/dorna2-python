@@ -404,7 +404,7 @@ class Kinematic(Dof):
 			self.alpha =  [0, math.pi/2, 0, math.pi/2, math.pi/2, math.pi/2, 0] 
 			self.delta = [0, 0, 0, math.pi/2, math.pi, math.pi,0]
 			self.a = [0  , 0.8 ,2.1, 0 , 0 ,  0,0]
-			self.d = [2.30324 , 0,  0   , 0.41794, 1.65001,-0.88999,0.3375]
+			self.d = [2.30 , 0,  0   , 0.418, 1.7500,-0.89,0.35]
 
 		self.cf_test.n_dof = self.n_dof
 
