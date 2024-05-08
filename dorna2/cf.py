@@ -56,51 +56,15 @@ class CF(object):
 		self.mat[3,4] = vec[3]
 		self._update()
 
-	def set_euler(self,ABC,mode='DORNA'):
-		if mode == 'DORNA':
-			c1 = math.cos(ABC[0])
-			s1 = math.sin(ABC[0])
-
-			c2 = math.cos(ABC[1])
-			s2 = math.sin(ABC[1])
-
-			c3 = math.cos(ABC[2])
-			s3 = math.sin(ABC[2])
+	def set_euler(self,ABC):
+		self.local_matrix =  self.xyzabc_to_mat([self.local_matrix[0,3], self.local_matrix[1,3], self.local_matrix[2,3],
+			ABC[0] , ABC[1], ABC[2] ]) 
 
 
-			self.local_matrix =  np.matrix([
-				[c2*c1 , s3*s2*c1 - c3*s1 , c3*s2*c1 + s3*s1, self.local_matrix[0,3]],
-				[c2*s1 , s3*s2*s1 + c3*c1 , c3*s2*s1 - s3*c1, self.local_matrix[1,3]],
-				[-s2 , s3*c2 , c3*c2,self.local_matrix[2,3]],
-				[0,0,0,1]])
-
-
-	def get_euler(self,mode='DORNA'):
-		#if mode =='DORNA':
-		rot = self.local_matrix
-
-		a=0
-		b=0
-		c=0
-
-		if(1.-abs(rot[2,0])>0.0001):
-			b = -np.arcsin(rot[2,0])
-
-			c = np.arctan2(rot[2,1]/np.cos(b) , rot[2,2]/np.cos(b))
-
-			a = np.arctan2(rot[1,0]/np.cos(b) , rot[0,0]/np.cos(b))
-		else:
-			a = 0
-			if rot[2,0]<0 :
-				b = np.pi/2
-				c = a + np.arctan2(rot[0,1],rot[0,2])
-			
-			else:
-				b = -np.pi/2
-				c = -a + np.arctan2(-rot[0,1],-rot[0,2])				
-
+	def get_euler(self):
+		xyzabc = self.mat_to_xyzabc(self.local_matrix)
 		
-		return [a,b,c];
+		return [xyzabc[3], xyzabc[4], xyzabc[5]]
 
 
 	def set_quaternion(self,quad):
@@ -218,7 +182,7 @@ class CF(object):
 		return [x,y,z,w]
 
 
-	def xyzabc_to_mat(self,xyzabc):
+	def xyzabc_to_mat(self, xyzabc):
 		c1 = math.cos(xyzabc[3])
 		s1 = math.sin(xyzabc[3])
 
@@ -228,9 +192,23 @@ class CF(object):
 		c3 = math.cos(xyzabc[5])
 		s3 = math.sin(xyzabc[5])
 
+		
+		#ZY'Z'' convention
 
-		return  np.matrix([
-			[c2*c1 , s3*s2*c1 - c3*s1 , c3*s2*c1 + s3*s1, xyzabc[0]],
-			[c2*s1 , s3*s2*s1 + c3*c1 , c3*s2*s1 - s3*c1, xyzabc[1]],
-			[-s2 , s3*c2 , c3*c2,						  xyzabc[2]],
-			[0,0,0,1]])
+		return  np.matrix( [
+				[c1*c2*c3 - s1*s3, -c3*s1 - c1*c2*s3, c1*s2, xyzabc[0]],
+				[c1*s3 + c2*c3*s1, c1*c3 - c2*s1*s3, s1*s2, xyzabc[1]] ,
+				[-c3*s2 , s2*s3, c2 , xyzabc[2]],
+				[0, 0, 0, 1 ]
+								])
+
+
+	def mat_to_xyzabc(self, matrix):
+		#ZY'Z'' convention
+		a = np.arctan2(matrix[1,2], matrix[0,2]);
+		b = np.arctan2(np.sqrt(1. - matrix[2,2] * matrix[2,2]), matrix[2,2]);
+		c = np.arctan2(matrix[2,1], -matrix[2,0]);
+
+		xyzabc = [matrix[0,3], matrix[1,3], matrix[2,3], a, b, c]
+
+		return xyzabc

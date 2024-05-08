@@ -41,7 +41,7 @@ def angle_space_distance(s1 , s2):
 def dot(a,b):
 	return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
 
-class DH(object):
+class DH(CF):
 	"""docstring for dh"""
 	def __init__(self):
 		super(DH, self).__init__()
@@ -53,7 +53,6 @@ class DH(object):
 		self.d = [0, 1, 0, 0,-1,1,1] #Translation of Ci with respect to C(i-1) along the z axis of Ci
 		self.rail_vec_r_base = [0,0,0]  #The vector that describes the motion of base on rail
 		self.rail_limit = [-100,200] #max and min value for rail joint
-		self.cf_test = CF(ndof = self.n_dof) 
 		self.rail_on = False
 
 
@@ -144,6 +143,23 @@ class Dof(DH):
 
 		return T
 
+	def Ti_r_world(self, theta=None , joint = None , i = 0): #joint is in degrees, theta is in radians
+
+		if(joint):
+			theta = list(joint)
+			theta =  [np.radians(j) for j in theta]
+
+		T = self.T_rail_r_world.copy()
+
+
+		for i in range(0, i+1):
+			if i==0:
+				T = np.matmul(T, self.T(i, 0))
+			else:
+				T = np.matmul(T, self.T(i, theta[i-1]))
+
+		return T
+
 	def jacobian_flange_r_world(self, theta=None , joint = None ):
 
 		if(joint):
@@ -199,10 +215,10 @@ class Dof(DH):
 	def approach(self, T_tcp_r_world, theta_current):
 		current_tcp = np.matrix(self.t_flange_r_world(theta = theta_current))
 		current_xyz = np.array([current_tcp[0,3], current_tcp[1,3], current_tcp[2,3]])
-		current_quat = np.array(self.cf_test.mat_to_quat(current_tcp))
+		current_quat = np.array(self.mat_to_quat(current_tcp))
 
 		goal_xyz = np.array([T_tcp_r_world[0,3], T_tcp_r_world[1,3], T_tcp_r_world[2,3]])
-		goal_quat = np.array(self.cf_test.mat_to_quat(T_tcp_r_world))
+		goal_quat = np.array(self.mat_to_quat(T_tcp_r_world))
 
 		max_approved_joint_distance = 0.03
 
@@ -232,9 +248,9 @@ class Dof(DH):
 
 			t = max(0.2 , max_approved_joint_distance / best_sol_dist)
 			goal_xyz = current_xyz + (goal_xyz - current_xyz) * t
-			goal_quat = self.cf_test.quat_slerp(current_quat, goal_quat, t)
+			goal_quat = self.quat_slerp(current_quat, goal_quat, t)
 
-			tcp = self.cf_test.quat_xyz_to_mat(goal_quat, goal_xyz)
+			tcp = self.quat_xyz_to_mat(goal_quat, goal_xyz)
 
 
 		return [theta_current]
@@ -403,7 +419,6 @@ class Kinematic(Dof):
 			self.a = [0  , 0.8 ,2.1, 0 , 0 ,  0,0]
 			self.d = [2.30 , 0,  0   , 0.418, 1.7500,-0.89,0.35]
 
-		self.cf_test.n_dof = self.n_dof
 
 	def joint_to_theta(self, joint):
 		theta = list(joint)
@@ -425,8 +440,8 @@ class Kinematic(Dof):
 		
 		#fw = np.matmul(self.T_rail_r_world , fw)
 
-		self.cf_test.set_matrix(fw)
-		abc = self.cf_test.get_euler()
+		self.set_matrix(fw)
+		abc = self.get_euler()
 		abc = [np.degrees(r) for r in abc]
 
 		#give different result: fw, fw can later be changed to pos + abg
@@ -441,8 +456,8 @@ class Kinematic(Dof):
 		#if(self.n_dof == 5 and not self.rail_on):
 		#	xyzabc[5] = np.atan2(xyzabc[1],xyzabc[0])
 
-		self.cf_test.set_euler(ABC)
-		rot = self.cf_test.local_matrix 
+		self.set_euler(ABC)
+		rot = self.local_matrix 
 		#print("rot mat:",rot)
 		#print("abc:",[ABC[0]*180/np.pi,ABC[1]*180/np.pi,ABC[2]*180/np.pi])
 		xyzabc[0] = xyzabc[0]
@@ -503,7 +518,7 @@ def main_dorna_c():
 		#start_time = time.time()
 		ik_result = knmtc.inv_base(fw, (np.array(joint)*180/np.pi).tolist() , True)
 		#print("time: ",time.time() - start_time )
-		#result = knmtc.cf_test.mat_to_quat(knmtc.cf_test.quat_to_mat([0.078, 0.185, 0.185,0.962]))
+		#result = knmtc.mat_to_quat(knmtc.quat_to_mat([0.078, 0.185, 0.185,0.962]))
 		#print(result)
 		print(ik_result)
 		#for j in ik_result:
@@ -524,3 +539,31 @@ if __name__ == '__main__':
 	#main_random()
 	#main_diagnose()
 	main_dorna_c()
+
+
+
+if __name__ == 'dorna_ta':
+
+	kinematic = Kinematic(model = "dorna_ta")
+
+	#matrix of the joint before the last (j4), respect to the world
+	mat = kinematic.Ti_r_world(i = 5, joint = [180,0,90,0,30,0])
+
+
+	#matrix to xyzabc 
+	xyzabc = kinematic.mat_to_xyzabc(mat)
+	b = xyzabc[4]
+
+
+	#Calculate object to world 
+
+	#Matrices: 
+	#			-object_to_camera
+	#			-camera_to_j4
+	#			-object_to_world
+
+	#code:
+
+	#j4_to_wolrd = np.matrix(kinematic.Ti_r_world(i = 5, joint = [j0,j1,j2,j3,j4,j5]))
+	#object_to_world = np.matmul(j4_to_wolrd, np.matmul(camera_to_j4, object_to_camera) )
+
