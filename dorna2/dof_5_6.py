@@ -149,14 +149,14 @@ class Dof(DH):
 			theta = list(joint)
 			theta =  [np.radians(j) for j in theta]
 
-		T = self.T_rail_r_world.copy()
+		T = np.eye(4)#self.T_rail_r_world.copy()
 
 
-		for i in range(0, i+1):
-			if i==0:
-				T = np.matmul(T, self.T(i, 0))
+		for j in range(0, i+1):
+			if j==0:
+				T = np.matmul(T, self.T(j, 0))
 			else:
-				T = np.matmul(T, self.T(i, theta[i-1]))
+				T = np.matmul(T, self.T(j, theta[j-1]))
 
 		return T
 
@@ -416,8 +416,8 @@ class Kinematic(Dof):
 			self.n_dof = 6
 			self.alpha =  [0, np.pi/2, 0, np.pi/2, np.pi/2, np.pi/2, 0] 
 			self.delta = [0, 0, 0, np.pi/2, np.pi, np.pi,0]
-			self.a = [0  , 0.8 ,2.1, 0 , 0 ,  0,0]
-			self.d = [2.30 , 0,  0   , 0.418, 1.7500,-0.89,0.35]
+			self.a = [0.0, 0.08*1000, 0.21*1000, 0.*1000, 0., 0., 0.]
+			self.d = [0.230 * 1000, 0., 0., 0.0418 * 1000, 0.17500 * 1000, -0.089 * 1000, 0.035 * 1000]
 
 
 	def joint_to_theta(self, joint):
