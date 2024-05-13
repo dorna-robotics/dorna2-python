@@ -540,30 +540,3 @@ if __name__ == '__main__':
 	#main_diagnose()
 	main_dorna_c()
 
-
-
-if __name__ == 'dorna_ta':
-
-	kinematic = Kinematic(model = "dorna_ta")
-
-	#matrix of the joint before the last (j4), respect to the world
-	mat = kinematic.Ti_r_world(i = 5, joint = [180,0,90,0,30,0])
-
-
-	#matrix to xyzabc 
-	xyzabc = kinematic.mat_to_xyzabc(mat)
-	b = xyzabc[4]
-
-
-	#Calculate object to world 
-
-	#Matrices: 
-	#			-object_to_camera
-	#			-camera_to_j4
-	#			-object_to_world
-
-	#code:
-
-	#j4_to_wolrd = np.matrix(kinematic.Ti_r_world(i = 5, joint = [j0,j1,j2,j3,j4,j5]))
-	#object_to_world = np.matmul(j4_to_wolrd, np.matmul(camera_to_j4, object_to_camera) )
-
