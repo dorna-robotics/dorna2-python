@@ -16,13 +16,14 @@ git clone https://github.com/dorna-robotics/dorna2-python.git
 Or simply download the [zip file](https://github.com/dorna-robotics/dorna2-python/archive/master.zip), and unzip the file.  
 
 ### Install
-Next, go to the downloaded directory, where the `setup.py` file is located, and run:
-```text
-python setup.py install --force
+Next, go to the downloaded directory, where the `requirements.txt` file is located, and run:
+```bash
+# install requirements
+pip install -r requirements.txt
 ```
-On UNIX systems you might need to use `sudo` prefix for admin privileges and installing the requirements. Depending on your Python setup environment, you might also call `python3` instead of `python`:
-```text
-sudo python3 setup.py install --force
+Finally
+```bash
+pip install . --upgrade --force-reinstall
 ```
 
 ### Getting Started
