@@ -190,7 +190,9 @@ class Dof(DH):
 	"""
 
 	def inv_base(self, T_tcp_r_world, theta_current, all_sol):
+
 		sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6],T_tcp_r_world)
+
 		if all_sol:
 			return sol
 
@@ -235,6 +237,7 @@ class Dof(DH):
 			best_sol_indx = 0
 			indx = 0
 			for s in sol:
+
 				dist = angle_space_distance(np.array(s) , np.array(theta_current))
 				if dist < best_sol_dist:
 					best_sol_dist = dist
@@ -484,7 +487,7 @@ class Kinematic(Dof):
 
 		#start_time = time.time()
 		#theta_all = self.inv_base(T_tcp_r_world, theta_current=theta_current, all_sol=all_sol)
-		theta_all = self.approach(np.array(T_tcp_r_world), theta_current=theta_current)
+		theta_all = self.inv_base(np.array(T_tcp_r_world), theta_current=theta_current, False)
 	
 
 		#print("time: ",time.time() - start_time )
