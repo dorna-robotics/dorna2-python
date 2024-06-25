@@ -451,7 +451,7 @@ class Kinematic(Dof):
 		return [fw[0,3], fw[1,3], fw[2,3]] + abc
 
 
-	def inv(self, xyzabc, joint_current=[0,0,0,0,0,0], all_sol=True): #xyzabg
+	def inv(self, xyzabc, joint_current=[0,0,0,0,0,0], all_sol=False): #xyzabg
 		#print("inv call:",xyzabc)
 		ABC = [np.radians(t) for t in xyzabc[3:]]
 		
@@ -487,7 +487,7 @@ class Kinematic(Dof):
 
 		#start_time = time.time()
 		#theta_all = self.inv_base(T_tcp_r_world, theta_current=theta_current, all_sol=all_sol)
-		theta_all = self.inv_base(np.array(T_tcp_r_world), theta_current=theta_current, False)
+		theta_all = self.inv_base(np.array(T_tcp_r_world), theta_current=theta_current, all_sol=all_sol)
 	
 
 		#print("time: ",time.time() - start_time )
