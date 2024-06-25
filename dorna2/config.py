@@ -3,7 +3,7 @@ config = {
         "ip": "localhost",
         "port": 443
     },
-    "cmd_init":["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid"],
+    "cmd_init":["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid", "tcp"],
     "pace":{
         "very_quick":{
             "rmove":{"vel": 0, "accel": 0, "jerk": 0},
