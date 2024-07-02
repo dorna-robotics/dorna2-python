@@ -250,10 +250,6 @@ class CF(object):
 		
 		theta = theta * 180 / np.pi
 
-		print(mat)
-		print(theta)
-		print([u[0]*theta , u[1]*theta, u[2]*theta])
-
 		return [u[0]*theta , u[1]*theta, u[2]*theta]
 
 
