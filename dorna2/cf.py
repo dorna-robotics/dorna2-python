@@ -212,3 +212,69 @@ class CF(object):
 		xyzabc = [matrix[0,3], matrix[1,3], matrix[2,3], a, b, c]
 
 		return xyzabc
+
+
+	def mat_to_axis_angle(self,mat):
+
+		trace =	mat[0,0] + 	mat[1,1] +	mat[2,2]
+
+		theta = np.arccos(clamp((trace - 1.) / 2.,-1.,1.) );
+
+
+		st = np.sin(theta);
+		ct = np.cos(theta);
+		
+		u = [0,0,0]
+
+		if (theta < 0.0000001):
+			return u
+		
+		if (np.pi - theta > 0.000001):
+			u[2] = (mat[1,0] - mat[0,1]) / st /2.
+			u[1] = (mat[0,2] - mat[2,0]) / st / 2.
+			u[0] = (mat[2,1] - mat[1,2]) / st / 2.
+		else:
+			theta = np.pi
+			u[0] = np.sqrt((mat[0, 0]+ 1.) / 2.);
+			u[1] = np.sqrt((mat[1, 1]+ 1.) / 2.);
+			u[2] = np.sqrt((mat[2, 2]+ 1.) / 2.);
+
+			c1 = mat[1, 0]
+			c2 = mat[2, 0]
+
+			if (c1 < 0.):
+				u[1] = -u[1]
+			
+			if (c2 < 0.) :
+				u[2] = -u[2]
+		
+		theta = theta * 180 / np.pi
+
+		print(mat)
+		print(theta)
+		print([u[0]*theta , u[1]*theta, u[2]*theta])
+
+		return [u[0]*theta , u[1]*theta, u[2]*theta]
+
+
+	def axis_angle_to_mat(self, u):
+
+		lu = np.sqrt(u[0] * u[0] + u[1] * u[1] + u[2] * u[2])
+
+		theta = np.pi / 180 * lu
+
+		ct = np.cos(theta)
+		st = np.sin(theta)
+
+
+		u[0] /= lu
+		u[1] /= lu
+		u[2] /= lu
+
+		mat = [
+		[ct + u[0]*u[0]*(1.-ct) , u[0]*u[1]*(1-ct) - u[2]*st, u[0]*u[2]*(1.-ct) + u[1]*st],
+		[u[1]*u[0]*(1.-ct) + u[2]*st , ct + u[1]*u[1]*(1.-ct) , u[1]*u[2]*(1.-ct) - u[0]*st] ,
+		[u[2]*u[0]*(1.-ct) - u[1]*st , u[2]*u[1]*(1.-ct)+u[0]*st , ct + u[2]*u[2]*(1.-ct)]
+		]
+
+		return np.matrix(mat)

@@ -34,9 +34,11 @@ def d_theta(t1,t2):
 
 def angle_space_distance(s1 , s2):
 	d = 0
+	#s1 = s1%(2*np.pi)
+	#s2 = s2%(2*np.pi)
 	for i in range(len(s1)):
-		d = d + d_theta(s1[i],s2[i])**2
-	return d
+		d = d + (s1[i]-s2[i])**2
+	return np.sqrt(d)
 
 def dot(a,b):
 	return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
@@ -193,24 +195,37 @@ class Dof(DH):
 
 		sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6],T_tcp_r_world)
 
+
+
 		if all_sol:
 			return sol
 
 		if theta_current and len(sol)>0: 
-					best_sol_dist = 10000
-					best_sol_indx = 0
-					indx = 0
-					for s in sol:
-						dist = angle_space_distance(np.array(s) , np.array(theta_current))
-						if dist < best_sol_dist:
-							best_sol_dist = dist
-							best_sol_indx = indx
-						indx  = indx + 1
 
-					if best_sol_dist < 4.0:
-						return [sol[best_sol_indx]]
-					else:
-						return[theta_current]
+				
+
+			best_sol_dist = 10000
+			best_sol = 0
+			indx = 0
+			for s in sol:
+				t = self.fw_base(theta=s)
+				mdist = np.sqrt(np.sum( np.array(t - T_tcp_r_world)**2))
+
+				if(mdist>0.01):
+					continue
+
+
+				dist = angle_space_distance(np.array(s) , np.array(theta_current))
+
+				if dist < best_sol_dist:
+					best_sol_dist = dist
+					best_sol = s
+
+			if best_sol_dist < 2.0:
+				return [best_sol]
+			else:
+				return[theta_current]
+
 		return sol
 
 
@@ -433,6 +448,7 @@ class Kinematic(Dof):
 		return [self.adjust_degree(j) for j in joint]
 
 	def fw(self, joint):
+
 		# adjust theta to dof
 		_theta = self.joint_to_theta(joint)
 		if self.n_dof == 5:
@@ -444,8 +460,9 @@ class Kinematic(Dof):
 		#fw = np.matmul(self.T_rail_r_world , fw)
 
 		self.set_matrix(fw)
-		abc = self.get_euler()
-		abc = [np.degrees(r) for r in abc]
+		#abc = self.get_euler()
+		abc = self.mat_to_axis_angle(fw)
+		#abc = [np.degrees(r) for r in abc]
 
 		#give different result: fw, fw can later be changed to pos + abg
 		return [fw[0,3], fw[1,3], fw[2,3]] + abc
@@ -453,14 +470,14 @@ class Kinematic(Dof):
 
 	def inv(self, xyzabc, joint_current=[0,0,0,0,0,0], all_sol=False): #xyzabg
 		#print("inv call:",xyzabc)
-		ABC = [np.radians(t) for t in xyzabc[3:]]
+		ABC = xyzabc[3:]
 		
 
 		#if(self.n_dof == 5 and not self.rail_on):
 		#	xyzabc[5] = np.atan2(xyzabc[1],xyzabc[0])
 
-		self.set_euler(ABC)
-		rot = self.local_matrix 
+		#self.set_euler(ABC)
+		rot = self.axis_angle_to_mat(ABC)
 		#print("rot mat:",rot)
 		#print("abc:",[ABC[0]*180/np.pi,ABC[1]*180/np.pi,ABC[2]*180/np.pi])
 		xyzabc[0] = xyzabc[0]
