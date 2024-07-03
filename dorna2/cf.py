@@ -4,7 +4,7 @@ import math
 import random
 
 def clamp(num, min_value, max_value):
-        #num = max(min(num, max_value), min_value)
+        num = max(min(num, max_value), min_value)
         return num
 #Defining the class for Coordinate frames
 class CF(object): 
@@ -235,9 +235,9 @@ class CF(object):
 			u[0] = (mat[2,1] - mat[1,2]) / st / 2.
 		else:
 			theta = np.pi
-			u[0] = np.sqrt((mat[0, 0]+ 1.) / 2.);
-			u[1] = np.sqrt((mat[1, 1]+ 1.) / 2.);
-			u[2] = np.sqrt((mat[2, 2]+ 1.) / 2.);
+			u[0] = np.sqrt(max(mat[0, 0]+ 1.,0.) / 2.);
+			u[1] = np.sqrt(max(mat[1, 1]+ 1.,0.) / 2.);
+			u[2] = np.sqrt(max(mat[2, 2]+ 1.,0.) / 2.);
 
 			c1 = mat[1, 0]
 			c2 = mat[2, 0]
@@ -262,15 +262,16 @@ class CF(object):
 		ct = np.cos(theta)
 		st = np.sin(theta)
 
-
-		u[0] /= lu
-		u[1] /= lu
-		u[2] /= lu
+		if lu>0.00001:
+			u[0] /= lu
+			u[1] /= lu
+			u[2] /= lu
 
 		mat = [
-		[ct + u[0]*u[0]*(1.-ct) , u[0]*u[1]*(1-ct) - u[2]*st, u[0]*u[2]*(1.-ct) + u[1]*st],
-		[u[1]*u[0]*(1.-ct) + u[2]*st , ct + u[1]*u[1]*(1.-ct) , u[1]*u[2]*(1.-ct) - u[0]*st] ,
-		[u[2]*u[0]*(1.-ct) - u[1]*st , u[2]*u[1]*(1.-ct)+u[0]*st , ct + u[2]*u[2]*(1.-ct)]
+		[ct + u[0]*u[0]*(1.-ct) , u[0]*u[1]*(1-ct) - u[2]*st, u[0]*u[2]*(1.-ct) + u[1]*st , 0],
+		[u[1]*u[0]*(1.-ct) + u[2]*st , ct + u[1]*u[1]*(1.-ct) , u[1]*u[2]*(1.-ct) - u[0]*st, 0] ,
+		[u[2]*u[0]*(1.-ct) - u[1]*st , u[2]*u[1]*(1.-ct)+u[0]*st , ct + u[2]*u[2]*(1.-ct),0],
+		[0,0,0,1]
 		]
 
 		return np.matrix(mat)
