@@ -195,6 +195,20 @@ class Dorna(WS):
         return self.sleep(0, timeout=timeout)
 
 
+    # similar to play script but the commands are given as a list of dictionaries
+    def play_list(self, list=[], timeout=-1):
+        try:
+            for l in list:
+                try:
+                    self.play(timeout=0, **l)
+                except Exception as ex:
+                    self.log(ex)
+        except Exception as ex:
+            self.log(ex)
+
+        return self.sleep(0, timeout=timeout)
+
+
     def play_json(self, cmd='{}', timeout=-1):
         return self.play(timeout=timeout, msg=cmd)
 
