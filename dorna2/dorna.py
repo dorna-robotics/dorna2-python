@@ -196,9 +196,9 @@ class Dorna(WS):
 
 
     # similar to play script but the commands are given as a list of dictionaries
-    def play_list(self, list=[], timeout=-1):
+    def play_list(self, cmd_list=[], timeout=-1):
         try:
-            for l in list:
+            for l in cmd_list:
                 try:
                     self.play(timeout=0, **l)
                 except Exception as ex:
