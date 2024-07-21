@@ -34,9 +34,11 @@ def d_theta(t1,t2):
 
 def angle_space_distance(s1 , s2):
 	d = 0
+	#s1 = s1%(2*np.pi)
+	#s2 = s2%(2*np.pi)
 	for i in range(len(s1)):
-		d = d + d_theta(s1[i],s2[i])**2
-	return d
+		d = d + (s1[i]-s2[i])**2
+	return np.sqrt(d)
 
 def dot(a,b):
 	return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
@@ -193,70 +195,101 @@ class Dof(DH):
 
 		sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6],T_tcp_r_world)
 
+
+
 		if all_sol:
 			return sol
 
 		if theta_current and len(sol)>0: 
-					best_sol_dist = 10000
-					best_sol_indx = 0
-					indx = 0
-					for s in sol:
-						dist = angle_space_distance(np.array(s) , np.array(theta_current))
-						if dist < best_sol_dist:
-							best_sol_dist = dist
-							best_sol_indx = indx
-						indx  = indx + 1
+			best_sol_dist = 10000
+			best_sol = 0
+			indx = 0
+			for s in sol:
+				t = self.fw_base(theta=s)
+				mdist = np.sqrt(np.sum( np.array(t - T_tcp_r_world)**2))
 
-					if best_sol_dist < 4.0:
-						return [sol[best_sol_indx]]
-					else:
-						return[theta_current]
+				if(mdist>0.01):
+					continue
+
+
+				dist = angle_space_distance(np.array(s) , np.array(theta_current))
+
+				if dist < best_sol_dist:
+					best_sol_dist = dist
+					best_sol = s
+
+			if best_sol_dist < 2.0:
+				return [best_sol]
+			else:
+				return[theta_current]
+
 		return sol
 
 
 	def approach(self, T_tcp_r_world, theta_current):
-		current_tcp = np.matrix(self.t_flange_r_world(theta = theta_current))
-		current_xyz = np.array([current_tcp[0,3], current_tcp[1,3], current_tcp[2,3]])
-		current_quat = np.array(self.mat_to_quat(current_tcp))
+		try: 
+			current_tcp = np.matrix(self.t_flange_r_world(theta = theta_current))
+			i_current_tcp = np.linalg.inv(current_tcp)
+			current_xyz = np.array([current_tcp[0,3], current_tcp[1,3], current_tcp[2,3]])
+			#current_quat = np.array(self.mat_to_quat(current_tcp))
+			current_aa = np.array(self.mat_to_axis_angle(current_tcp))
 
-		goal_xyz = np.array([T_tcp_r_world[0,3], T_tcp_r_world[1,3], T_tcp_r_world[2,3]])
-		goal_quat = np.array(self.mat_to_quat(T_tcp_r_world))
+			goal_xyz = np.array([T_tcp_r_world[0,3], T_tcp_r_world[1,3], T_tcp_r_world[2,3]])
+			#goal_quat = np.array(self.mat_to_quat(T_tcp_r_world))
+			goal_aa = np.array(self.mat_to_axis_angle(T_tcp_r_world))
 
-		max_approved_joint_distance = 0.03
+			max_approved_joint_distance = 1.0
 
-		tcp = T_tcp_r_world
+			tcp = T_tcp_r_world
 
-		for i in range(10): #at most go 4 step to find a good goal position
+			for i in range(10): #at most go 4 step to find a good goal position
 
-			tcp = np.matmul(np.matmul(self.inv_T_rail_r_world, tcp), self.inv_T_tcp_r_flange)
+				#tcp = np.matmul(np.matmul(self.inv_T_rail_r_world, tcp), self.inv_T_tcp_r_flange)
 
-			sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], tcp)
-			
-			#find nearest sol
-			best_sol_dist = 10000
-			best_sol_indx = 0
-			indx = 0
-			for s in sol:
+				sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], tcp)
+				
+				#find nearest sol
+				best_sol_dist = 10000
+				best_sol = []
+				for s in sol:
 
-				dist = angle_space_distance(np.array(s) , np.array(theta_current))
-				if dist < best_sol_dist:
-					best_sol_dist = dist
-					best_sol_indx = indx
-				indx  = indx + 1
+					t = self.fw_base(theta=s)
+					mdist = np.sqrt(np.sum( np.array(t - tcp)**2))
 
-			
-			if best_sol_dist < max_approved_joint_distance:
-				return [sol[best_sol_indx]]
-			
+					if(mdist>0.01):
+						continue
 
-			t = max(0.2 , max_approved_joint_distance / best_sol_dist)
-			goal_xyz = current_xyz + (goal_xyz - current_xyz) * t
-			goal_quat = self.quat_slerp(current_quat, goal_quat, t)
+					dist = angle_space_distance(np.array(s) , np.array(theta_current))
+					if dist < best_sol_dist and (s[2])*(theta_current[2]-0.05)>0:
+						best_sol_dist = dist
+						best_sol = s
 
-			tcp = self.quat_xyz_to_mat(goal_quat, goal_xyz)
+				if best_sol_dist < max_approved_joint_distance:
+					return [best_sol]
+				
+
+				t =  max(max_approved_joint_distance / best_sol_dist ,  0.2)
+				goal_xyz = current_xyz + (goal_xyz - current_xyz) * t
+				#goal_quat = self.quat_slerp(current_quat, goal_quat, t)
+				
+
+				#goal_aa = current_aa + (goal_aa - current_aa)*t
+
+				#tcp = self.quat_xyz_to_mat(goal_quat, goal_xyz)
+
+				iCG = np.matmul(i_current_tcp, tcp)
+				goal_aa = np.array(self.mat_to_axis_angle(iCG)) * t
 
 
-		return [theta_current]
+				tcp = np.matmul(current_tcp, self.axis_angle_to_mat(goal_aa))
+
+				tcp[0,3] = goal_xyz[0]
+				tcp[1,3] = goal_xyz[1]
+				tcp[2,3] = goal_xyz[2]
+
+			return [theta_current]
+		except:
+			return [theta_current]
 
 	def theta_1(self, T_last_r0, t1=None):
 		if(self.n_dof == 6):
@@ -433,6 +466,7 @@ class Kinematic(Dof):
 		return [self.adjust_degree(j) for j in joint]
 
 	def fw(self, joint):
+
 		# adjust theta to dof
 		_theta = self.joint_to_theta(joint)
 		if self.n_dof == 5:
@@ -444,8 +478,9 @@ class Kinematic(Dof):
 		#fw = np.matmul(self.T_rail_r_world , fw)
 
 		self.set_matrix(fw)
-		abc = self.get_euler()
-		abc = [np.degrees(r) for r in abc]
+		#abc = self.get_euler()
+		abc = self.mat_to_axis_angle(fw)
+		#abc = [np.degrees(r) for r in abc]
 
 		#give different result: fw, fw can later be changed to pos + abg
 		return [fw[0,3], fw[1,3], fw[2,3]] + abc
@@ -453,14 +488,17 @@ class Kinematic(Dof):
 
 	def inv(self, xyzabc, joint_current=[0,0,0,0,0,0], all_sol=False): #xyzabg
 		#print("inv call:",xyzabc)
-		ABC = [np.radians(t) for t in xyzabc[3:]]
+		ABC = xyzabc[3:]
 		
+		if(ABC[0]==None or ABC[1]==None or ABC[2]==None):
+			ABC =[0,0,0]
 
 		#if(self.n_dof == 5 and not self.rail_on):
 		#	xyzabc[5] = np.atan2(xyzabc[1],xyzabc[0])
 
-		self.set_euler(ABC)
-		rot = self.local_matrix 
+		#self.set_euler(ABC)
+
+		rot = self.axis_angle_to_mat(ABC)
 		#print("rot mat:",rot)
 		#print("abc:",[ABC[0]*180/np.pi,ABC[1]*180/np.pi,ABC[2]*180/np.pi])
 		xyzabc[0] = xyzabc[0]
@@ -487,8 +525,8 @@ class Kinematic(Dof):
 
 		#start_time = time.time()
 		#theta_all = self.inv_base(T_tcp_r_world, theta_current=theta_current, all_sol=all_sol)
-		theta_all = self.inv_base(np.array(T_tcp_r_world), theta_current=theta_current, all_sol=all_sol)
-	
+		#theta_all = self.inv_base(np.array(T_tcp_r_world), theta_current=theta_current, all_sol=all_sol)
+		theta_all = self.approach(np.array(T_tcp_r_world), theta_current=theta_current)
 
 		#print("time: ",time.time() - start_time )
 
