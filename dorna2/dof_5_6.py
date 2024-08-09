@@ -195,10 +195,18 @@ class Dof(DH):
 
 		sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6],T_tcp_r_world)
 
-
+		a_sol = []
 
 		if all_sol:
-			return sol
+			for s in sol:
+				t = self.fw_base(theta=s)
+				mdist = np.sqrt(np.sum( np.array(t - T_tcp_r_world)**2))
+				if(mdist>0.01):
+					continue
+
+				a_sol.append(s)
+				
+			return a_sol
 
 		if theta_current and len(sol)>0: 
 			best_sol_dist = 10000
@@ -207,7 +215,6 @@ class Dof(DH):
 			for s in sol:
 				t = self.fw_base(theta=s)
 				mdist = np.sqrt(np.sum( np.array(t - T_tcp_r_world)**2))
-
 				if(mdist>0.01):
 					continue
 
@@ -218,7 +225,7 @@ class Dof(DH):
 					best_sol_dist = dist
 					best_sol = s
 
-			if best_sol_dist < 2.0:
+			if best_sol_dist < 5.0:
 				return [best_sol]
 			else:
 				return[theta_current]
@@ -525,13 +532,13 @@ class Kinematic(Dof):
 
 		#start_time = time.time()
 		#theta_all = self.inv_base(T_tcp_r_world, theta_current=theta_current, all_sol=all_sol)
-		#theta_all = self.inv_base(np.array(T_tcp_r_world), theta_current=theta_current, all_sol=all_sol)
-		theta_all = self.approach(np.array(T_tcp_r_world), theta_current=theta_current)
+		theta_all = self.inv_base(np.array(T_tcp_r_world), theta_current=theta_current, all_sol=all_sol)
+		#theta_all = self.approach(np.array(T_tcp_r_world), theta_current=theta_current)
 
 		#print("time: ",time.time() - start_time )
 
 		# all the solution
-		joint_all = [self.theta_to_joint(theta) for theta in theta_all ]
+		joint_all = np.array([self.theta_to_joint(theta) for theta in theta_all ])
 		if(self.n_dof==5):
 			joint_all = [self.theta_to_joint(theta[:5]) + [theta[5]] for theta in theta_all ]
 		#print("resulting xyzabc:",self.fw(joint_all[0]))
@@ -551,28 +558,16 @@ def main_dorna_c():
 		
 		print("in: ",joint)
 
-		fw = knmtc.t_flange_r_world(theta = joint)
-		print("desired matrix:",fw)
-		#a2,a3,d1,d4,d5,d6,d7
-		#ik_result = ik(knmtc.a[1],knmtc.a[2],knmtc.d[0],-knmtc.d[3],knmtc.d[4],knmtc.d[5],knmtc.d[6], fw.tolist())
+		fw = knmtc.t_flange_r_world(joint = joint)
 
-		#start_time = time.time()
-		ik_result = knmtc.inv_base(fw, (np.array(joint)*180/np.pi).tolist() , True)
-		#print("time: ",time.time() - start_time )
-		#result = knmtc.mat_to_quat(knmtc.quat_to_mat([0.078, 0.185, 0.185,0.962]))
-		#print(result)
+		abc = knmtc.mat_to_axis_angle(fw)
+
+		xyzabc = np.array([fw[0,3],fw[1,3],fw[2,3],abc[0],abc[1],abc[2]])
+		print("desired xyzabc:",xyzabc)
+
+		ik_result = knmtc.inv(xyzabc, [1.1,0.,1.4,0.9,0.4,0.3], True)
+
 		print(ik_result)
-		#for j in ik_result:
-		#	print(knmtc.t_flange_r_world(theta = j))
-		#res = #knmtc.recursive_inverse_kinematic(fw)
-		#res = knmtc.R6_ik(fw)
-
-		#print("out: ", res)
-		#print("Acquired matrix: ", knmtc.t_flange_r_world(theta = res))
-		#end_time = time.time( )
-
-		# Calculate the elapsed time
-
 
 
 
