@@ -183,25 +183,13 @@ class CF(object):
 
 
 	def xyzabc_to_mat(self, xyzabc):
-		c1 = math.cos(xyzabc[3])
-		s1 = math.sin(xyzabc[3])
 
-		c2 = math.cos(xyzabc[4])
-		s2 = math.sin(xyzabc[4])
-
-		c3 = math.cos(xyzabc[5])
-		s3 = math.sin(xyzabc[5])
-
-		
-		#ZY'Z'' convention
-
-		return  np.matrix( [
-				[c1*c2*c3 - s1*s3, -c3*s1 - c1*c2*s3, c1*s2, xyzabc[0]],
-				[c1*s3 + c2*c3*s1, c1*c3 - c2*s1*s3, s1*s2, xyzabc[1]] ,
-				[-c3*s2 , s2*s3, c2 , xyzabc[2]],
-				[0, 0, 0, 1 ]
-								])
-
+		abc = [xyzabc[3], xyzabc[4], xyzabc[5]]
+		mat = self.axis_angle_to_mat(abc)
+		mat[0,3] = xyzabc[0]
+		mat[1,3] = xyzabc[1]
+		mat[2,3] = xyzabc[2]
+		return mat
 
 	def mat_to_xyzabc(self, matrix):
 		#ZY'Z'' convention
@@ -275,3 +263,42 @@ class CF(object):
 		]
 
 		return np.matrix(mat)
+
+	def get_X_axis(self, mat = None, xyzabc = None):
+
+		if xyzabc is not None:
+			mat = self.xyzabc_to_mat(xyzabc)
+		if mat is None:
+			return np.array([1.0,0.0,0.0])
+		x = np.array([0.0,0.0,0.0])
+		x[0] = mat[0,0]
+		x[1] = mat[1,0]
+		x[2] = mat[2,0]
+		return x
+
+	def get_Y_axis(self, mat = None, xyzabc = None):
+
+		if xyzabc is not None:
+			mat = self.xyzabc_to_mat(xyzabc)
+		if mat is None:
+			return np.array([0.0,1.0,0.0])
+
+		y = np.array([0.0,0.0,0.0])
+		y[0] = mat[0,1]
+		y[1] = mat[1,1]
+		y[2] = mat[2,1]
+
+		return y
+
+	def get_Z_axis(self, mat = None, xyzabc = None):
+		if xyzabc is not None :
+			mat = self.xyzabc_to_mat(xyzabc)
+		if mat is None :
+			return np.array([0.0,0.0,1.0])
+
+		z = np.array([0.0,0.0,0.0])
+		z[0] = mat[0,2]
+		z[1] = mat[1,2]
+		z[2] = mat[2,2]
+
+		return z

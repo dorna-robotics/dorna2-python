@@ -578,20 +578,25 @@ class Kinematic(Dof):
 		return joint_all
 
 def main_dorna_c():
-
-	thr = 0.001
 	
 	knmtc = Kinematic("dorna_ta")
+	knmtc.set_tcp_xyzabc([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
 	joint = [-4.262695, 28.234863, -104.282227, 0.32959, -15.952148, 91.560059]
 	print("initial joint: ", joint)
 	xyzabc = knmtc.fw(joint = joint)
-	xyzabc[0] -= 40 
-	xyzabc[1] += 30 
 
-	knmtc.set_tcp_xyzabc([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-	
-	print("xyzabc:",xyzabc)
+	###################tcp
+	x_axis = knmtc.get_X_axis(xyzabc = xyzabc)
+	y_axis = knmtc.get_Y_axis(xyzabc = xyzabc)
+	z_axis = knmtc.get_Z_axis(xyzabc = xyzabc)
+
+	translate = z_axis  * (-40) + x_axis * (30)
+
+	xyzabc[:3] = xyzabc[:3] + translate[:]
+	#####################
+
+	print("xyzabc:", xyzabc)
 
 	ik_result = knmtc.inv(xyzabc, joint, False, uncertainity_cone = {"num_samples" : 50, "cone_degree" : 1})
 
