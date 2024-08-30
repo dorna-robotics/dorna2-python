@@ -193,13 +193,11 @@ class CF(object):
 
 	def mat_to_xyzabc(self, matrix):
 		#ZY'Z'' convention
-		a = np.arctan2(matrix[1,2], matrix[0,2]);
-		b = np.arctan2(np.sqrt(1. - matrix[2,2] * matrix[2,2]), matrix[2,2]);
-		c = np.arctan2(matrix[2,1], -matrix[2,0]);
+		abc = self.mat_to_axis_angle(matrix)
 
-		xyzabc = [matrix[0,3], matrix[1,3], matrix[2,3], a, b, c]
+		xyzabc = [matrix[0,3], matrix[1,3], matrix[2,3], abc[0], abc[1], abc[2]]
 
-		return xyzabc
+		return np.array(xyzabc)
 
 
 	def mat_to_axis_angle(self,mat):

@@ -203,6 +203,7 @@ class Dof(DH):
 
 		goal_matrix = np.matmul(T_tcp_r_world, self.inv_T_tcp_r_flange)
 
+
 		if all_sol:
 
 			all_sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], goal_matrix)
@@ -218,6 +219,14 @@ class Dof(DH):
 			return approved_sol
 
 		if theta_current: 
+
+			initial_xyzabc = self.mat_to_xyzabc( self.t_flange_r_world(theta = theta_current))
+			goal_xyzabc = self.mat_to_xyzabc( goal_matrix)
+
+			joint_space_distance_treshold = np.sqrt(np.sum( np.array(initial_xyzabc - goal_xyzabc)**2)) / 50
+
+			#print("treshold ",joint_space_distance_treshold)
+
 			all_sol = []
 			if(uncertainity_cone==None):
 				new_sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], goal_matrix)
@@ -247,13 +256,24 @@ class Dof(DH):
 
 					new_sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], tmp_matrix)
 
+					no_need_to_continue = False
+
 					for s in new_sol:
 						t = self.t_flange_r_world(theta = s)
 						mdist = np.sqrt(np.sum( np.array(t - tmp_matrix)**2))
 						if(mdist>0.01):
 							continue
+
+						if(counter == 1):#check if first try has valid solutions
+							if angle_space_distance(np.array(s) , np.array(theta_current))<joint_space_distance_treshold:
+								no_need_to_continue = True
+
 						all_sol.append(s)
 
+					if no_need_to_continue:
+						break
+
+			#print("counter samples: ",counter)
 			best_sol_dist = 10000
 			best_sol = 0
 			indx = 0
@@ -271,7 +291,7 @@ class Dof(DH):
 					best_sol_dist = dist
 					best_sol = s
 
-			print("best sol dist: ", best_sol_dist)
+			#print("best sol dist: ", best_sol_dist)
 			if best_sol_dist < 5.0:
 				return [best_sol]
 			else:
@@ -587,11 +607,12 @@ def main_dorna_c():
 	xyzabc = knmtc.fw(joint = joint)
 
 	###################tcp
+
 	x_axis = knmtc.get_X_axis(xyzabc = xyzabc)
 	y_axis = knmtc.get_Y_axis(xyzabc = xyzabc)
 	z_axis = knmtc.get_Z_axis(xyzabc = xyzabc)
 
-	translate = z_axis  * (-40) + x_axis * (30)
+	translate = z_axis  * (-20)
 
 	xyzabc[:3] = xyzabc[:3] + translate[:]
 	#####################
