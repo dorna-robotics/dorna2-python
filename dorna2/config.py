@@ -5,9 +5,15 @@ config = {
     },
     "cmd_init":["alarm", "motor", "toollength", "input", "output", "pwm", "adc", "version", "uid", "tcp"],
     "pace":{
+        "max":{
+            "rmove":{"vel": 0, "accel": 0, "jerk": 0},
+            "jmove":{"vel": 150, "accel": 2000, "jerk": 4000},
+            "lmove":{"vel": 0, "accel": 0, "jerk": 0},
+            "cmove":{"vel": 0, "accel": 0, "jerk": 0}
+        },
         "very_quick":{
             "rmove":{"vel": 0, "accel": 0, "jerk": 0},
-            "jmove":{"vel": 0, "accel": 0, "jerk": 0},
+            "jmove":{"vel": 150, "accel": 2000, "jerk": 4000},
             "lmove":{"vel": 0, "accel": 0, "jerk": 0},
             "cmove":{"vel": 0, "accel": 0, "jerk": 0}
         },

@@ -3,6 +3,7 @@ import random
 import time
 from dorna2.ws import WS
 from dorna2.config import config
+from dorna2.dof_5_6 import Kinematic
 import logging
 import logging.handlers
 import copy
@@ -826,3 +827,147 @@ class Dorna(WS):
         self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
         return self._track_cmd_stat()
 
+
+    # run the full pick and drop routine
+    # start -> above_pick_pose -> pick -> output -> sleep -> pick_cmd_list -> above_pick_pose -> middle -> above_place_pose -> place -> output -> sleep -> place_cmd_list -> above_place_pose -> end
+    def pick_n_place(self, pick_pose, middle_pose, place_pose, end_pose, output, above=5, sleep=0.5, pick_cmd_lsit=[], place_cmd_lsit=[], tcp=[0, 0, 0, 0, 0, 0], model="dorna_ta", current_joint=None, motion="jmove", vaj=None, speed=0.5, uncertainity_cone = {"num_samples" : 50, "cone_degree" : 5}, cont=cont, corner=corner, timeout=-1):
+        # init
+        pick_pose = np.array(pick_pose)
+        above_pick_pose = pick_pose.copy()
+        middle_pose = np.array(middle_pose)
+        place_pose = np.array(place_pose)
+        above_place_pose = place_pose.copy()
+        end_pose = np.array(end_pose)
+
+        # kinematic
+        knmtc = Kinematic(model)
+
+        # tcp
+        knmtc.set_tcp_xyzabc(tcp)
+
+        # current joint
+        if current_joint is None:
+            current_joint = robot.get_all_joint()[0:6]
+
+        if vaj is None:
+            # adjust speed
+            speed = min(1, max(0, speed))
+            _vaj = list(self.config["pace"]["max"])
+
+        # above pick
+        above_pick_pose[:3] = above_pick_pose[:3] - knmtc.get_Z_axis(xyzabc=pick_pose) * above
+        
+        # above place
+        above_place_pose[:3] = above_place_pose[:3] - knmtc.get_Z_axis(xyzabc=place_pose) * above
+
+        # joint
+        above_pick_joint = knmtc.inv(above_pick_pose, current_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        pick_joint = knmtc.inv(pick_joint, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        middle_joint = knmtc.inv(middle_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        above_place_joint = knmtc.inv(above_place_pose, middle_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        place_joint = knmtc.inv(place_pose, above_place_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        end_joint = knmtc.inv(end_pose, above_place_joint, False, uncertainity_cone=uncertainity_cone)[0]
+
+        # cmds
+        cmd_list = []
+        #above pick
+        cmd_list.append({"cmd":motion,
+                        "rel":0,
+                        "j0":above_pick_joint[0],
+                        "j1":above_pick_joint[1],
+                        "j2":above_pick_joint[2],
+                        "j3":above_pick_joint[3],
+                        "j4":above_pick_joint[4],
+                        "j5":above_pick_joint[5],
+                        "vel":vaj[0],
+                        "accel":vaj[1],
+                        "jerk":vaj[2],
+                        "cont":0})
+        #pick
+        cmd_list.append({"cmd":motion,
+                        "rel":0,
+                        "j0":pick_joint[0],
+                        "j1":pick_joint[1],
+                        "j2":pick_joint[2],
+                        "j3":pick_joint[3],
+                        "j4":pick_joint[4],
+                        "j5":pick_joint[5]})
+        #output
+        cmd_list.append({"cmd":output,
+                        "out"+str(output[0]):output[1],
+                        "queue":0})
+        #sleep
+        cmd_list.append({"cmd":"sleep",
+                        "time":sleep})
+        #engage_cmd_list
+        cmd_list += pick_cmd_list
+        #above pick
+        cmd_list.append({"cmd":motion,
+                        "rel":0,
+                        "j0":above_pick_joint[0],
+                        "j1":above_pick_joint[1],
+                        "j2":above_pick_joint[2],
+                        "j3":above_pick_joint[3],
+                        "j4":above_pick_joint[4],
+                        "j5":above_pick_joint[5]
+                        "cont":cont,
+                        "corner":corner})
+        #middle
+        cmd_list.append({"cmd":motion,
+                        "rel":0,
+                        "j0":middle_joint[0],
+                        "j1":middle_joint[1],
+                        "j2":middle_joint[2],
+                        "j3":middle_joint[3],
+                        "j4":middle_joint[4],
+                        "j5":middle_joint[5]})
+        #above place
+        cmd_list.append({"cmd":motion,
+                        "rel":0,
+                        "j0":above_place_joint[0],
+                        "j1":above_place_joint[1],
+                        "j2":above_place_joint[2],
+                        "j3":above_place_joint[3],
+                        "j4":above_place_joint[4],
+                        "j5":above_place_joint[5],
+                        "cont":0})
+        #place
+        cmd_list.append({"cmd":motion,
+                        "rel":0,
+                        "j0":place_joint[0],
+                        "j1":place_joint[1],
+                        "j2":place_joint[2],
+                        "j3":place_joint[3],
+                        "j4":place_joint[4],
+                        "j5":place_joint[5]})
+        #output
+        cmd_list.append({"cmd":output,
+                        "out"+str(output[0]):output[2],
+                        "queue":0})
+        #sleep
+        cmd_list.append({"cmd":"sleep",
+                        "time":sleep})
+        #engage_cmd_list
+        cmd_list += place_cmd_list
+        #above place
+        cmd_list.append({"cmd":motion,
+                        "rel":0,
+                        "j0":above_place_joint[0],
+                        "j1":above_place_joint[1],
+                        "j2":above_place_joint[2],
+                        "j3":above_place_joint[3],
+                        "j4":above_place_joint[4],
+                        "j5":above_place_joint[5]
+                        "cont":cont})
+        #end_pose
+        cmd_list.append({"cmd":motion,
+                        "rel":0,
+                        "j0":end_joint[0],
+                        "j1":end_joint[1],
+                        "j2":end_joint[2],
+                        "j3":end_joint[3],
+                        "j4":end_joint[4],
+                        "j5":end_joint[5]})
+
+        # play list
+        return self.play_list(cmd_list, timeout=timeout)
