@@ -887,16 +887,19 @@ class Dorna(WS):
         # Current joint
         current_joint = current_joint if current_joint is not None else self.get_all_joint()[0:6]
 
+        # Speed
+        speed = min(1, max(0, speed))
+
         # vaj
         if vaj is None:
-            speed = min(1, max(0, speed))
             vaj = [x * speed for x in self.config["speed"]["very_quick"][motion].values()]
         
         # cvaj
         if cvaj is None:
-            cvaj = list(vaj)
             if cont == 1:
-                cvaj = [cvaj[i] * (0.67 ** (i + 1)) for i in range(len(cvaj))]
+                cvaj = [x * speed for x in self.config["speed"]["very_quick"]["c"+motion].values()]
+            else:
+                cvaj = vaj
 
         # Above pick
         above_pick_pose = pick_pose.copy()
