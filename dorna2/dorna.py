@@ -828,7 +828,7 @@ class Dorna(WS):
         return self._track_cmd_stat()
 
 
-    def pick_n_place(self, pick_pose, middle_pose, place_pose, end_pose, output=[0, 0, 0], above=5, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], tcp=[0, 0, 0, 0, 0, 0], model="dorna_ta", current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.5, uncertainity_cone={"num_samples": 50, "cone_degree": 5}, cont=1, corner=50, timeout=-1):
+    def pick_n_place(self, pick_pose, middle_pose, place_pose, end_pose, output_config=[0, 0, 0], above=5, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], tcp=[0, 0, 0, 0, 0, 0], model="dorna_ta", current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.5, uncertainity_cone={"num_samples": 50, "cone_degree": 5}, cont=1, corner=50, timeout=-1):
         """
         Picks an object from a specific location and places it in another location.
 
@@ -842,7 +842,7 @@ class Dorna(WS):
             The pose of the end effector to place an object
         end_pose : list
             The pose of the end effector to move to after placing an object
-        output : tuple
+        output_config : tuple
             The output signal to send to the robot controller [output_pin, output_value_pick, output_value_place]
         above : int
             The height above the pick pose to move the end effector to
@@ -921,14 +921,14 @@ class Dorna(WS):
         cmd_list = [
             {"cmd": motion, "rel": 0, "j0": above_pick_joint[0], "j1": above_pick_joint[1], "j2": above_pick_joint[2], "j3": above_pick_joint[3], "j4": above_pick_joint[4], "j5": above_pick_joint[5], "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont": 0},
             {"cmd": motion, "rel": 0, "j0": pick_joint[0], "j1": pick_joint[1], "j2": pick_joint[2], "j3": pick_joint[3], "j4": pick_joint[4], "j5": pick_joint[5]},
-            {"cmd": output, "out" + str(output[0]): output[1], "queue": 0},
+            {"cmd": "output", "out" + str(output_config[0]): output_config[1], "queue": 0},
             {"cmd": "sleep", "time": sleep},
             *pick_cmd_list,
             {"cmd": motion, "rel": 0, "j0": above_pick_joint[0], "j1": above_pick_joint[1], "j2": above_pick_joint[2], "j3": above_pick_joint[3], "j4": above_pick_joint[4], "j5": above_pick_joint[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont, "corner": corner},
             {"cmd": motion, "rel": 0, "j0": middle_joint[0], "j1": middle_joint[1], "j2": middle_joint[2], "j3": middle_joint[3], "j4": middle_joint[4], "j5": middle_joint[5]},
             {"cmd": motion, "rel": 0, "j0": above_place_joint[0], "j1": above_place_joint[1], "j2": above_place_joint[2], "j3": above_place_joint[3], "j4": above_place_joint[4], "j5": above_place_joint[5], "cont": 0},
             {"cmd": motion, "rel": 0, "j0": place_joint[0], "j1": place_joint[1], "j2": place_joint[2], "j3": place_joint[3], "j4": place_joint[4], "j5": place_joint[5], "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2]},
-            {"cmd": output, "out" + str(output[0]): output[2], "queue": 0},
+            {"cmd": "output", "out" + str(output_config[0]): output_config[2], "queue": 0},
             {"cmd": "sleep", "time": sleep},
             *place_cmd_list,
             {"cmd": motion, "rel": 0, "j0": above_place_joint[0], "j1": above_place_joint[1], "j2": above_place_joint[2], "j3": above_place_joint[3], "j4": above_place_joint[4], "j5": above_place_joint[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont},
