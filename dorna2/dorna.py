@@ -828,7 +828,7 @@ class Dorna(WS):
         return self._track_cmd_stat()
 
 
-    def pick_n_place(self, pick_pose, middle_pose, place_pose, end_pose, output, above=5, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], tcp=[0, 0, 0, 0, 0, 0], model="dorna_ta", current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.5, uncertainity_cone={"num_samples": 50, "cone_degree": 5}, cont=1, corner=50, timeout=-1):
+    def pick_n_place(self, pick_pose, middle_pose, place_pose, end_pose, output=[0, 0, 0], above=5, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], tcp=[0, 0, 0, 0, 0, 0], model="dorna_ta", current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.5, uncertainity_cone={"num_samples": 50, "cone_degree": 5}, cont=1, corner=50, timeout=-1):
         """
         Picks an object from a specific location and places it in another location.
 
@@ -843,11 +843,11 @@ class Dorna(WS):
         end_pose : list
             The pose of the end effector to move to after placing an object
         output : tuple
-            The output signal to send to the robot controller (out0, out1, out2, ...)
+            The output signal to send to the robot controller [output_pin, output_value_pick, output_value_place]
         above : int
             The height above the pick pose to move the end effector to
         sleep : float
-            The time to sleep between commands
+            The time to sleep after triggering the output
         pick_cmd_list : list
             The list of commands to send to the robot after picking an object
         place_cmd_list : list
@@ -859,7 +859,7 @@ class Dorna(WS):
         current_joint : list
             The current joint angles of the robot
         motion : str
-            The type of motion to use (jmove, rmove, lmove, cmove)
+            The type of motion to use ("jmove", "lmove")
         vaj : list
             The velocity, acceleration and jerk limits of the motion
         cvaj : list
@@ -869,15 +869,15 @@ class Dorna(WS):
         uncertainity_cone : dict
             The parameters of the uncertainty cone
         cont : int
-            The type of motion to use (0 for absolute, 1 for relative)
-        corner : int
-            The type of corner to use (0 for sharp, 1 for rounded)
+            The type of motion to use (0 for non-continuous, 1 for continuous)
+        corner : float
+            The corner parameter of the continuous motion
         timeout : int
-            The timeout of the motion (in seconds)
+            The timeout of the motion (-1 for infinite wait, 0 for no wait, positive for wait time in seconds)
 
         Returns
         -------
-        int
+        The status of the commands sent to the robot (negatie for error, 0 for submitted, 1 for running, 2 for completed)
         """
 
         # Kinematic
@@ -891,9 +891,12 @@ class Dorna(WS):
         if vaj is None:
             speed = min(1, max(0, speed))
             vaj = [x * speed for x in self.config["speed"]["very_quick"][motion].values()]
-        cvaj = list(vaj)
-        if cont == 1:
-            cvaj = [cvaj[i] * (0.67 ** (i + 1)) for i in range(len(cvaj))]
+        
+        # cvaj
+        if cvaj is None:
+            cvaj = list(vaj)
+            if cont == 1:
+                cvaj = [cvaj[i] * (0.67 ** (i + 1)) for i in range(len(cvaj))]
 
         # Above pick
         above_pick_pose = pick_pose.copy()
