@@ -1,21 +1,36 @@
+import importlib.resources 
 import json
 import random
 import time
 from dorna2.ws import WS
-from dorna2.config import config
 from dorna2.dof_5_6 import Kinematic
 import logging
 import logging.handlers
 import copy
-import numpy as np
 
 class Dorna(WS):
     """docstring for Dorna"""
-    def __init__(self, config=config):
+    def __init__(self, config=None):
         super(Dorna, self).__init__()
+
+        if config is None:
+            config = self.load_json("config.json")
         self.config = config
+        
         # init logger
         self.logger = None
+
+
+    def load_json(self, path, module_name="dorna2.cfg"):
+        with importlib.resources.path(module_name, path) as config_file:
+            with open(config_file, 'r') as file:
+                return json.load(file)
+
+
+    def dump_json(self, data, path, module_name="dorna2.cfg"):   
+        with importlib.resources.path(module_name, path) as config_file:
+            with open(config_file, 'w') as file:
+                return json.dump(data, file, indent=4)
 
 
     def logger_setup(self, file="dorna.log", maxBytes=100000, backupCount=1):
