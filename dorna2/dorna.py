@@ -10,7 +10,7 @@ import copy
 
 class Dorna(WS):
     """docstring for Dorna"""
-    def __init__(self, config=None):
+    def __init__(self, config=None, model=None):
         super(Dorna, self).__init__()
 
         if config is None:
@@ -19,6 +19,10 @@ class Dorna(WS):
         
         # init logger
         self.logger = None
+
+        # kinematic
+        if model:
+            self.set_kinematic(model)
 
 
     def load_json(self, path, module_name="dorna2.cfg"):
@@ -843,61 +847,14 @@ class Dorna(WS):
         return self._track_cmd_stat()
 
 
-    def pick_n_place(self, pick_pose, middle_pose, place_pose, end_pose, output_config=[0, 0, 0], above=5, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], tcp=[0, 0, 0, 0, 0, 0], model="dorna_ta", current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.5, uncertainity_cone={"num_samples": 50, "cone_degree": 5}, cont=1, corner=50, timeout=-1):
-        """
-        Picks an object from a specific location and places it in another location.
+    def set_kinematic(self, model="dorna_ta", **kwargs):
+        self.kinematic = Kinematic(model)
 
-        Parameters
-        ----------
-        pick_pose : list
-            The pose of the end effector to pick an object
-        middle_pose : list
-            The pose of the end effector to move to after picking an object
-        place_pose : list
-            The pose of the end effector to place an object
-        end_pose : list
-            The pose of the end effector to move to after placing an object
-        output_config : tuple
-            The output signal to send to the robot controller [output_pin, output_value_pick, output_value_place]
-        above : int
-            The height above the pick pose to move the end effector to
-        sleep : float
-            The time to sleep after triggering the output
-        pick_cmd_list : list
-            The list of commands to send to the robot after picking an object
-        place_cmd_list : list
-            The list of commands to send to the robot after placing an object
-        tcp : list
-            The tool center point coordinates (xyzabc) of the end effector
-        model : str
-            The model of the robot
-        current_joint : list
-            The current joint angles of the robot
-        motion : str
-            The type of motion to use ("jmove", "lmove")
-        vaj : list
-            The velocity, acceleration and jerk limits of the motion
-        cvaj : list
-            The velocity, acceleration and jerk limits of the motion
-        speed : float
-            The speed of the motion
-        uncertainity_cone : dict
-            The parameters of the uncertainty cone
-        cont : int
-            The type of motion to use (0 for non-continuous, 1 for continuous)
-        corner : float
-            The corner parameter of the continuous motion
-        timeout : int
-            The timeout of the motion (-1 for infinite wait, 0 for no wait, positive for wait time in seconds)
 
-        Returns
-        -------
-        The status of the commands sent to the robot (negatie for error, 0 for submitted, 1 for running, 2 for completed)
-        """
+    def pick_n_place(self, pick_pose, middle_pose, place_pose, end_pose, output_config=[0, 0, 0], above=5, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], frame=[0, 0, 0, 0, 0 ,0], tcp=[0, 0, 0, 0, 0, 0], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.5, uncertainity_cone={"num_samples": 50, "cone_degree": 5}, cont=1, corner=50, timeout=-1):
 
         # Kinematic
-        kinematic = Kinematic(model)
-        kinematic.set_tcp_xyzabc(tcp)
+        self.kinematic.set_tcp_xyzabc(tcp)
 
         # Current joint
         current_joint = current_joint if current_joint is not None else self.get_all_joint()[0:6]
@@ -918,19 +875,19 @@ class Dorna(WS):
 
         # Above pick
         above_pick_pose = pick_pose.copy()
-        above_pick_pose[:3] = above_pick_pose[:3] - kinematic.get_Z_axis(xyzabc=pick_pose) * above
+        above_pick_pose[:3] = above_pick_pose[:3] - self.kinematic.get_Z_axis(xyzabc=pick_pose) * above
 
         # Above place
         above_place_pose = place_pose.copy()
-        above_place_pose[:3] = above_place_pose[:3] - kinematic.get_Z_axis(xyzabc=place_pose) * above
+        above_place_pose[:3] = above_place_pose[:3] - self.kinematic.get_Z_axis(xyzabc=place_pose) * above
 
         # Joint
-        above_pick_joint = kinematic.inv(above_pick_pose, current_joint, False, uncertainity_cone=uncertainity_cone)[0]
-        pick_joint = kinematic.inv(pick_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
-        middle_joint = kinematic.inv(middle_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
-        above_place_joint = kinematic.inv(above_place_pose, middle_joint, False, uncertainity_cone=uncertainity_cone)[0]
-        place_joint = kinematic.inv(place_pose, above_place_joint, False, uncertainity_cone=uncertainity_cone)[0]
-        end_joint = kinematic.inv(end_pose, above_place_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        above_pick_joint = self.kinematic.inv(above_pick_pose, current_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        pick_joint = self.kinematic.inv(pick_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        middle_joint = self.kinematic.inv(middle_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        above_place_joint = self.kinematic.inv(above_place_pose, middle_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        place_joint = self.kinematic.inv(place_pose, above_place_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        end_joint = self.kinematic.inv(end_pose, above_place_joint, False, uncertainity_cone=uncertainity_cone)[0]
 
         # cmds
         cmd_list = [
