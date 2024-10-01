@@ -851,8 +851,12 @@ class Dorna(WS):
         self.kinematic = Kinematic(model)
 
 
-    def pick_n_place(self, pick_pose, middle_pose, place_pose, end_pose, output_config=[0, 0, 0], above=5, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], frame=[0, 0, 0, 0, 0 ,0], tcp=[0, 0, 0, 0, 0, 0], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.5, uncertainity_cone={"num_samples": 50, "cone_degree": 5}, cont=1, corner=50, timeout=-1):
-
+    def pick_n_place(self, pick_pose, place_pose, middle_pose=None, end_pose=None, tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=[0, 0, 0], above=505, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.5, cont=1, corner=50, cone_samples=50, cone_degree=5, timeout=-1, sim=0,  **kwargs):
+        # uncertainity_cone
+        uncertainity_cone = {
+            "num_samples": cone_samples,
+            "cone_degree": cone_degree}
+        
         # Kinematic
         self.kinematic.set_tcp_xyzabc(tcp)
 
@@ -907,5 +911,9 @@ class Dorna(WS):
             {"cmd": motion, "rel": 0, "j0": end_joint[0], "j1": end_joint[1], "j2": end_joint[2], "j3": end_joint[3], "j4": end_joint[4], "j5": end_joint[5]}
         ]
 
+        # sim
+        if sim:
+            return cmd_list
+        
         # play list
         return self.play_list(cmd_list, timeout=timeout)
