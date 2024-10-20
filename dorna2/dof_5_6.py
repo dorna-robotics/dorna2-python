@@ -1,8 +1,6 @@
 import numpy as np
 from dorna2.cf import CF
-#from cf import CF #use for local import
 from dorna2.ik6r_2 import ik
-#from ik6r_2 import ik  #use for local import
 
 """
 Sources:

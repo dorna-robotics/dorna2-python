@@ -1,7 +1,5 @@
 import numpy as np
-import time
 import math
-import random
 
 def clamp(num, min_value, max_value):
         num = max(min(num, max_value), min_value)
