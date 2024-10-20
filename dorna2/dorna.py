@@ -10,7 +10,7 @@ import copy
 
 class Dorna(WS):
     """docstring for Dorna"""
-    def __init__(self, config=None, model=None):
+    def __init__(self, config=None, model="dorna_ta"):
         super(Dorna, self).__init__()
 
         if config is None:
@@ -21,8 +21,8 @@ class Dorna(WS):
         self.logger = None
 
         # kinematic
-        if model:
-            self.set_kinematic(model)
+        self.model = model    
+        self.set_kinematic(model)
 
 
     def load_json(self, path, module_name="dorna2.cfg"):
