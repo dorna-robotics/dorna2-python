@@ -7,6 +7,7 @@ from dorna2.dof_5_6 import Kinematic
 import logging
 import logging.handlers
 import copy
+import numpy as np
 
 class Dorna(WS):
     """docstring for Dorna"""
@@ -94,6 +95,16 @@ class Dorna(WS):
             union = {**union, **_track["msgs"][i]}
         return {** _track, "union": union}
 
+    def format_numbers(self, obj):
+        if isinstance(obj, dict):  # If the object is a dictionary
+            return {key: self.format_numbers(value) for key, value in obj.items()}
+        elif isinstance(obj, list):  # If the object is a list
+            return [self.format_numbers(item) for item in obj]
+        elif isinstance(obj, float):  # If the object is a float
+            return round(obj, 3)  # Round to 3 decimal places
+        else:
+            return obj  # Return the object unchanged if it's neither dict, list, nor float
+
 
     def connect(self, host="localhost", port=443, timeout=5):
         # close the connection first
@@ -163,7 +174,10 @@ class Dorna(WS):
         for key in _msg:
             if _msg[key] == None:
                 del msg[key]
-        
+
+        # format
+        msg = self.format_numbers(msg)
+
         # set the tracking id
         self._track["cmd"] = copy.deepcopy(msg) 
         self._track["id"] =  msg["id"]
@@ -302,7 +316,9 @@ class Dorna(WS):
     """
     send jmove, rmove, lmove, cmove command
     """
-    def jmove(self, **kwargs):
+    def jmove(self, joint=[], **kwargs):
+        joint_dict = {f"j{i}": joint[i] for i in range(len(joint))}
+        kwargs = {**joint_dict, **kwargs}
         return self._motion("jmove", **kwargs)
 
 
@@ -310,7 +326,9 @@ class Dorna(WS):
         return self._motion("rmove", **kwargs)        
 
 
-    def lmove(self, **kwargs):
+    def lmove(self, pose=[], **kwargs):
+        pose_dict = {["x", "y", "z", "a", "b", "c", "d", "e"][i]: pose[i] for i in range(len(pose))}
+        kwargs = {**pose_dict, **kwargs}
         return self._motion("lmove", **kwargs)
 
 
@@ -851,7 +869,7 @@ class Dorna(WS):
         self.kinematic = Kinematic(model)
 
 
-    def pick_n_place(self, pick_pose, place_pose, middle_pose=None, end_pose=None, tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=[0, 0, 0], above=505, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.5, cont=1, corner=50, cone_samples=50, cone_degree=5, timeout=-1, sim=0,  **kwargs):
+    def pick_n_place(self, pick_pose, place_pose, middle_pose=None, end_pose=None, end_joint=None, tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=[0, 0, 0], above=50, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.5, cont=1, corner=100, cone_samples=50, cone_degree=5, timeout=-1, sim=0,  **kwargs):
         # uncertainity_cone
         uncertainity_cone = {
             "num_samples": cone_samples,
@@ -876,11 +894,17 @@ class Dorna(WS):
                 cvaj = [x * speed for x in self.config["speed"]["very_quick"]["c"+motion].values()]
             else:
                 cvaj = vaj
-
+        # np array
+        pick_pose = np.array(pick_pose)
+        place_pose = np.array(place_pose)
+        if middle_pose is not None:
+            middle_pose = np.array(middle_pose)
+        if end_pose is not None:
+            end_pose = np.array(end_pose)
+        
         # Above pick
         above_pick_pose = pick_pose.copy()
         above_pick_pose[:3] = above_pick_pose[:3] - self.kinematic.get_Z_axis(xyzabc=pick_pose) * above
-
         # Above place
         above_place_pose = place_pose.copy()
         above_place_pose[:3] = above_place_pose[:3] - self.kinematic.get_Z_axis(xyzabc=place_pose) * above
@@ -888,10 +912,17 @@ class Dorna(WS):
         # Joint
         above_pick_joint = self.kinematic.inv(above_pick_pose, current_joint, False, uncertainity_cone=uncertainity_cone)[0]
         pick_joint = self.kinematic.inv(pick_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
-        middle_joint = self.kinematic.inv(middle_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        if middle_pose is not None:
+            middle_joint = self.kinematic.inv(middle_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        else:
+            middle_pose = (above_pick_pose + above_place_pose) / 2
+            middle_pose[:3] = middle_pose[:3] - self.kinematic.get_Z_axis(xyzabc=middle_pose) * above
+            middle_joint = self.kinematic.inv(middle_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
         above_place_joint = self.kinematic.inv(above_place_pose, middle_joint, False, uncertainity_cone=uncertainity_cone)[0]
         place_joint = self.kinematic.inv(place_pose, above_place_joint, False, uncertainity_cone=uncertainity_cone)[0]
-        end_joint = self.kinematic.inv(end_pose, above_place_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        
+        if end_pose is not None and end_joint is None:
+            end_joint = self.kinematic.inv(end_pose, above_place_joint, False, uncertainity_cone=uncertainity_cone)[0]
 
         # cmds
         cmd_list = [
@@ -901,15 +932,24 @@ class Dorna(WS):
             {"cmd": "sleep", "time": sleep},
             *pick_cmd_list,
             {"cmd": motion, "rel": 0, "j0": above_pick_joint[0], "j1": above_pick_joint[1], "j2": above_pick_joint[2], "j3": above_pick_joint[3], "j4": above_pick_joint[4], "j5": above_pick_joint[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont, "corner": corner},
-            {"cmd": motion, "rel": 0, "j0": middle_joint[0], "j1": middle_joint[1], "j2": middle_joint[2], "j3": middle_joint[3], "j4": middle_joint[4], "j5": middle_joint[5]},
+        ]
+
+        if middle_pose is not None:
+            cmd_list += [{"cmd": motion, "rel": 0, "j0": middle_joint[0], "j1": middle_joint[1], "j2": middle_joint[2], "j3": middle_joint[3], "j4": middle_joint[4], "j5": middle_joint[5]}]
+
+        cmd_list += [
             {"cmd": motion, "rel": 0, "j0": above_place_joint[0], "j1": above_place_joint[1], "j2": above_place_joint[2], "j3": above_place_joint[3], "j4": above_place_joint[4], "j5": above_place_joint[5], "cont": 0},
             {"cmd": motion, "rel": 0, "j0": place_joint[0], "j1": place_joint[1], "j2": place_joint[2], "j3": place_joint[3], "j4": place_joint[4], "j5": place_joint[5], "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2]},
             {"cmd": "output", "out" + str(output_config[0]): output_config[2], "queue": 0},
             {"cmd": "sleep", "time": sleep},
             *place_cmd_list,
-            {"cmd": motion, "rel": 0, "j0": above_place_joint[0], "j1": above_place_joint[1], "j2": above_place_joint[2], "j3": above_place_joint[3], "j4": above_place_joint[4], "j5": above_place_joint[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont},
-            {"cmd": motion, "rel": 0, "j0": end_joint[0], "j1": end_joint[1], "j2": end_joint[2], "j3": end_joint[3], "j4": end_joint[4], "j5": end_joint[5]}
         ]
+
+        if end_joint is not None:
+            cmd_list +=[
+                {"cmd": motion, "rel": 0, "j0": above_place_joint[0], "j1": above_place_joint[1], "j2": above_place_joint[2], "j3": above_place_joint[3], "j4": above_place_joint[4], "j5": above_place_joint[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont},
+                {"cmd": motion, "rel": 0, "j0": end_joint[0], "j1": end_joint[1], "j2": end_joint[2], "j3": end_joint[3], "j4": end_joint[4], "j5": end_joint[5]}     
+            ]
 
         # sim
         if sim:

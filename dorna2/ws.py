@@ -92,7 +92,7 @@ class WS(object):
             self.writer.write(msg_byte)
             await self.writer.drain()
             return True
-        except:
+        except Exception as ex:
             pass
         return False
 
@@ -296,6 +296,7 @@ class WS(object):
                 header.append((msg_len << 48) >> 56)
                 header.append((msg_len << 56) >> 56)
 
+            # mask
             return bytes(header + mask) + msg.encode("utf-8")
 
         elif mode == "handshake":

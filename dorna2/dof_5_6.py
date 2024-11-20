@@ -131,7 +131,7 @@ class Dof(DH):
 
 	def t_flange_r_world(self, theta=None , joint = None):
 
-		if(joint):
+		if joint is not None:
 			theta = list(joint)
 			theta =  [np.radians(j) for j in theta]
 
@@ -153,7 +153,7 @@ class Dof(DH):
 
 	def Ti_r_world(self, theta=None , joint = None , i = 0): #joint is in degrees, theta is in radians
 
-		if(joint):
+		if joint is not None:
 			theta = list(joint)
 			theta =  [np.radians(j) for j in theta]
 
@@ -170,7 +170,7 @@ class Dof(DH):
 
 	def jacobian_flange_r_world(self, theta=None , joint = None ):
 
-		if(joint):
+		if joint is not None:
 			theta = list(joint)
 			theta =  [np.radians(j) for j in theta]
 
@@ -216,7 +216,7 @@ class Dof(DH):
 				
 			return approved_sol
 
-		if theta_current: 
+		if theta_current is not None: 
 
 			initial_xyzabc = self.mat_to_xyzabc( self.t_flange_r_world(theta = theta_current))
 			goal_xyzabc = self.mat_to_xyzabc( goal_matrix)
@@ -226,7 +226,7 @@ class Dof(DH):
 			#print("treshold ",joint_space_distance_treshold)
 
 			all_sol = []
-			if(uncertainity_cone==None):
+			if uncertainity_cone is None:
 				new_sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], goal_matrix)
 				for s in new_sol:
 					t = self.t_flange_r_world(theta = s)
@@ -377,7 +377,7 @@ class Dof(DH):
 			phi_1 = np.atan2(p5y_0, p5x_0)
 
 			rtn = [phi_1-alpha, phi_1+alpha-np.pi]
-			if t1 != None:
+			if t1 is not None:
 				if min(abs(t1-rtn[0]%(2*np.pi)), abs(t1-rtn[0]%(-2*np.pi))) > min(abs(t1-rtn[1]%(2*np.pi)), abs(t1-rtn[1]%(-2*np.pi))):
 					rtn.pop(0)
 				else:
@@ -396,7 +396,7 @@ class Dof(DH):
 			phi = np.acos(clamp(nom/self.d[6],-1.0,1.0))
 			rtn = [phi, -phi]
 			
-			if t5 !=None:
+			if t5 is not None:
 				if t5*rtn[0] >= 0:
 					rtn.pop(1)
 				else:
@@ -450,7 +450,7 @@ class Dof(DH):
 
 			t_3_list = [t_3, -t_3]
 			
-			if t3 !=None:
+			if t3 is not None:
 				if t3*t_3_list[0] >= 0:
 					t_3_list.pop(1)
 				else:
@@ -558,9 +558,9 @@ class Kinematic(Dof):
 		return [fw[0,3], fw[1,3], fw[2,3]] + abc
 
 
-	def inv(self, xyzabc, joint_current=[0,0,0,0,0,0], all_sol=False, uncertainity_cone = None): #xyzabg
+	def inv(self, xyzabc, joint_current=None, all_sol=False, uncertainity_cone = None): #xyzabg
 		#print("inv call:",xyzabc)
-		ABC = xyzabc[3:]
+		ABC = xyzabc[3:].copy()
 		
 		if(ABC[0]==None or ABC[1]==None or ABC[2]==None):
 			ABC =[0,0,0]
@@ -576,7 +576,7 @@ class Kinematic(Dof):
 
 		# init condition
 		theta_current = None
-		if joint_current:
+		if joint_current is not None:
 			theta_current = list(joint_current)
 			if theta_current:
 				theta_5 = theta_current[5]
