@@ -266,12 +266,17 @@ class Dof(DH):
 							if angle_space_distance(np.array(s) , np.array(theta_current))<joint_space_distance_treshold:
 								no_need_to_continue = True
 
+						if("approve_first_solution" in uncertainity_cone ):
+							if(uncertainity_cone["approve_first_solution"]):
+								if angle_space_distance(np.array(s) , np.array(theta_current))<joint_space_distance_treshold:
+									no_need_to_continue = True	
+
 						all_sol.append(s)
 
 					if no_need_to_continue:
 						break
 
-			#print("counter samples: ",counter)
+			#print("counter samples: ", len(all_sol))
 			best_sol_dist = 10000
 			best_sol = 0
 			indx = 0
@@ -613,11 +618,13 @@ def main_dorna_c():
 	translate = z_axis  * (-20)
 
 	xyzabc[:3] = xyzabc[:3] + translate[:]
+	xyzabc[5] += 30
+	xyzabc[2] += 200
 	#####################
 
 	print("xyzabc:", xyzabc)
 
-	ik_result = knmtc.inv(xyzabc, joint, False, uncertainity_cone = {"num_samples" : 50, "cone_degree" : 1})
+	ik_result = knmtc.inv(xyzabc, joint, False, uncertainity_cone = {"num_samples" : 50, "cone_degree" : 1, "approve_first_solution": False})
 
 	print("ik_result: ", ik_result)
 
