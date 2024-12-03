@@ -957,3 +957,47 @@ class Dorna(WS):
         
         # play list
         return self.play_list(cmd_list, timeout=timeout)
+    
+
+    def go(self, pose, ej=[0, 0, 0, 0, 0, 0, 0, 0], frame=[0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], cmd_list=[], current_joint=None, motion="jmove", vaj=None, speed=0.5, cone_samples=50, cone_degree=5, timeout=-1, sim=0,  **kwargs):
+        # uncertainity_cone
+        uncertainity_cone = {
+            "num_samples": cone_samples,
+            "cone_degree": cone_degree
+        }
+        
+        # Kinematic
+        self.kinematic.set_tcp_xyzabc(tcp)
+
+        # Current
+        current_joint = current_joint if current_joint is not None else self.get_all_joint()[0:6]
+        current_pose = self.kinematic.fw(joint=current_joint)
+
+        # pose and joint
+        if len(pose) == 3:
+            pose = [x for x in pose]+current_pose[3:]
+        joint = self.kinematic.inv(pose, current_joint, False, uncertainity_cone=uncertainity_cone)[0]
+
+        # ej
+        for i in range(min(len(ej), len(joint))):
+            joint[i] -= ej[i]
+ 
+        # Speed
+        speed = min(1, max(0, speed))
+
+        # vaj
+        if vaj is None:
+            vaj = [x * speed for x in self.config["speed"]["very_quick"][motion].values()]
+        
+        # cmds
+        _cmd_list = [
+            {"cmd": motion, "rel": 0, "j0": joint[0], "j1": joint[1], "j2": joint[2], "j3": joint[3], "j4": joint[4], "j5": joint[5], "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont": 0},
+            *cmd_list,
+        ]
+        # sim
+        if sim:
+            return _cmd_list
+        
+        # play list
+        return self.play_list(_cmd_list, timeout=timeout)
+
