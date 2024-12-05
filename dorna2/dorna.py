@@ -869,97 +869,7 @@ class Dorna(WS):
         self.kinematic = Kinematic(model)
 
 
-    def pick_n_place(self, pick_pose, place_pose, middle_pose=None, end_pose=None, end_joint=None, tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=[0, 0, 0], above=50, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.5, cont=1, corner=100, cone_samples=50, cone_degree=5, timeout=-1, sim=0,  **kwargs):
-        # uncertainity_cone
-        uncertainity_cone = {
-            "num_samples": cone_samples,
-            "cone_degree": cone_degree}
-        
-        # Kinematic
-        self.kinematic.set_tcp_xyzabc(tcp)
-
-        # Current joint
-        current_joint = current_joint if current_joint is not None else self.get_all_joint()[0:6]
-
-        # Speed
-        speed = min(1, max(0, speed))
-
-        # vaj
-        if vaj is None:
-            vaj = [x * speed for x in self.config["speed"]["very_quick"][motion].values()]
-        
-        # cvaj
-        if cvaj is None:
-            if cont == 1:
-                cvaj = [x * speed for x in self.config["speed"]["very_quick"]["c"+motion].values()]
-            else:
-                cvaj = vaj
-        # np array
-        pick_pose = np.array(pick_pose)
-        place_pose = np.array(place_pose)
-        if middle_pose is not None:
-            middle_pose = np.array(middle_pose)
-        if end_pose is not None:
-            end_pose = np.array(end_pose)
-        
-        # Above pick
-        above_pick_pose = pick_pose.copy()
-        above_pick_pose[:3] = above_pick_pose[:3] - self.kinematic.get_Z_axis(xyzabc=pick_pose) * above
-        # Above place
-        above_place_pose = place_pose.copy()
-        above_place_pose[:3] = above_place_pose[:3] - self.kinematic.get_Z_axis(xyzabc=place_pose) * above
-
-        # Joint
-        above_pick_joint = self.kinematic.inv(above_pick_pose, current_joint, False, uncertainity_cone=uncertainity_cone)[0]
-        pick_joint = self.kinematic.inv(pick_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
-        if middle_pose is not None:
-            middle_joint = self.kinematic.inv(middle_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
-        else:
-            middle_pose = (above_pick_pose + above_place_pose) / 2
-            middle_pose[:3] = middle_pose[:3] - self.kinematic.get_Z_axis(xyzabc=middle_pose) * above
-            middle_joint = self.kinematic.inv(middle_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
-        above_place_joint = self.kinematic.inv(above_place_pose, middle_joint, False, uncertainity_cone=uncertainity_cone)[0]
-        place_joint = self.kinematic.inv(place_pose, above_place_joint, False, uncertainity_cone=uncertainity_cone)[0]
-        
-        if end_pose is not None and end_joint is None:
-            end_joint = self.kinematic.inv(end_pose, above_place_joint, False, uncertainity_cone=uncertainity_cone)[0]
-
-        # cmds
-        cmd_list = [
-            {"cmd": motion, "rel": 0, "j0": above_pick_joint[0], "j1": above_pick_joint[1], "j2": above_pick_joint[2], "j3": above_pick_joint[3], "j4": above_pick_joint[4], "j5": above_pick_joint[5], "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont": 0},
-            {"cmd": motion, "rel": 0, "j0": pick_joint[0], "j1": pick_joint[1], "j2": pick_joint[2], "j3": pick_joint[3], "j4": pick_joint[4], "j5": pick_joint[5]},
-            {"cmd": "output", "out" + str(output_config[0]): output_config[1], "queue": 0},
-            {"cmd": "sleep", "time": sleep},
-            *pick_cmd_list,
-            {"cmd": motion, "rel": 0, "j0": above_pick_joint[0], "j1": above_pick_joint[1], "j2": above_pick_joint[2], "j3": above_pick_joint[3], "j4": above_pick_joint[4], "j5": above_pick_joint[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont, "corner": corner},
-        ]
-
-        if middle_pose is not None:
-            cmd_list += [{"cmd": motion, "rel": 0, "j0": middle_joint[0], "j1": middle_joint[1], "j2": middle_joint[2], "j3": middle_joint[3], "j4": middle_joint[4], "j5": middle_joint[5]}]
-
-        cmd_list += [
-            {"cmd": motion, "rel": 0, "j0": above_place_joint[0], "j1": above_place_joint[1], "j2": above_place_joint[2], "j3": above_place_joint[3], "j4": above_place_joint[4], "j5": above_place_joint[5], "cont": 0},
-            {"cmd": motion, "rel": 0, "j0": place_joint[0], "j1": place_joint[1], "j2": place_joint[2], "j3": place_joint[3], "j4": place_joint[4], "j5": place_joint[5], "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2]},
-            {"cmd": "output", "out" + str(output_config[0]): output_config[2], "queue": 0},
-            {"cmd": "sleep", "time": sleep},
-            *place_cmd_list,
-        ]
-
-        if end_joint is not None:
-            cmd_list +=[
-                {"cmd": motion, "rel": 0, "j0": above_place_joint[0], "j1": above_place_joint[1], "j2": above_place_joint[2], "j3": above_place_joint[3], "j4": above_place_joint[4], "j5": above_place_joint[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont},
-                {"cmd": motion, "rel": 0, "j0": end_joint[0], "j1": end_joint[1], "j2": end_joint[2], "j3": end_joint[3], "j4": end_joint[4], "j5": end_joint[5]}     
-            ]
-
-        # sim
-        if sim:
-            return cmd_list
-        
-        # play list
-        return self.play_list(cmd_list, timeout=timeout)
-    
-
-    def go(self, pose, ej=[0, 0, 0, 0, 0, 0, 0, 0], frame=[0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], cmd_list=[], current_joint=None, motion="jmove", vaj=None, speed=0.5, cone_samples=50, cone_degree=5, timeout=-1, sim=0,  **kwargs):
+    def go(self, pose, ej=[0, 0, 0, 0, 0, 0, 0, 0], frame=[0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], cmd_list=[], current_joint=None, motion="jmove", vaj=None, speed=0.2, cone_samples=50, cone_degree=5, timeout=-1, sim=0,  **kwargs):
         # uncertainity_cone
         uncertainity_cone = {
             "num_samples": cone_samples,
@@ -1000,4 +910,145 @@ class Dorna(WS):
         
         # play list
         return self.play_list(_cmd_list, timeout=timeout)
+
+
+    # start -> pick -> middle -> place -> end
+    def pick_n_place(self, pick_pose, place_pose=None, middle_pose=None, middle_joint=None, end_pose=None, end_joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=None, above=50, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.2, cont=1, corner=100, cone_samples=50, cone_degree=5, timeout=-1, sim=0,  **kwargs):
+        # init
+        cmd_list = []
+
+        # uncertainity_cone
+        uncertainity_cone = {
+            "num_samples": cone_samples,
+            "cone_degree": cone_degree}
+        
+        # Kinematic
+        self.kinematic.set_tcp_xyzabc(tcp)
+
+        # Current joint
+        current_joint = current_joint if current_joint is not None else self.get_all_joint()[0:6]
+        current_pose = self.kinematic.fw(joint=current_joint)
+        current_rvec = current_pose[3:]
+
+        # Speed
+        speed = min(1, max(0, speed))
+
+        # vaj
+        if vaj is None:
+            vaj = [x * speed for x in self.config["speed"]["very_quick"][motion].values()]
+        
+        # cvaj
+        if cvaj is None:
+            if cont == 1:
+                cvaj = [x * speed for x in self.config["speed"]["very_quick"]["c"+motion].values()]
+            else:
+                cvaj = vaj
+        
+        ##################
+        ###### Pick ######
+        ##################
+        if len(pick_pose) == 3:
+            pick_pose = [x for x in pick_pose]+current_rvec
+        pick_pose = np.array(pick_pose)
+        # Above pick
+        above_pick_pose = pick_pose.copy()
+        above_pick_pose[:3] = above_pick_pose[:3] - self.kinematic.get_Z_axis(xyzabc=pick_pose) * above
+        # Joint
+        above_pick_joint = self.kinematic.inv(above_pick_pose, current_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        pick_joint = self.kinematic.inv(pick_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        # ej
+        for i in range(min(len(ej), len(pick_joint))):
+            above_pick_joint[i] -= ej[i]
+            pick_joint[i] -= ej[i]
+        # last joint
+        last_joint = above_pick_joint
+        # cmd
+        cmd_list += [
+            {"cmd": motion, "rel": 0, "j0": above_pick_joint[0], "j1": above_pick_joint[1], "j2": above_pick_joint[2], "j3": above_pick_joint[3], "j4": above_pick_joint[4], "j5": above_pick_joint[5], "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont": 0},
+            {"cmd": motion, "rel": 0, "j0": pick_joint[0], "j1": pick_joint[1], "j2": pick_joint[2], "j3": pick_joint[3], "j4": pick_joint[4], "j5": pick_joint[5]},
+        ]
+        if output_config is not None:
+            cmd_list += [
+                {"cmd": "output", "out" + str(output_config[0]): output_config[1], "queue": 0},
+            ]
+        cmd_list += [{"cmd": "sleep", "time": sleep},
+            *pick_cmd_list,
+            {"cmd": motion, "rel": 0, "j0": above_pick_joint[0], "j1": above_pick_joint[1], "j2": above_pick_joint[2], "j3": above_pick_joint[3], "j4": above_pick_joint[4], "j5": above_pick_joint[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont, "corner": corner},
+        ]       
+
+        ##################
+        ###### place #####
+        ##################
+        if place_pose is not None:
+            if len(place_pose) == 3:
+                place_pose = [x for x in place_pose]+current_rvec
+            place_pose = np.array(place_pose)
+            # above place
+            above_place_pose = place_pose.copy()
+            above_place_pose[:3] = above_place_pose[:3] - self.kinematic.get_Z_axis(xyzabc=place_pose) * above
+
+        ##################
+        ###### middle ####
+        ##################
+        if middle_pose is not None and middle_joint is None:
+            if len(middle_pose) == 3:
+                middle_pose = [x for x in middle_pose]+current_rvec
+            middle_pose = np.array(middle_pose)
+            middle_joint = self.kinematic.inv(middle_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        elif place_pose is not None:
+            middle_pose = (above_pick_pose + above_place_pose) / 2
+            middle_pose[:3] = middle_pose[:3] - self.kinematic.get_Z_axis(xyzabc=middle_pose) * above
+            middle_joint = self.kinematic.inv(middle_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        # ej
+        if middle_joint is not None:
+            for i in range(min(len(ej), len(middle_joint))):
+                middle_joint[i] -= ej[i]
+            last_joint = middle_joint
+            # cmd
+            cmd_list += [{"cmd": motion, "rel": 0, "j0": middle_joint[0], "j1": middle_joint[1], "j2": middle_joint[2], "j3": middle_joint[3], "j4": middle_joint[4], "j5": middle_joint[5]}]
+
+        #####################
+        ###### place again ##
+        #####################
+        if place_pose is not None:
+            above_place_joint = self.kinematic.inv(above_place_pose, middle_joint, False, uncertainity_cone=uncertainity_cone)[0]
+            place_joint = self.kinematic.inv(place_pose, above_place_joint, False, uncertainity_cone=uncertainity_cone)[0]
+            # ej
+            for i in range(min(len(ej), len(place_joint))):
+                above_place_joint[i] -= ej[i]
+                place_joint[i] -= ej[i]
+            last_joint = above_place_joint
+            cmd_list += [
+                {"cmd": motion, "rel": 0, "j0": above_place_joint[0], "j1": above_place_joint[1], "j2": above_place_joint[2], "j3": above_place_joint[3], "j4": above_place_joint[4], "j5": above_place_joint[5], "cont": 0},
+                {"cmd": motion, "rel": 0, "j0": place_joint[0], "j1": place_joint[1], "j2": place_joint[2], "j3": place_joint[3], "j4": place_joint[4], "j5": place_joint[5], "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2]},
+            ]
+            if output_config is not None:
+                cmd_list += [{"cmd": "output", "out" + str(output_config[0]): output_config[2], "queue": 0}]
+            cmd_list += [{"cmd": "sleep", "time": sleep},
+                *place_cmd_list,
+                {"cmd": motion, "rel": 0, "j0": above_place_joint[0], "j1": above_place_joint[1], "j2": above_place_joint[2], "j3": above_place_joint[3], "j4": above_place_joint[4], "j5": above_place_joint[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont},
+            ]
+
+        ###############
+        ###### end ####
+        ###############
+        if end_pose is not None and end_joint is None:
+            if len(end_pose) == 3:
+                end_pose = [x for x in end_pose]+current_rvec
+            end_pose = np.array(end_pose)
+            end_joint = self.kinematic.inv(end_pose, last_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        # ej
+        if end_joint is not None:
+            for i in range(min(len(ej), len(end_joint))):
+                end_joint[i] -= ej[i]
+            cmd_list +=[
+                {"cmd": motion, "rel": 0, "j0": end_joint[0], "j1": end_joint[1], "j2": end_joint[2], "j3": end_joint[3], "j4": end_joint[4], "j5": end_joint[5]}     
+            ]
+
+        # sim
+        if sim:
+            return cmd_list
+        
+        # play list
+        return self.play_list(cmd_list, timeout=timeout)
 
