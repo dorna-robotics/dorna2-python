@@ -1002,7 +1002,8 @@ class Dorna(WS):
         # ej
         if middle_joint is not None:
             for i in range(min(len(ej), len(middle_joint))):
-                middle_joint[i] -= ej[i]
+                pass
+                #middle_joint[i] -= ej[i]
             last_joint = middle_joint
             # cmd
             cmd_list += [{"cmd": motion, "rel": 0, "j0": middle_joint[0], "j1": middle_joint[1], "j2": middle_joint[2], "j3": middle_joint[3], "j4": middle_joint[4], "j5": middle_joint[5]}]
@@ -1040,7 +1041,8 @@ class Dorna(WS):
         # ej
         if end_joint is not None:
             for i in range(min(len(ej), len(end_joint))):
-                end_joint[i] -= ej[i]
+                #end_joint[i] -= ej[i]
+                pass
             cmd_list +=[
                 {"cmd": motion, "rel": 0, "j0": end_joint[0], "j1": end_joint[1], "j2": end_joint[2], "j3": end_joint[3], "j4": end_joint[4], "j5": end_joint[5]}     
             ]
