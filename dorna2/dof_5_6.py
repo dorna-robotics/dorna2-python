@@ -243,10 +243,15 @@ class Dof(DH):
 
 					if counter>0:
 						random_vector = np.random.rand(3) - np.array([0.5,0.5,0.5])
-						random_vector_norm = np.linalg.norm(random_vector)
-						random_unit_vector = random_vector/random_vector_norm
 
-						random_rotation_matrix = self.axis_angle_to_mat(random_unit_vector*uncertainity_cone["cone_degree"])
+						if "freedom_vector" in uncertainity_cone:
+							random_vector =   self.get_X_axis(tmp_matrix) * random_vector[0] * uncertainity_cone["freedom_vector"][0] + self.get_Y_axis(tmp_matrix) * random_vector[1] * uncertainity_cone["freedom_vector"][1] + self.get_Z_axis(tmp_matrix) * random_vector[2] * uncertainity_cone["freedom_vector"][2]
+						else:
+							random_vector_norm = np.linalg.norm(random_vector)
+							random_vector = random_vector / random_vector_norm
+							random_vector = random_vector * uncertainity_cone["cone_degree"]
+
+						random_rotation_matrix = self.axis_angle_to_mat(random_vector)
 						tmp_matrix = np.matmul(tmp_matrix,  random_rotation_matrix)
 						
 
@@ -605,6 +610,7 @@ def main_dorna_c():
 	knmtc = Kinematic("dorna_ta")
 	knmtc.set_tcp_xyzabc([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
+
 	joint = [-4.262695, 28.234863, -104.282227, 0.32959, -15.952148, 91.560059]
 	print("initial joint: ", joint)
 	xyzabc = knmtc.fw(joint = joint)
@@ -624,11 +630,25 @@ def main_dorna_c():
 
 	print("xyzabc:", xyzabc)
 
-	ik_result = knmtc.inv(xyzabc, joint, False, uncertainity_cone = {"num_samples" : 50, "cone_degree" : 1, "approve_first_solution": False})
+	ik_result = knmtc.inv(xyzabc, joint, False, uncertainity_cone = {"num_samples" : 50, "cone_degree" : 1, "approve_first_solution": False })
 
 	print("ik_result: ", ik_result)
+	"""
+	above_pick_pose = np.array([ 316.69730436, -308.54856831,  250.7750391,   180.,            0.,0.        ])
+	above_place_pose = np.array([ 281.77910814,  -5.09010725,  330.87343997, -151.,           90.,-4.        ])
+	quaternion1 = knmtc.mat_to_quat(knmtc.xyzabc_to_mat(above_pick_pose ))
+	quaternion2 = knmtc.mat_to_quat(knmtc.xyzabc_to_mat(above_place_pose ))
 
 
+	middle_quaternion = knmtc.quat_slerp(quaternion1, quaternion2, 0.5)
+	middle_mat = np.eye(4)
+	middle_mat[:3,:3] = knmtc.quat_to_mat(middle_quaternion)
+	middle_xyzabc =  knmtc.mat_to_xyzabc(middle_mat)
+
+	middle_xyzabc[:3] = (above_pick_pose[:3]  + above_place_pose[:3])/2
+
+	print(middle_xyzabc)
+	"""
 
 if __name__ == '__main__':
 	#main_random()
