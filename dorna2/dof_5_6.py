@@ -246,6 +246,7 @@ class Dof(DH):
 
 						if "freedom_vector" in uncertainity_cone:
 							random_vector =   self.get_X_axis(tmp_matrix) * random_vector[0] * uncertainity_cone["freedom_vector"][0] + self.get_Y_axis(tmp_matrix) * random_vector[1] * uncertainity_cone["freedom_vector"][1] + self.get_Z_axis(tmp_matrix) * random_vector[2] * uncertainity_cone["freedom_vector"][2]
+							random_vector = random_vector * 2
 						else:
 							random_vector_norm = np.linalg.norm(random_vector)
 							random_vector = random_vector / random_vector_norm
