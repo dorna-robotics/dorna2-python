@@ -869,11 +869,11 @@ class Dorna(WS):
         self.kinematic = Kinematic(model)
 
 
-    def go(self, pose, ej=[0, 0, 0, 0, 0, 0, 0, 0], frame=[0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], cmd_list=[], current_joint=None, motion="jmove", vaj=None, speed=0.2, cone_samples=50, cone_degree=5, timeout=-1, sim=0,  **kwargs):
-        # uncertainity_cone
-        uncertainity_cone = {
-            "num_samples": cone_samples,
-            "cone_degree": cone_degree
+    def go(self, pose, ej=[0, 0, 0, 0, 0, 0, 0, 0], frame=[0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], cmd_list=[], current_joint=None, motion="jmove", vaj=None, speed=0.2, freedom_num=50, freedom_range=[4,4,4], timeout=-1, sim=0,  **kwargs):
+        # uncertainity_cone (freedom) parameteres
+        freedom = {
+            "num": freedom_num,
+            "range": freedom_range
         }
         
         # Kinematic
@@ -886,7 +886,7 @@ class Dorna(WS):
         # pose and joint
         if len(pose) == 3:
             pose = [x for x in pose]+current_pose[3:]
-        joint = self.kinematic.inv(pose, current_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        joint = self.kinematic.inv(pose, current_joint, False, freedom=freedom)[0]
 
         # ej
         for i in range(min(len(ej), len(joint))):
@@ -913,14 +913,14 @@ class Dorna(WS):
 
 
     # start -> pick -> middle -> place -> end
-    def pick_n_place(self, pick_pose, place_pose=None, middle_pose=None, middle_joint=None, end_pose=None, end_joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=None, above=50, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.2, cont=1, corner=100, cone_samples=50, cone_degree=5, timeout=-1, sim=0,  **kwargs):
+    def pick_n_place(self, pick_pose, place_pose=None, middle_pose=None, middle_joint=None, end_pose=None, end_joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=None, above=50, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.2, cont=1, corner=100, freedom_num=50, freedom_range=[4,4,4], timeout=-1, sim=0,  **kwargs):
         # init
         cmd_list = []
 
-        # uncertainity_cone
-        uncertainity_cone = {
-            "num_samples": cone_samples,
-            "cone_degree": cone_degree}
+        # uncertainity_cone (freedom) parameteres
+        freedom = {
+            "num": freedom_num,
+            "range": freedom_range}
         
         # Kinematic
         self.kinematic.set_tcp_xyzabc(tcp)
@@ -954,8 +954,8 @@ class Dorna(WS):
         above_pick_pose = pick_pose.copy()
         above_pick_pose[:3] = above_pick_pose[:3] - self.kinematic.get_Z_axis(xyzabc=pick_pose) * above
         # Joint
-        above_pick_joint = self.kinematic.inv(above_pick_pose, current_joint, False, uncertainity_cone=uncertainity_cone)[0]
-        pick_joint = self.kinematic.inv(pick_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
+        above_pick_joint = self.kinematic.inv(above_pick_pose, current_joint, False, freedom=freedom)[0]
+        pick_joint = self.kinematic.inv(pick_pose, above_pick_joint, False, freedom=freedom)[0]
         # ej
         for i in range(min(len(ej), len(pick_joint))):
             above_pick_joint[i] -= ej[i]
@@ -994,12 +994,12 @@ class Dorna(WS):
             if len(middle_pose) == 3:
                 middle_pose = [x for x in middle_pose]+current_rvec
             middle_pose = np.array(middle_pose)
-            middle_joint = self.kinematic.inv(middle_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
+            middle_joint = self.kinematic.inv(middle_pose, above_pick_joint, False, freedom=freedom)[0]
         """
         elif place_pose is not None:
             middle_pose = (above_pick_pose + above_place_pose) / 2
             middle_pose[:3] = middle_pose[:3] - self.kinematic.get_Z_axis(xyzabc=middle_pose) * above
-            middle_joint = self.kinematic.inv(middle_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]
+            middle_joint = self.kinematic.inv(middle_pose, above_pick_joint, False, freedom=freedom)[0]
         """
 
         # ej
@@ -1016,10 +1016,10 @@ class Dorna(WS):
         #####################
         if place_pose is not None:
             if middle_joint is not None:
-                above_place_joint = self.kinematic.inv(above_place_pose, middle_joint, False, uncertainity_cone=uncertainity_cone)[0]
+                above_place_joint = self.kinematic.inv(above_place_pose, middle_joint, False, freedom=freedom)[0]
             else:
-                above_place_joint = self.kinematic.inv(above_place_pose, above_pick_joint, False, uncertainity_cone=uncertainity_cone)[0]    
-            place_joint = self.kinematic.inv(place_pose, above_place_joint, False, uncertainity_cone=uncertainity_cone)[0]
+                above_place_joint = self.kinematic.inv(above_place_pose, above_pick_joint, False, freedom=freedom)[0]    
+            place_joint = self.kinematic.inv(place_pose, above_place_joint, False, freedom=freedom)[0]
             # ej
             for i in range(min(len(ej), len(place_joint))):
                 above_place_joint[i] -= ej[i]
@@ -1043,7 +1043,7 @@ class Dorna(WS):
             if len(end_pose) == 3:
                 end_pose = [x for x in end_pose]+current_rvec
             end_pose = np.array(end_pose)
-            end_joint = self.kinematic.inv(end_pose, last_joint, False, uncertainity_cone=uncertainity_cone)[0]
+            end_joint = self.kinematic.inv(end_pose, last_joint, False, freedom=freedom)[0]
         # ej
         if end_joint is not None:
             for i in range(min(len(ej), len(end_joint))):

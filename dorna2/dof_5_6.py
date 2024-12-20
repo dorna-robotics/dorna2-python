@@ -197,7 +197,7 @@ class Dof(DH):
 	find all the possible robot orientations 
 	"""
 
-	def inv_base(self, T_tcp_r_world, theta_current, all_sol, uncertainity_cone):
+	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom ):
 
 		goal_matrix = np.matmul(T_tcp_r_world, self.inv_T_tcp_r_flange)
 
@@ -226,7 +226,7 @@ class Dof(DH):
 			#print("treshold ",joint_space_distance_treshold)
 
 			all_sol = []
-			if uncertainity_cone is None:
+			if freedom is None:
 				new_sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], goal_matrix)
 				for s in new_sol:
 					t = self.t_flange_r_world(theta = s)
@@ -236,21 +236,20 @@ class Dof(DH):
 					all_sol.append(s)
 			else:
 				counter = 0
-				for sample in range(uncertainity_cone["num_samples"]):
+				for sample in range(max(1,freedom["num"])):
 
 					tmp_matrix = goal_matrix
 					
 
 					if counter>0:
-						random_vector = np.random.rand(3) - np.array([0.5,0.5,0.5])
+						random_vector = (np.random.rand(3) - np.array([0.5,0.5,0.5])) * 2
 
-						if "freedom_vector" in uncertainity_cone:
-							random_vector =   self.get_X_axis(tmp_matrix) * random_vector[0] * uncertainity_cone["freedom_vector"][0] + self.get_Y_axis(tmp_matrix) * random_vector[1] * uncertainity_cone["freedom_vector"][1] + self.get_Z_axis(tmp_matrix) * random_vector[2] * uncertainity_cone["freedom_vector"][2]
-							random_vector = random_vector * 2
+						if "range" in freedom:
+							pass
 						else:
-							random_vector_norm = np.linalg.norm(random_vector)
-							random_vector = random_vector / random_vector_norm
-							random_vector = random_vector * uncertainity_cone["cone_degree"]
+							freedom["range"] = [4.0,4.0,4.0] #in degrees
+
+						random_vector =   self.get_X_axis(tmp_matrix) * random_vector[0] * freedom["range"][0] + self.get_Y_axis(tmp_matrix) * random_vector[1] * freedom["range"][1] + self.get_Z_axis(tmp_matrix) * random_vector[2] *freedom["range"][2]
 
 						random_rotation_matrix = self.axis_angle_to_mat(random_vector)
 						tmp_matrix = np.matmul(tmp_matrix,  random_rotation_matrix)
@@ -272,8 +271,8 @@ class Dof(DH):
 							if angle_space_distance(np.array(s) , np.array(theta_current))<joint_space_distance_treshold:
 								no_need_to_continue = True
 
-						if("approve_first_solution" in uncertainity_cone ):
-							if(uncertainity_cone["approve_first_solution"]):
+						if("early_exit" in freedom ):
+							if(freedom["early_exit"]):
 								if angle_space_distance(np.array(s) , np.array(theta_current))<joint_space_distance_treshold:
 									no_need_to_continue = True	
 
@@ -569,7 +568,7 @@ class Kinematic(Dof):
 		return [fw[0,3], fw[1,3], fw[2,3]] + abc
 
 
-	def inv(self, xyzabc, joint_current=None, all_sol=False, uncertainity_cone = None): #xyzabg
+	def inv(self, xyzabc, joint_current=None, all_sol=False, freedom = None): #xyzabg
 		#print("inv call:",xyzabc)
 		ABC = xyzabc[3:].copy()
 		
@@ -595,7 +594,7 @@ class Kinematic(Dof):
 				if(self.n_dof==5):
 					theta_current[5] = theta_5
 
-		theta_all = self.inv_base(np.array(T_tcp_r_world), theta_current=theta_current, all_sol=all_sol , uncertainity_cone = uncertainity_cone)
+		theta_all = self.inv_base(np.array(T_tcp_r_world), theta_current=theta_current, all_sol=all_sol , freedom = freedom)
 		#theta_all = self.approach(np.array(T_tcp_r_world), theta_current=theta_current)
 
 
@@ -631,7 +630,10 @@ def main_dorna_c():
 
 	print("xyzabc:", xyzabc)
 
-	ik_result = knmtc.inv(xyzabc, joint, False, uncertainity_cone = {"num_samples" : 50, "cone_degree" : 1, "approve_first_solution": False })
+	ik_result = knmtc.inv(xyzabc, joint, False, freedom = {"num" : 50, "range" : [1,1,1], "early_exit": False })
+
+
+
 
 	print("ik_result: ", ik_result)
 	"""
