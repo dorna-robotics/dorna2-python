@@ -1,7 +1,8 @@
 import numpy as np
-from dorna2.cf import CF
 from dorna2.ik6r_2 import ik
 
+from dorna2.cf import CF
+#from cf import CF
 """
 Sources:
 	http://rasmusan.blog.aau.dk/files/ur5_kinematics.pdf
@@ -307,6 +308,35 @@ class Dof(DH):
 
 		return sol
 
+	def  nearest_pose(self, poses, theta_current):
+		theta_current = np.array(theta_current)
+
+		if len(poses) < 1:
+			return 0
+
+		best_pos = poses[0]
+		
+		best_distance = 1000000
+
+		for pose in poses:
+
+			goal_matrix = np.matmul(self.xyzabc_to_mat(pose), self.inv_T_tcp_r_flange)
+
+			ik_sols = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], goal_matrix)
+
+			for s in ik_sols:
+				t = self.t_flange_r_world(theta = s)
+				mdist = np.sqrt(np.sum( np.array(t - goal_matrix)**2))
+				if(mdist>0.01):
+					continue
+
+				dist = angle_space_distance(np.array(s) , np.array(theta_current))
+				print(pose, s, dist)
+				if dist<best_distance:
+					best_distance = dist
+					best_pose = pose
+
+		return best_pose
 
 	def approach(self, T_tcp_r_world, theta_current):
 		try: 
@@ -610,6 +640,8 @@ def main_dorna_c():
 	knmtc = Kinematic("dorna_ta")
 	knmtc.set_tcp_xyzabc([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
+	print("best joint test: ")
+	print(knmtc.nearest_pose( [[10,20,30,40,50,45] , [60,70,80,90,100,0], [1,2,3,4,5,6]], np.array( [10,20,30,40,50,60]) * np.pi/180 ) )
 
 	joint = [-4.262695, 28.234863, -104.282227, 0.32959, -15.952148, 91.560059]
 	print("initial joint: ", joint)

@@ -298,3 +298,36 @@ class CF(object):
 		z[2] = mat[2,2]
 
 		return z
+
+	def get_Z_axis(self, mat = None, xyzabc = None):
+		if xyzabc is not None :
+			mat = self.xyzabc_to_mat(xyzabc)
+		if mat is None :
+			return np.array([0.0,0.0,1.0])
+
+		z = np.array([0.0,0.0,0.0])
+		z[0] = mat[0,2]
+		z[1] = mat[1,2]
+		z[2] = mat[2,2]
+
+		return z
+
+	def rotate_rvec(self, rvec=[0,0,0], axis=[1,0,0], angle=0, local=False ):
+		
+		axis = np.array(axis)
+
+		T = self.axis_angle_to_mat(rvec)
+
+		if local:
+			axis = axis[0] * self.get_X_axis(T) + axis[1] * self.get_Y_axis(T) + axis[2] * self.get_Z_axis(T)
+
+		axis = axis / np.linalg.norm(axis) 
+
+		R = self.axis_angle_to_mat(axis * angle)
+
+		RT = np.matmul(R,T)
+
+		RTv = self.mat_to_axis_angle(RT)
+
+		return [RTv[0], RTv[1], RTv[2]]
+		 
