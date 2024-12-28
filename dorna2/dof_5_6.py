@@ -31,13 +31,9 @@ def d_theta(t1,t2):
 		dt = dt + 2 * np.pi
 	return dt
 
-def angle_space_distance(s1 , s2):
-	d = 0
-	#s1 = s1%(2*np.pi)
-	#s2 = s2%(2*np.pi)
-	for i in range(len(s1)):
-		d = d + (s1[i]-s2[i])**2
-	return np.sqrt(d)
+def angle_space_distance(s1, s2):
+    return np.linalg.norm(np.array(s1)[0:min(len(s1), len(s2))] - np.array(s2)[0:min(len(s1), len(s2))])
+
 
 def dot(a,b):
 	return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
@@ -308,13 +304,13 @@ class Dof(DH):
 
 		return sol
 
-	def  nearest_pose(self, poses, theta_current):
-		theta_current = np.array(theta_current)
+	def  nearest_pose(self, poses, current_joint):
+		current_joint = np.array(current_joint)
 
 		if len(poses) < 1:
 			return 0
 
-		best_pos = poses[0]
+		best_pose = poses[0]
 		
 		best_distance = 1000000
 
@@ -330,9 +326,8 @@ class Dof(DH):
 				if(mdist>0.01):
 					continue
 
-				dist = angle_space_distance(np.array(s) , np.array(theta_current))
-				print(pose, s, dist)
-				if dist<best_distance:
+				dist = angle_space_distance(np.array(s) , np.array(current_joint))
+				if dist < best_distance:
 					best_distance = dist
 					best_pose = pose
 
