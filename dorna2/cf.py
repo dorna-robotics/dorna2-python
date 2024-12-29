@@ -316,7 +316,7 @@ class CF(object):
 		
 		axis = np.array(axis)
 
-		T = self.axis_angle_to_mat(rvec)
+		T = self.axis_angle_to_mat([rvec[0],rvec[1],rvec[2]])
 
 		if local:
 			axis = axis[0] * self.get_X_axis(T) + axis[1] * self.get_Y_axis(T) + axis[2] * self.get_Z_axis(T)
