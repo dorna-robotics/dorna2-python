@@ -304,8 +304,8 @@ class Dof(DH):
 
 		return sol
 
-	def  nearest_pose(self, poses, current_joint):
-		current_joint = np.array(current_joint)
+	def  nearest_pose(self, poses, current_theta):
+		current_theta = np.array(current_theta)
 
 		if len(poses) < 1:
 			return 0
@@ -326,7 +326,7 @@ class Dof(DH):
 				if(mdist>0.01):
 					continue
 
-				dist = angle_space_distance(np.array(s) , np.array(current_joint))
+				dist = angle_space_distance(np.array(s) , np.array(current_theta))
 				if dist < best_distance:
 					best_distance = dist
 					best_pose = pose
