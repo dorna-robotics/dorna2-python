@@ -258,7 +258,6 @@ class WS(object):
 
             except Exception as ex:
                 print("socket read error: ", ex)
-                print("data: ", data_str[index_start:-1])
 
         # close connection
         await self.close_coro()
