@@ -950,7 +950,7 @@ class Dorna(WS):
         ignore_pick = False
         if pick_pose is None:
             ignore_pick = True
-            pick_pose = np.aray(current_pose)
+            pick_pose = np.array(current_pose)
 
         if len(pick_pose) == 3:
             pick_pose = [x for x in pick_pose]+current_rvec
