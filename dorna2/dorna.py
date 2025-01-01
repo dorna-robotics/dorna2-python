@@ -1032,9 +1032,13 @@ class Dorna(WS):
             if output_config is not None:
                 cmd_list += [{"cmd": "output", "out" + str(output_config[0]): output_config[2], "queue": 0}]
             cmd_list += [{"cmd": "sleep", "time": sleep},
-                *place_cmd_list,
-                {"cmd": motion, "rel": 0, "j0": above_place_joint[0], "j1": above_place_joint[1], "j2": above_place_joint[2], "j3": above_place_joint[3], "j4": above_place_joint[4], "j5": above_place_joint[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont},
-            ]
+                *place_cmd_list]
+            
+            # above place
+            if end_pose is not None or end_joint is not None:
+                cmd_list += [{"cmd": motion, "rel": 0, "j0": above_place_joint[0], "j1": above_place_joint[1], "j2": above_place_joint[2], "j3": above_place_joint[3], "j4": above_place_joint[4], "j5": above_place_joint[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont}]
+
+
 
         ###############
         ###### end ####
