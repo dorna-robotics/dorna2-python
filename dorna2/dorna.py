@@ -869,7 +869,7 @@ class Dorna(WS):
         self.kinematic = Kinematic(model)
 
 
-    def go(self, pose, ej=[0, 0, 0, 0, 0, 0, 0, 0], frame=[0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], cmd_list=[], current_joint=None, motion="jmove", vaj=None, speed=0.2, freedom_num=50, freedom_range=[4,4,4], timeout=-1, sim=0,  **kwargs):
+    def go(self, pose, ej=[0, 0, 0, 0, 0, 0, 0, 0], frame=[0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], cmd_list=[], current_joint=None, motion="jmove", vaj=None, speed=0.2, freedom_num=50, freedom_range=[2, 2, 2], timeout=-1, sim=0,  **kwargs):
         # uncertainity_cone (freedom) parameteres
         freedom = {
             "num": freedom_num,
@@ -913,7 +913,7 @@ class Dorna(WS):
 
 
     # start -> pick -> middle -> place -> end
-    def pick_n_place(self, pick_pose, place_pose=None, middle_pose=None, middle_joint=None, end_pose=None, end_joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=None, above=50, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.2, cont=1, corner=100, freedom_num=50, freedom_range=[4,4,4], timeout=-1, sim=0,  **kwargs):
+    def pick_n_place(self, pick_pose, place_pose=None, middle_pose=None, middle_joint=None, end_pose=None, end_joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=None, above=50, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.2, cont=1, corner=100, freedom_num=50, freedom_range=[2, 2, 2], timeout=-1, sim=0,  **kwargs):
         # init
         cmd_list = []
 
