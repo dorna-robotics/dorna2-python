@@ -913,7 +913,7 @@ class Dorna(WS):
 
 
     # start -> pick -> middle -> place -> end
-    def pick_n_place(self, pick_pose, place_pose=None, middle_pose=None, middle_joint=None, end_pose=None, end_joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=None, above=50, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.2, cont=1, corner=100, freedom_num=50, freedom_range=[2, 2, 2], timeout=-1, sim=0,  **kwargs):
+    def pick_n_place(self, pick_pose=None, place_pose=None, middle_pose=None, middle_joint=None, end_pose=None, end_joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=None, above=50, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.2, cont=1, corner=100, freedom_num=50, freedom_range=[2, 2, 2], timeout=-1, sim=0,  **kwargs):
         # init
         cmd_list = []
 
@@ -947,6 +947,11 @@ class Dorna(WS):
         ##################
         ###### Pick ######
         ##################
+        ignore_pick = False
+        if pick_pose is None:
+            ignore_pick = True
+            pick_pose = np.aray(current_pose)
+
         if len(pick_pose) == 3:
             pick_pose = [x for x in pick_pose]+current_rvec
         pick_pose = np.array(pick_pose)
@@ -962,11 +967,13 @@ class Dorna(WS):
             pick_joint[i] -= ej[i]
         # last joint
         last_joint = above_pick_joint
+        
         # cmd
-        cmd_list += [
-            {"cmd": motion, "rel": 0, "j0": above_pick_joint[0], "j1": above_pick_joint[1], "j2": above_pick_joint[2], "j3": above_pick_joint[3], "j4": above_pick_joint[4], "j5": above_pick_joint[5], "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont": 0},
-            {"cmd": motion, "rel": 0, "j0": pick_joint[0], "j1": pick_joint[1], "j2": pick_joint[2], "j3": pick_joint[3], "j4": pick_joint[4], "j5": pick_joint[5]},
-        ]
+        if not ignore_pick:
+            cmd_list += [
+                {"cmd": motion, "rel": 0, "j0": above_pick_joint[0], "j1": above_pick_joint[1], "j2": above_pick_joint[2], "j3": above_pick_joint[3], "j4": above_pick_joint[4], "j5": above_pick_joint[5], "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont": 0},
+                {"cmd": motion, "rel": 0, "j0": pick_joint[0], "j1": pick_joint[1], "j2": pick_joint[2], "j3": pick_joint[3], "j4": pick_joint[4], "j5": pick_joint[5]},
+            ]
         if output_config is not None:
             cmd_list += [
                 {"cmd": "output", "out" + str(output_config[0]): output_config[1], "queue": 0},
