@@ -187,6 +187,7 @@ class Dorna(WS):
         
         # write the message
         self.write(json.dumps(msg))
+        print(json.dumps(msg))
 
         start = time.time()
         while self._track["id"] == msg["id"]:            

@@ -12,8 +12,7 @@
         "pwm",
         "adc",
         "version",
-        "uid",
-        "tcp"
+        "uid"
     ],
     "camera_mount":[
         {
