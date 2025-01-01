@@ -300,9 +300,9 @@ class Dof(DH):
 			if best_sol_dist < 5.0:
 				return [best_sol]
 			else:
-				return[theta_current]
+				return[]
 
-		return sol
+		return []
 
 	def  nearest_pose(self, poses, current_theta):
 		current_theta = np.array(current_theta)
