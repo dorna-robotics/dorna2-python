@@ -186,7 +186,6 @@ class Dorna(WS):
         self._send = copy.deepcopy(msg)
         
         # write the message
-        print(json.dumps(msg))
         self.write(json.dumps(msg))
 
         start = time.time()
@@ -1015,7 +1014,6 @@ class Dorna(WS):
         #####################
         ###### place again ##
         #####################
-        print("above_place_pose", above_place_pose)
         if place_pose is not None:
             if middle_joint is not None:
                 above_place_joint = self.kinematic.inv(above_place_pose, middle_joint, False, freedom=freedom)[0]
