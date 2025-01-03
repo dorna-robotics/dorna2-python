@@ -624,7 +624,7 @@ class Kinematic(Dof):
 
 
 		# all the solution
-		joint_all = ([self.theta_to_joint(theta) for theta in theta_all ])
+		joint_all = np.array([self.theta_to_joint(theta) for theta in theta_all ])
 		#if(self.n_dof==5):
 		#	joint_all = [self.theta_to_joint(theta[:5]) + [theta[5]] for theta in theta_all ]
 
