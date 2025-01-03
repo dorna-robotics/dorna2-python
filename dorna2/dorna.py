@@ -922,6 +922,13 @@ class Dorna(WS):
             "num": freedom_num,
             "range": freedom_range}
         
+        # above
+        if isinstance(above, list):
+            above_s = above[0]
+            above_e = above[-1]
+        else:
+            above_s = above_e = above
+        
         # Kinematic
         self.kinematic.set_tcp_xyzabc(tcp)
 
@@ -957,7 +964,7 @@ class Dorna(WS):
         pick_pose = np.array(pick_pose)
         # Above pick
         above_pick_pose = pick_pose.copy()
-        above_pick_pose[:3] = above_pick_pose[:3] - self.kinematic.get_Z_axis(xyzabc=pick_pose) * above
+        above_pick_pose[:3] = above_pick_pose[:3] - self.kinematic.get_Z_axis(xyzabc=pick_pose) * above_s
         # Joint
         above_pick_joint = self.kinematic.inv(above_pick_pose, current_joint, False, freedom=freedom)[0]
         pick_joint = self.kinematic.inv(pick_pose, above_pick_joint, False, freedom=freedom)[0]
@@ -992,7 +999,7 @@ class Dorna(WS):
             place_pose = np.array(place_pose)
             # above place
             above_place_pose = place_pose.copy()
-            above_place_pose[:3] = above_place_pose[:3] - self.kinematic.get_Z_axis(xyzabc=place_pose) * above
+            above_place_pose[:3] = above_place_pose[:3] - self.kinematic.get_Z_axis(xyzabc=place_pose) * above_e
 
         ##################
         ###### middle ####
