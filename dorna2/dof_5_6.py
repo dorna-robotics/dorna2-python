@@ -264,9 +264,9 @@ class Dof(DH):
 						if(mdist>0.01):
 							continue
 
-						if(counter == 1):#check if first try has valid solutions
-							if angle_space_distance(np.array(s) , np.array(theta_current))<joint_space_distance_treshold:
-								no_need_to_continue = True
+						#if(counter == 1):#check if first try has valid solutions
+						#	if angle_space_distance(np.array(s) , np.array(theta_current))<joint_space_distance_treshold:
+						#		no_need_to_continue = True
 
 						if("early_exit" in freedom ):
 							if(freedom["early_exit"]):
