@@ -869,13 +869,7 @@ class Dorna(WS):
         self.kinematic = Kinematic(model)
 
 
-    def go(self, pose, ej=[0, 0, 0, 0, 0, 0, 0, 0], frame=[0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], cmd_list=[], current_joint=None, motion="jmove", vaj=None, speed=0.2, freedom_num=50, freedom_range=[2, 2, 2], timeout=-1, sim=0,  **kwargs):
-        # uncertainity_cone (freedom) parameteres
-        freedom = {
-            "num": freedom_num,
-            "range": freedom_range
-        }
-        
+    def go(self, pose, ej=[0, 0, 0, 0, 0, 0, 0, 0], frame=[0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], cmd_list=[], current_joint=None, motion="jmove", vaj=None, speed=0.2, freedom={"num":20, "range":[2, 2, 2], "early_exit": False}, timeout=-1, sim=0,  **kwargs):        
         # Kinematic
         self.kinematic.set_tcp_xyzabc(tcp)
 
@@ -913,21 +907,18 @@ class Dorna(WS):
 
 
     # start -> pick -> middle -> place -> end
-    def pick_n_place(self, pick_pose=None, place_pose=None, middle_pose=None, middle_joint=None, end_pose=None, end_joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=None, above=50, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.2, cont=1, corner=100, freedom_num=50, freedom_range=[2, 2, 2], timeout=-1, sim=0,  **kwargs):
+    def pick_n_place(self, pick_pose=None, place_pose=None, middle_pose=None, middle_joint=None, end_pose=None, end_joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=None, above=50, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.2, cont=1, corner=100, freedom={"num":20, "range":[2, 2, 2], "early_exit": False}, timeout=-1, sim=0,  **kwargs):
         # init
         cmd_list = []
-
-        # uncertainity_cone (freedom) parameteres
-        freedom = {
-            "num": freedom_num,
-            "range": freedom_range}
-        
+                
         # above
-        if isinstance(above, list):
-            above_s = above[0]
-            above_e = above[-1]
+        if isinstance(above, list) and len(above) == 4:
+            above_0 = above[0]
+            above_1 = above[1]
+            above_2 = above[2]
+            above_3 = above[3]
         else:
-            above_s = above_e = above
+            above_0 = above_1 = above_2 = above_3 = above
         
         # Kinematic
         self.kinematic.set_tcp_xyzabc(tcp)
@@ -963,22 +954,26 @@ class Dorna(WS):
             pick_pose = [x for x in pick_pose]+current_rvec
         pick_pose = np.array(pick_pose)
         # Above pick
-        above_pick_pose = pick_pose.copy()
-        above_pick_pose[:3] = above_pick_pose[:3] - self.kinematic.get_Z_axis(xyzabc=pick_pose) * above_s
+        above_pick_pose_0 = pick_pose.copy()
+        above_pick_pose_1 = pick_pose.copy()
+        above_pick_pose_0[:3] = above_pick_pose_0[:3] - self.kinematic.get_Z_axis(xyzabc=pick_pose) * above_0
+        above_pick_pose_1[:3] = above_pick_pose_1[:3] - self.kinematic.get_Z_axis(xyzabc=pick_pose) * above_1
         # Joint
-        above_pick_joint = self.kinematic.inv(above_pick_pose, current_joint, False, freedom=freedom)[0]
-        pick_joint = self.kinematic.inv(pick_pose, above_pick_joint, False, freedom=freedom)[0]
+        above_pick_joint_0 = self.kinematic.inv(above_pick_pose_0, current_joint, False, freedom=freedom)[0]
+        above_pick_joint_1 = self.kinematic.inv(above_pick_pose_1, current_joint, False, freedom=freedom)[0]
+        pick_joint = self.kinematic.inv(pick_pose, above_pick_joint_0, False, freedom=freedom)[0]
         # ej
         for i in range(min(len(ej), len(pick_joint))):
-            above_pick_joint[i] -= ej[i]
+            above_pick_joint_0[i] -= ej[i]
+            above_pick_joint_1[i] -= ej[i]
             pick_joint[i] -= ej[i]
         # last joint
-        last_joint = above_pick_joint
+        last_joint = above_pick_joint_1
         
         # cmd
         if not ignore_pick:
             cmd_list += [
-                {"cmd": motion, "rel": 0, "j0": above_pick_joint[0], "j1": above_pick_joint[1], "j2": above_pick_joint[2], "j3": above_pick_joint[3], "j4": above_pick_joint[4], "j5": above_pick_joint[5], "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont": 0},
+                {"cmd": motion, "rel": 0, "j0": above_pick_joint_0[0], "j1": above_pick_joint_0[1], "j2": above_pick_joint_0[2], "j3": above_pick_joint_0[3], "j4": above_pick_joint_0[4], "j5": above_pick_joint_0[5], "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont": 0},
                 {"cmd": motion, "rel": 0, "j0": pick_joint[0], "j1": pick_joint[1], "j2": pick_joint[2], "j3": pick_joint[3], "j4": pick_joint[4], "j5": pick_joint[5]},
             ]
         if output_config is not None:
@@ -987,7 +982,7 @@ class Dorna(WS):
             ]
         cmd_list += [{"cmd": "sleep", "time": sleep},
             *pick_cmd_list,
-            {"cmd": motion, "rel": 0, "j0": above_pick_joint[0], "j1": above_pick_joint[1], "j2": above_pick_joint[2], "j3": above_pick_joint[3], "j4": above_pick_joint[4], "j5": above_pick_joint[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont, "corner": corner},
+            {"cmd": motion, "rel": 0, "j0": above_pick_joint_1[0], "j1": above_pick_joint_1[1], "j2": above_pick_joint_1[2], "j3": above_pick_joint_1[3], "j4": above_pick_joint_1[4], "j5": above_pick_joint_1[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont, "corner": corner},
         ]       
 
         ##################
@@ -998,8 +993,10 @@ class Dorna(WS):
                 place_pose = [x for x in place_pose]+current_rvec
             place_pose = np.array(place_pose)
             # above place
-            above_place_pose = place_pose.copy()
-            above_place_pose[:3] = above_place_pose[:3] - self.kinematic.get_Z_axis(xyzabc=place_pose) * above_e
+            above_place_pose_0 = place_pose.copy()
+            above_place_pose_1 = place_pose.copy()
+            above_place_pose_0[:3] = above_place_pose_0[:3] - self.kinematic.get_Z_axis(xyzabc=place_pose) * above_2
+            above_place_pose_1[:3] = above_place_pose_1[:3] - self.kinematic.get_Z_axis(xyzabc=place_pose) * above_3
 
         ##################
         ###### middle ####
@@ -1008,7 +1005,7 @@ class Dorna(WS):
             if len(middle_pose) == 3:
                 middle_pose = [x for x in middle_pose]+current_rvec
             middle_pose = np.array(middle_pose)
-            middle_joint = self.kinematic.inv(middle_pose, above_pick_joint, False, freedom=freedom)[0]
+            middle_joint = self.kinematic.inv(middle_pose, above_pick_joint_1, False, freedom=freedom)[0]
         """
         elif place_pose is not None:
             middle_pose = (above_pick_pose + above_place_pose) / 2
@@ -1030,17 +1027,21 @@ class Dorna(WS):
         #####################
         if place_pose is not None:
             if middle_joint is not None:
-                above_place_joint = self.kinematic.inv(above_place_pose, middle_joint, False, freedom=freedom)[0]
+                above_place_joint_0 = self.kinematic.inv(above_place_pose_0, middle_joint, False, freedom=freedom)[0]
+                above_place_joint_1 = self.kinematic.inv(above_place_pose_1, middle_joint, False, freedom=freedom)[0]
+
             else:
-                above_place_joint = self.kinematic.inv(above_place_pose, above_pick_joint, False, freedom=freedom)[0]    
-            place_joint = self.kinematic.inv(place_pose, above_place_joint, False, freedom=freedom)[0]
+                above_place_joint_0 = self.kinematic.inv(above_place_pose_0, above_pick_joint_1, False, freedom=freedom)[0]
+                above_place_joint_1 = self.kinematic.inv(above_place_pose_1, above_pick_joint_1, False, freedom=freedom)[0]    
+            place_joint = self.kinematic.inv(place_pose, above_place_joint_1, False, freedom=freedom)[0]
             # ej
             for i in range(min(len(ej), len(place_joint))):
-                above_place_joint[i] -= ej[i]
+                above_place_joint_0[i] -= ej[i]
+                above_place_joint_1[i] -= ej[i]
                 place_joint[i] -= ej[i]
-            last_joint = above_place_joint
+            last_joint = above_place_joint_1
             cmd_list += [
-                {"cmd": motion, "rel": 0, "j0": above_place_joint[0], "j1": above_place_joint[1], "j2": above_place_joint[2], "j3": above_place_joint[3], "j4": above_place_joint[4], "j5": above_place_joint[5], "cont": 0},
+                {"cmd": motion, "rel": 0, "j0": above_place_joint_0[0], "j1": above_place_joint_0[1], "j2": above_place_joint_0[2], "j3": above_place_joint_0[3], "j4": above_place_joint_0[4], "j5": above_place_joint_0[5], "cont": 0},
                 {"cmd": motion, "rel": 0, "j0": place_joint[0], "j1": place_joint[1], "j2": place_joint[2], "j3": place_joint[3], "j4": place_joint[4], "j5": place_joint[5], "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2]},
             ]
             if output_config is not None:
@@ -1050,7 +1051,7 @@ class Dorna(WS):
             
             # above place
             if end_pose is not None or end_joint is not None:
-                cmd_list += [{"cmd": motion, "rel": 0, "j0": above_place_joint[0], "j1": above_place_joint[1], "j2": above_place_joint[2], "j3": above_place_joint[3], "j4": above_place_joint[4], "j5": above_place_joint[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont}]
+                cmd_list += [{"cmd": motion, "rel": 0, "j0": above_place_joint_1[0], "j1": above_place_joint_1[1], "j2": above_place_joint_1[2], "j3": above_place_joint_1[3], "j4": above_place_joint_1[4], "j5": above_place_joint_1[5], "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont}]
 
 
 
