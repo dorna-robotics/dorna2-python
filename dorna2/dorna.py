@@ -316,9 +316,9 @@ class Dorna(WS):
     """
     send jmove, rmove, lmove, cmove command
     """
-    def jmove(self, joint=[], **kwargs):
+    def jmove(self, joint=[], rel=0, **kwargs):
         joint_dict = {f"j{i}": joint[i] for i in range(len(joint))}
-        kwargs = {**joint_dict, **kwargs}
+        kwargs = {**joint_dict,"rel": rel, **kwargs}
         return self._motion("jmove", **kwargs)
 
 
@@ -326,9 +326,9 @@ class Dorna(WS):
         return self._motion("rmove", **kwargs)        
 
 
-    def lmove(self, pose=[], **kwargs):
+    def lmove(self, pose=[], rel=0, **kwargs):
         pose_dict = {["x", "y", "z", "a", "b", "c", "d", "e"][i]: pose[i] for i in range(len(pose))}
-        kwargs = {**pose_dict, **kwargs}
+        kwargs = {**pose_dict,"rel": rel, **kwargs}
         return self._motion("lmove", **kwargs)
 
 
@@ -869,18 +869,22 @@ class Dorna(WS):
         self.kinematic = Kinematic(model)
 
 
-    def go(self, pose, ej=[0, 0, 0, 0, 0, 0, 0, 0], frame=[0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], cmd_list=[], current_joint=None, motion="jmove", vaj=None, speed=0.2, freedom={"num":10, "range":[0.5,0.5,0.5], "early_exit":False }, timeout=-1, sim=0,  **kwargs):        
-        # Kinematic
-        self.kinematic.set_tcp_xyzabc(tcp)
+    def go(self, pose=None, joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], frame=[0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], cmd_list=[], current_joint=None, motion="jmove", vaj=None, speed=0.2, freedom={"num":10, "range":[0.5,0.5,0.5], "early_exit":False }, timeout=-1, sim=0,  **kwargs):        
+        
+        if joint is None and pose is not None:
+            # Kinematic
+            self.kinematic.set_tcp_xyzabc(tcp)
 
-        # Current
-        current_joint = current_joint if current_joint is not None else self.get_all_joint()[0:6]
-        current_pose = self.kinematic.fw(joint=current_joint)
+            # Current
+            current_joint = current_joint if current_joint is not None else self.get_all_joint()[0:6]
+            current_pose = self.kinematic.fw(joint=current_joint)
 
-        # pose and joint
-        if len(pose) == 3:
-            pose = [x for x in pose]+current_pose[3:]
-        joint = self.kinematic.inv(pose, current_joint, False, freedom=freedom)[0]
+            # pose and joint
+            if len(pose) == 3:
+                pose = [x for x in pose]+current_pose[3:]
+            
+            
+            joint = self.kinematic.inv(pose, current_joint, False, freedom=freedom)[0]
 
         # ej
         for i in range(min(len(ej), len(joint))):
