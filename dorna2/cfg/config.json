@@ -30,10 +30,10 @@
         "very_quick": {
             "rmove": {"vel": 0, "accel": 0, "jerk": 0},
             "jmove": {"vel": 180, "accel": 2000, "jerk": 4000},
-            "lmove": {"vel": 500, "accel": 2000, "jerk": 4000},
+            "lmove": {"vel": 800, "accel": 6000, "jerk": 10000},
             "cmove": {"vel": 0, "accel": 0, "jerk": 0},
             "cjmove": {"vel": 100, "accel": 800, "jerk": 1000},
-            "clmove": {"vel": 200, "accel": 800, "jerk": 1000}
+            "clmove": {"vel": 500, "accel": 1000, "jerk": 2000}
         },
         "quick": {
             "rmove": {"vel": 0, "accel": 0, "jerk": 0},
