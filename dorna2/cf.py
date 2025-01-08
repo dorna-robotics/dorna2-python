@@ -337,11 +337,11 @@ class CF(object):
 		xyz = np.array([xyzabc[0],xyzabc[1],xyzabc[2]]) / 1000
 		quat = self.mat_to_quat(self.xyzabc_to_mat(xyzabc))
 
-		return [xyz[0], xyz[1], xyz[2], quat[0], quat[1], quat[2], quat[3]]
+		return [xyz[0], xyz[1], xyz[2],  quat[3], quat[0], quat[1], quat[2]]
 
 	def xyzquat_to_xyzabc(self, xyzquat):
 		xyz = np.array([xyzquat[0], xyzquat[1], xyzquat[2]]) * 1000
-		quat = np.array([xyzquat[3], xyzquat[4], xyzquat[5] , xyzquat[6]])
+		quat = np.array([ xyzquat[4], xyzquat[5] , xyzquat[6], xyzquat[3]])
 		mat3 = np.matrix(self.quat_to_mat(quat))
 		mat4 = np.eye(4)
 		mat4[:3,:3] = mat3
@@ -349,3 +349,4 @@ class CF(object):
 		xyzabc[:3] = xyz[:3]
 
 		return xyzabc
+
