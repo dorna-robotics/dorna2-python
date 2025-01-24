@@ -718,6 +718,13 @@ class Dorna(WS):
         return self._track_cmd_stat()
 
 
+    def tool(self,tcp=[0, 0, 0, 0, 0, 0], mtrx=None, **kwargs):
+        if tcp is not None and mtrx is None:
+            mtrx = self.kinematic.xyzabc_to_mat(tcp)
+        cmd = {"cmd": "tool", "r00": mtrx[0,0], "r01": mtrx[0,1], "r02": mtrx[0,2], "r10": mtrx[1,0], "r11": mtrx[1,1], "r12": mtrx[1,2], "r20": mtrx[2,0], "r21": mtrx[2,1], "r22": mtrx[2,2],
+                "lx": mtrx[0,3], "ly": mtrx[1,3], "lz": mtrx[2,3]}
+        return self.play(**cmd)
+
     def version(self, **kwargs):
         """
         Get the version of the firmware running on the controller.
