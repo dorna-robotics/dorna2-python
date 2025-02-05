@@ -145,7 +145,7 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 		x3 = eigenvalue.real
 		theta3 = 2 * np.arctan(x3)		
 
-		
+
 
 		f5abs = abs(eigenvectors[1,i])
 		f4abs = abs(eigenvectors[3,i])
@@ -169,6 +169,9 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 		x5 = (kval5).real
 		x4 = (kval4).real
 
+		#print("- j2: ", theta3*180/np.pi , " ix4: ",(kval4).imag, " ix5: ",(kval5).imag )
+
+
 		theta4 = 2.0 * np.arctan(x4)
 		theta5 = 2.0 * np.arctan(x5)
 
@@ -187,7 +190,7 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 		s5 = np.sin(theta5)
 
 		den = (f14 * f23 - f13 * f24)
-
+		#print("\t\t den: ",den)
 		for j in range(2):
 			if abs(den) > 1e-5 :
 				if j == 1:

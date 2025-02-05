@@ -25,7 +25,7 @@ class Dorna(WS):
         # kinematic
         self.model = model    
         self.set_kinematic(model)
-        self.cu_client = cuda_client()
+        self.cu_client = cuda_client(dorna_in=self, server_url = None)
 
 
     def load_json(self, path, module_name="dorna2.cfg"):
