@@ -126,13 +126,13 @@ class cuda_client:
 
         last_joints = init_joints
         total_list = []
-        sizes = []
+
         for command in points:
             res = self.motion_gen(command, last_joints)
             last_joints = res[-1]
             total_list = total_list + res
-            sizes = sizes + [len(res)]
-        print("sizes: ",sizes)
+
+
         return total_list
 
     def cuda_run_motion(self, points, init_joints):
@@ -141,7 +141,7 @@ class cuda_client:
             return
 
         res = self.list_motion_gen(points, init_joints)
-         for r in res:
+        for r in res:
             command = {"cmd":"jmove", "j0":r[0], "j1":r[1], "j2":r[2], "j3":r[3], "j4":r[4], "j5":r[5], "cont":1}
             self.dorna.play_dict(cmd=command, timeout=-1) 
 
