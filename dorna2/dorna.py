@@ -178,7 +178,7 @@ class Dorna(WS):
                 del msg[key]
 
         # format
-        msg = self.format_numbers(msg)
+        #msg = self.format_numbers(msg)
 
         # set the tracking id
         self._track["cmd"] = copy.deepcopy(msg) 

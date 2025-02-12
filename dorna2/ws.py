@@ -5,6 +5,8 @@ import time
 import asyncio
 import copy
 import random
+import base64
+import os
 
 class WS(object):
     """docstring for comm"""
@@ -264,6 +266,55 @@ class WS(object):
 
     # encode the write data
     def write_process(self, msg, mode):
+        # Handle socket (non-WebSocket)
+        if self.channel == "socket":
+            return len(msg).to_bytes(2, byteorder='big') + msg.encode("utf-8")
+
+        # Handle WebSocket
+        if mode == "cmd" and msg:
+            # WebSocket frame construction
+            header = [0x81]  # FIN=1, Opcode=1 (text frame)
+            msg_len = len(msg)
+            mask = [random.getrandbits(8) for _ in range(4)]  # Random mask
+
+            # Handle payload length
+            if msg_len <= 125:
+                header.append(msg_len | 0x80)  # Set mask bit
+            elif msg_len <= 0xFFFF:
+                header.extend([126 | 0x80, (msg_len >> 8) & 0xFF, msg_len & 0xFF])
+            else:
+                header.append(127 | 0x80)
+                for shift in [56, 48, 40, 32, 24, 16, 8, 0]:
+                    header.append((msg_len >> shift) & 0xFF)
+
+            # Add mask to header
+            header.extend(mask)
+            
+            # Mask the payload
+            payload_bytes = msg.encode('utf-8')
+            masked_payload = bytes([b ^ mask[i % 4] for i, b in enumerate(payload_bytes)])
+            
+            return bytes(header) + masked_payload
+
+        elif mode == "handshake":
+            # Generate random WebSocket key
+            key = base64.b64encode(os.urandom(16)).decode()
+            
+            # Proper HTTP handshake request
+            return (
+                f"GET /chat HTTP/1.1\r\n"
+                f"Host: localhost:443\r\n"
+                f"Connection: Upgrade\r\n"
+                f"Upgrade: websocket\r\n"
+                f"Sec-WebSocket-Version: 13\r\n"
+                f"Sec-WebSocket-Key: {key}\r\n"
+                f"Origin: http://localhost\r\n"
+                f"\r\n"
+            ).encode('utf-8')
+
+
+    """    
+    def write_process(self, msg, mode):
         # handle socket
         if self.channel == "socket":
             return (len(msg)).to_bytes(2, byteorder='big') + msg.encode("utf-8")
@@ -316,7 +367,7 @@ class WS(object):
                 b"Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits\r\n"
                 b"\r\n"
             )
-
+    """
     async def close_coro(self):
         """
         if self._connected:
