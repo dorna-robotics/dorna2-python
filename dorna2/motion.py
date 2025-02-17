@@ -1,9 +1,10 @@
 import requests
 import numpy as np
+import json
 
-class cuda_client:
-    def __init__(self, dorna_in, server_url = None):
-        self.server_url = server_url
+class Motion:
+    def __init__(self, dorna_in):
+        self.server_url = None
         self.session_id = None
         self.dorna = dorna_in
 
@@ -19,37 +20,54 @@ class cuda_client:
         else:
             print("Failed to start session:", response.text)
 
-    def clear_env():
-        self.close()
-        self.connect(self.server_url)
-
-    def upload_file(self, file_path):
+    def gen_scene(self, world, flange):
         """Upload a file to the server."""
         if not self.session_id:
             print("No active session. Start a session first.")
             return
 
         try:
-            with open(file_path, 'rb') as file:
-                files = {
-                    "file": file
-                }
-                data = {
-                    "session_id": self.session_id
-                }
-                response = requests.post(f"{self.server_url}/upload_config", files=files, data=data)
+            result = {"world":[],"payload":[]}
+
+            file_counter = 0 
+            files = {}
+
+            if world:
+                for item in world:
+                    file = open(item['file_path'], 'rb')
+                    pose = self.dorna.kinematic.xyzabc_to_xyzquat(item['tvec'] + item['rvec'])
+                    normalized_pose = [float(x) for x in pose]
+                    result["world"].append({"file":"file"+str(file_counter),"pose":normalized_pose})
+                    files["file"+str(file_counter)] = file
+                    file_counter = file_counter + 1
+
+            if flange:
+                for item in flange:
+                    file = open(item['file_path'], 'rb')
+                    pose = self.dorna.kinematic.xyzabc_to_xyzquat(item['tvec'] + item['rvec'])
+                    normalized_pose = [float(x) for x in pose]
+                    result["payload"].append({"file":"file"+str(file_counter),"pose":normalized_pose})
+                    files["file"+str(file_counter)] = file
+                    file_counter = file_counter + 1
+
+            result["session_id"] = self.session_id
+            response = requests.post(f"{self.server_url}/gen_scene", data={"json": json.dumps(result)}, files = files)
+
+            #for file in files:
+            #    file.close()
 
             if response.status_code == 200:
                 print("File uploaded successfully:", response.json())
             else:
                 print("Failed to upload file:", response.text)
+
         except FileNotFoundError:
             print(f"File not found: {file_path}")
         except Exception as e:
             print(f"An error occurred: {e}")
 
     def play(self, command):
-        """Send a command to the server for a specific session and handle the response."""
+        """Sends a command to the server for a specific session and handles the response."""
         if not self.session_id:
             print("No active session. Start a session first.")
             return
@@ -83,70 +101,67 @@ class cuda_client:
             print("Failed to end session:", response.text)
         self.session_id = None
 
-    def motion_gen(self, command, init_joints):
+
+    def run(self, pose = [0,0,0,0,0,0], joint = None, tcp = [0, 0, 0, 0, 0, 0], current_joint = None, time = None , scene = None):
+        
         xyzquat = [0,0,0,1,0,0,0]
-        if command["cmd"] == "jmove":
 
-            joint = [init_joints[0],init_joints[1],init_joints[2],init_joints[3],init_joints[4],init_joints[5]]
+        if not scene:
+            scene = 1
 
+        if joint is not None:  
             for i in range(6):
-                key = "j" + str(i)
-                if key in command:
-                    joint[i] = command[key]
-
                 joint[i] = joint[i] * np.pi / 180.0
 
             T = self.dorna.kinematic.t_flange_r_world(joint)
-            xyzabc =self.dorna.kinematic.mat_to_xyzabc(T) 
+            xyzabc = self.dorna.kinematic.mat_to_xyzabc(T) 
             xyzquat = self.dorna.kinematic.xyzabc_to_xyzquat(xyzabc)
 
+        else:
+            #going from millimeter to meters
 
-        if command["cmd"] == "lmove":
-            xyzabc = [command["x"]/1000, command["y"]/1000, command["z"]/1000, command["a"], command["b"], command["c"]]
+            xyzabc = [pose[0]/1000, pose[1]/1000, pose[2]/1000, pose[3], pose[4], pose[5]]
             T = self.dorna.kinematic.xyzabc_to_mat(xyzabc)
-            T = np.matmul(T, self.dorna.kinematic.inv_T_tcp_r_flange)
+
+            #reversing the tcp effect
+            inv_tcp_T = self.dorna.kinematic.xyzabc_to_mat([-x for x in tcp])
+            T = np.matmul(T, inv_tcp_T)
+
             xyzabc = self.dorna.kinematic.mat_to_xyzabc(T)
             xyzquat = self.dorna.kinematic.xyzabc_to_xyzquat(xyzabc)
 
-        init_joints[5] = init_joints[5] - 180 #correct a 180 value
-        init_joints[5] = (init_joints[5] + 180) % 360 - 180 #normalize vector between -180 to 180
 
+        #creating command for sending to the cuda server
         cmd = {}
         cmd["cmd"] = "motion"
-        cmd["init"] = init_joints
+        cmd["init"] = current_joint
         cmd["goal"] = xyzquat
-
+        cmd["scene"] = scene
         res = self.play(cmd)
-        return res["ret"]
+        
+        if res:
+            return res["ret"]
+        else:
+            return None
 
-    def list_motion_gen(self, points, init_joints):
-        if not self.session_id:
-            print("No active session to send commands.")
-            return
+    def tcp_collision_cube_set(self, cubes):
 
-        last_joints = init_joints
-        total_list = []
+        spheres = []
 
-        for command in points:
-            res = self.motion_gen(command, last_joints)
-            last_joints = res[-1]
-            total_list = total_list + res
+        for item in cubes:
+            min_size = min(min(item.scale[0], item.scale[1]),item.scale[2])
+            sphere_R = min_size/4.0
+            nx = np.ceil(item.scale[0]/sphere_R/2)
+            ny = np.ceil(item.scale[1]/sphere_R/2)
+            nz = np.ceil(item.scale[2]/sphere_R/2)
 
+            for i in range(nx):
+                for j in range(ny):
+                    for k in range(nz):
+                        local_pos = np.array([i,j,k])
 
-        return total_list
+        return
 
-    def cuda_run_motion(self, points, init_joints):
-        if not self.session_id:
-            print("No active session to send commands.")
-            return
-
-        res = self.list_motion_gen(points, init_joints)
-        for r in res:
-            command = {"cmd":"jmove", "j0":r[0], "j1":r[1], "j2":r[2], "j3":r[3], "j4":r[4], "j5":r[5], "cont":1}
-            self.dorna.play_dict(cmd=command, timeout=-1) 
-
-
-        return True
 
 
 """

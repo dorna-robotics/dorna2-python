@@ -631,12 +631,12 @@ def main_dorna_c():
 	knmtc = Kinematic("dorna_ta")
 	#knmtc.set_tcp_xyzabc([0, 0, 43, 0, 0, 90])
 
-	joint = [0,0,0,0,0,0]
+	joint = [60,60,0,0,0,60]
 
 	fw = knmtc.fw(joint)
 
-	print(knmtc.xyzabc_to_xyzquat([0,0,0,0,0,0]))
-	print(knmtc.xyzquat_to_xyzabc([0,0,0,1,0,0,0]))
+	print(knmtc.xyzabc_to_xyzquat(fw))
+	#print(knmtc.xyzquat_to_xyzabc([0,0,0,1,0,0,0]))
 	#ik_result = knmtc.inv(xyzabc, joint, False,freedom)
 
 
