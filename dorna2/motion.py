@@ -57,9 +57,9 @@ class Motion:
             #    file.close()
 
             if response.status_code == 200:
-                print("File uploaded successfully:", response.json())
+                print("Scene generated successfully:", response.json())
             else:
-                print("Failed to upload file:", response.text)
+                print("Failed to generate scene:", response.text)
 
         except FileNotFoundError:
             print(f"File not found: {file_path}")
@@ -105,7 +105,7 @@ class Motion:
     def run(self, pose = [0,0,0,0,0,0], joint = None, tcp = [0, 0, 0, 0, 0, 0], current_joint = None, time = None , scene = None):
         
         xyzquat = [0,0,0,1,0,0,0]
-
+        
         if not scene:
             scene = 1
 
@@ -118,9 +118,7 @@ class Motion:
             xyzquat = self.dorna.kinematic.xyzabc_to_xyzquat(xyzabc)
 
         else:
-            #going from millimeter to meters
-
-            xyzabc = [pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]]
+            xyzabc = pose
             T = self.dorna.kinematic.xyzabc_to_mat(xyzabc)
 
             #reversing the tcp effect
@@ -129,7 +127,6 @@ class Motion:
 
             xyzabc = self.dorna.kinematic.mat_to_xyzabc(T)
             xyzquat = self.dorna.kinematic.xyzabc_to_xyzquat(xyzabc)
-
 
         #creating command for sending to the cuda server
         cmd = {}
