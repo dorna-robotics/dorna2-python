@@ -120,7 +120,7 @@ class Motion:
         else:
             #going from millimeter to meters
 
-            xyzabc = [pose[0]/1000, pose[1]/1000, pose[2]/1000, pose[3], pose[4], pose[5]]
+            xyzabc = [pose[0], pose[1], pose[2], pose[3], pose[4], pose[5]]
             T = self.dorna.kinematic.xyzabc_to_mat(xyzabc)
 
             #reversing the tcp effect
