@@ -8,6 +8,7 @@ class Motion:
         self.session_id = None
         self.dorna = dorna_in
 
+
     def connect(self, server_url = None):
         """Start a new session."""
         if server_url:
@@ -19,6 +20,7 @@ class Motion:
             print("Session started. ID:", self.session_id)
         else:
             print("Failed to start session:", response.text)
+
 
     def gen_scene(self, world, flange):
         """Upload a file to the server."""
@@ -66,6 +68,7 @@ class Motion:
         except Exception as e:
             print(f"An error occurred: {e}")
 
+
     def play(self, command):
         """Sends a command to the server for a specific session and handles the response."""
         if not self.session_id:
@@ -80,7 +83,6 @@ class Motion:
         if response.status_code == 200:
             response_data = response.json()
             return response_data
-
 
         return None
 
@@ -102,7 +104,7 @@ class Motion:
         self.session_id = None
 
 
-    def run(self, pose = [0,0,0,0,0,0], joint = None, tcp = [0, 0, 0, 0, 0, 0], current_joint = None, time = None , scene = None):
+    def run(self, pose = [0,0,0,0,0,0], joint = None, tcp = [0, 0, 0, 0, 0, 0], current_joint = None, time = None , scene = None, target = "j6"):
         
         xyzquat = [0,0,0,1,0,0,0]
         
@@ -134,12 +136,15 @@ class Motion:
         cmd["init"] = current_joint
         cmd["goal"] = xyzquat
         cmd["scene"] = scene
+        cmd["target"] = target
+        
         res = self.play(cmd)
         
         if res:
             return res["ret"]
         else:
             return None
+
 
     def tcp_collision_cube_set(self, cubes):
 
