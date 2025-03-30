@@ -8,7 +8,7 @@ import logging
 import logging.handlers
 import copy
 import numpy as np
-from dorna2.cuclient import cuda_client
+from dorna2.motion import Motion
 
 class Dorna(WS):
     """docstring for Dorna"""
@@ -25,7 +25,7 @@ class Dorna(WS):
         # kinematic
         self.model = model    
         self.set_kinematic(model)
-        self.cu_client = cuda_client(dorna_in=self, server_url = None)
+        self.motion = Motion(dorna_in = self)
 
 
     def load_json(self, path, module_name="dorna2.cfg"):
