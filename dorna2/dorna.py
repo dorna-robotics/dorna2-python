@@ -878,7 +878,7 @@ class Dorna(WS):
         self.kinematic = Kinematic(model)
 
 
-    def go(self, pose=None, joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], frame=[0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], cmd_list=[], current_joint=None, motion="jmove", vaj=None, speed=0.2, freedom={"num":10, "range":[0.5,0.5,0.5], "early_exit":False }, timeout=-1, sim=0,  **kwargs):        
+    def go(self, pose=None, joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], frame=[0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], cmd_list=[], current_joint=None, motion="jmove", vaj=None, speed=0.2, freedom={"num":200, "range":[2, 2, 2], "early_exit":True}, timeout=-1, sim=0,  **kwargs):        
         
         if joint is None and pose is not None:
             # Kinematic
@@ -920,7 +920,7 @@ class Dorna(WS):
 
 
     # start -> pick -> middle -> place -> end
-    def pick_n_place(self, pick_pose=None, place_pose=None, middle_pose=None, middle_joint=None, end_pose=None, end_joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=None, above=50, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.2, cont=1, corner=100, freedom={"num":10, "range":[0.5,0.5,0.5], "early_exit":False }, timeout=-1, sim=0,  **kwargs):
+    def pick_n_place(self, pick_pose=None, place_pose=None, middle_pose=None, middle_joint=None, end_pose=None, end_joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], tcp=[0, 0, 0, 0, 0, 0], pick_frame=[0, 0, 0, 0, 0, 0], place_frame=[0, 0, 0, 0, 0, 0], output_config=None, above=50, sleep=0.5, pick_cmd_list=[], place_cmd_list=[], current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.2, cont=1, corner=100, freedom={"num":200, "range":[2, 2, 2], "early_exit":True }, timeout=-1, sim=0,  **kwargs):
         # init
         cmd_list = []
                 
