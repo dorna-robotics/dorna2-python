@@ -184,6 +184,47 @@ class Dof(DH):
 			res.append(T)
 		return res
 
+
+	def jacobian(self, theta=None, joint=None):
+		"""
+		Compute the geometric Jacobian matrix (6xN) for the current joint angles.
+		theta: list of joint angles in degrees (if given)
+		joint: optional alias for theta
+		"""
+		if joint is not None:
+			theta = [np.radians(j) for j in joint]
+
+		if theta is None:
+			raise ValueError("theta or joint must be provided")
+
+		# Initialize lists for z axes and origins
+		z_axes = []
+		origins = []
+
+		T = np.identity(4)  # Base frame
+		z_axes.append(T[:3, 2])      # z0 (z axis of base)
+		origins.append(T[:3, 3])     # o0 (origin of base)
+
+		for i in range(self.n_dof):
+			T = np.matmul(T, self.T(i+1, theta[i]))
+			z_axes.append(T[:3, 2])      # zi
+			origins.append(T[:3, 3])     # oi
+
+		J = np.zeros((6, self.n_dof))
+		o_n = origins[-1]  # Position of end-effector
+
+		for i in range(self.n_dof):
+			zi = z_axes[i]
+			oi = origins[i]
+			Jv = np.cross(zi, o_n - oi)  # Linear velocity component
+			Jw = zi                      # Angular velocity component
+
+			J[:3, i] = Jv
+			J[3:, i] = Jw
+
+		return J
+
+
 	def fw_base(self, theta):			
 		T_flange_r_world = self.t_flange_r_world(theta)
 
@@ -220,7 +261,7 @@ class Dof(DH):
 
 			joint_space_distance_treshold = np.sqrt(np.sum( np.array(initial_xyzabc - goal_xyzabc)**2)) / 50
 
-			#print("treshold ",joint_space_distance_treshold)
+			print("treshold ",joint_space_distance_treshold)
 
 			all_sol = []
 			if freedom is None:
@@ -232,18 +273,14 @@ class Dof(DH):
 						continue
 					all_sol.append(s)
 			else:
-				counter = 0
 				for sample in range(max(1,freedom["num"])):
-
+					print("sample ", sample)
 					tmp_matrix = goal_matrix
 					
-
-					if counter>0:
+					if sample>0:
 						random_vector = (np.random.rand(3) - np.array([0.5,0.5,0.5])) * 2
 
-						if "range" in freedom:
-							pass
-						else:
+						if "range" not in freedom:
 							freedom["range"] = [4.0,4.0,4.0] #in degrees
 
 						random_vector =   self.get_X_axis(tmp_matrix) * random_vector[0] * freedom["range"][0] + self.get_Y_axis(tmp_matrix) * random_vector[1] * freedom["range"][1] + self.get_Z_axis(tmp_matrix) * random_vector[2] *freedom["range"][2]
@@ -251,8 +288,6 @@ class Dof(DH):
 						random_rotation_matrix = self.axis_angle_to_mat(random_vector)
 						tmp_matrix = np.matmul(tmp_matrix,  random_rotation_matrix)
 						
-
-					counter = counter + 1
 
 					new_sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], tmp_matrix)
 
@@ -268,9 +303,9 @@ class Dof(DH):
 						#	if angle_space_distance(np.array(s) , np.array(theta_current))<joint_space_distance_treshold:
 						#		no_need_to_continue = True
 
-						if("early_exit" in freedom ):
-							if(freedom["early_exit"]):
-								if angle_space_distance(np.array(s) , np.array(theta_current))<joint_space_distance_treshold:
+						if "early_exit" in freedom and freedom["early_exit"]:
+							if angle_space_distance(np.array(s) , np.array(theta_current)) < joint_space_distance_treshold:
+								if all([abs(s[i]-theta_current[i]) < [np.pi, np.pi, np.pi, np.pi/2, np.pi, np.pi][i] for i in range(len(theta_current))]):
 									no_need_to_continue = True	
 
 						all_sol.append(s)
@@ -278,29 +313,15 @@ class Dof(DH):
 					if no_need_to_continue:
 						break
 
-			#print("counter samples: ", len(all_sol))
-			best_sol_dist = 10000
-			best_sol = 0
-			indx = 0
-
-			num_of_recieved_solutions = 0
-
-			for s in all_sol:
-
-				num_of_recieved_solutions += 1
-
+			if not all_sol:
+				return []
 			
-				dist = angle_space_distance(np.array(s) , np.array(theta_current))
-
-				if dist < best_sol_dist:
-					best_sol_dist = dist
-					best_sol = s
-
-			#print("best sol dist: ", best_sol_dist)
-			if best_sol_dist < 5.0:
-				return [best_sol]
-			else:
-				return[]
+			# Pick the solution with the minimum angular distance.
+			best_solution = min(all_sol, key=lambda s: angle_space_distance(np.array(s), np.array(theta_current)))
+			best_distance = angle_space_distance(np.array(best_solution), np.array(theta_current))
+			
+			# Return the best solution if it's within the threshold.
+			return [best_solution]
 
 		return []
 
