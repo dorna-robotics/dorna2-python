@@ -236,7 +236,8 @@ class Dof(DH):
 	"""
 
 	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom ):
-
+		thr = [np.pi, np.pi, np.pi, np.pi/2, np.pi, np.pi]
+		#thr = [np.pi, np.pi, np.pi, np.pi, np.pi, np.pi]
 		goal_matrix = np.matmul(T_tcp_r_world, self.inv_T_tcp_r_flange)
 
 
@@ -261,7 +262,6 @@ class Dof(DH):
 
 			joint_space_distance_treshold = np.sqrt(np.sum( np.array(initial_xyzabc - goal_xyzabc)**2)) / 50
 
-			print("treshold ",joint_space_distance_treshold)
 
 			all_sol = []
 			if freedom is None:
@@ -274,7 +274,6 @@ class Dof(DH):
 					all_sol.append(s)
 			else:
 				for sample in range(max(1,freedom["num"])):
-					print("sample ", sample)
 					tmp_matrix = goal_matrix
 					
 					if sample>0:
@@ -305,7 +304,7 @@ class Dof(DH):
 
 						if "early_exit" in freedom and freedom["early_exit"]:
 							if angle_space_distance(np.array(s) , np.array(theta_current)) < joint_space_distance_treshold:
-								if all([abs(s[i]-theta_current[i]) < [np.pi, np.pi, np.pi, np.pi/2, np.pi, np.pi][i] for i in range(len(theta_current))]):
+								if all([abs(s[i]-theta_current[i]) < thr[i] for i in range(len(theta_current))]):
 									no_need_to_continue = True	
 
 						all_sol.append(s)
@@ -318,7 +317,7 @@ class Dof(DH):
 			
 			# Pick the solution with the minimum angular distance.
 			best_solution = min(all_sol, key=lambda s: angle_space_distance(np.array(s), np.array(theta_current)))
-			best_distance = angle_space_distance(np.array(best_solution), np.array(theta_current))
+			#best_distance = angle_space_distance(np.array(best_solution), np.array(theta_current))
 			
 			# Return the best solution if it's within the threshold.
 			return [best_solution]
