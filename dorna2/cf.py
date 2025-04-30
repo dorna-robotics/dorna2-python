@@ -329,7 +329,7 @@ class CF(object):
 
 		RTv = self.mat_to_axis_angle(RT)
 
-		return [RTv[0], RTv[1], RTv[2]]
+		return [float(RTv[0]), float(RTv[1]), float(RTv[2])]
 		 
 
 
@@ -350,3 +350,52 @@ class CF(object):
 
 		return xyzabc
 
+
+	def align_axis(self, rvec, axis_to_align="Z", goal=[0,0,1]):
+		
+		current_mat = self.axis_angle_to_mat(rvec)
+
+		a = []
+		b = []
+
+		if(axis_to_align=="x" or axis_to_align=="X"):
+			a = self.get_X_axis(mat=current_mat)
+		if(axis_to_align=="y" or axis_to_align=="Y"):
+			a = self.get_Y_axis(mat=current_mat)
+		if(axis_to_align=="z" or axis_to_align=="Z"):
+			a = self.get_Z_axis(mat=current_mat)
+
+		a = np.array(a, dtype=np.float64)
+		b = np.array(goal, dtype=np.float64)
+
+		a /= np.linalg.norm(a) #normalize two vectors
+		b /= np.linalg.norm(b)
+
+		dot = np.dot(a, b)
+		dot = np.clip(dot, -1.0, 1.0)
+
+		orth_vec = np.array([1.0,0.0,0.0])
+		rot_ang = 0.0
+
+		if np.isclose(dot, 1.0) or np.isclose(dot, -1.0):
+			# Aligned
+			if np.isclose(dot, 1.0):
+				rot_ang = 0.0
+
+			# Anti-aligned
+			if np.isclose(dot, -1.0):
+				# Find any orthogonal vector
+				if np.abs(a[0]) < np.abs(a[1]):
+					orth_vec = np.array([-a[2], 0.0, a[0]])
+				else:
+					orth_vec = np.array([0.0, -a[2], a[1]])
+
+				orth_vec = orth_vec / np.linalg.norm(orth_vec)
+				rot_ang = np.pi
+
+		else:
+			orth_vec = np.cross(a, b)
+			orth_vec /= np.linalg.norm(orth_vec)
+			rot_ang = np.arccos(dot)
+
+		return self.rotate_rvec(rvec = rvec, axis = orth_vec, angle = rot_ang, local=False )
