@@ -351,22 +351,22 @@ class CF(object):
 		return xyzabc
 
 
-	def align_axis(self, rvec, axis_to_align="Z", goal=[0,0,1]):
+	def align_rvec(self, rvec, align="Z", axis=[0,0,1]):
 		
 		current_mat = self.axis_angle_to_mat(rvec)
 
 		a = []
 		b = []
 
-		if(axis_to_align=="x" or axis_to_align=="X"):
+		if(align.lower()=="x"):
 			a = self.get_X_axis(mat=current_mat)
-		if(axis_to_align=="y" or axis_to_align=="Y"):
+		if(align.lower()=="y"):
 			a = self.get_Y_axis(mat=current_mat)
-		if(axis_to_align=="z" or axis_to_align=="Z"):
+		if(align.lower()=="z"):
 			a = self.get_Z_axis(mat=current_mat)
 
 		a = np.array(a, dtype=np.float64)
-		b = np.array(goal, dtype=np.float64)
+		b = np.array(axis, dtype=np.float64)
 
 		a /= np.linalg.norm(a) #normalize two vectors
 		b /= np.linalg.norm(b)
