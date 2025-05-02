@@ -304,7 +304,7 @@ class Dof(DH):
 
 						if "early_exit" in freedom and freedom["early_exit"]:
 							if angle_space_distance(np.array(s) , np.array(theta_current)) < joint_space_distance_treshold:
-								if all([abs(s[i]-theta_current[i]) < thr[i] for i in range(len(theta_current))]):
+								if all([abs(s[i]-theta_current[i]) < thr[i] for i in range(min(len(theta_current), len(s)))]):
 									no_need_to_continue = True	
 
 						all_sol.append(s)
