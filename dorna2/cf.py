@@ -399,3 +399,58 @@ class CF(object):
 			rot_ang = np.arccos(dot)
 
 		return self.rotate_rvec(rvec = rvec, axis = orth_vec, angle = rot_ang, local=False )
+
+
+	def project_on_plane(self, plane_rvec = None, plane_normal = None, axis = [1,0,0]):
+
+		if plane_rvec is not None :
+			plane_normal = self.get_Z_axis(mat = self.axis_angle_to_mat(plane_rvec))
+		else:
+			if plane_normal is None :
+				raise ValueError("Give either rvec or normal vectors")
+		
+		n = np.array(plane_normal, dtype=float)
+		norm = np.linalg.norm(n)
+
+		if norm == 0:
+		    raise ValueError("Cannot normalize a zero vector")
+
+		n = n / norm	
+
+		axis = np.array(axis, dtype=float)
+		axis = axis - (axis @ n) * n
+		axis  = axis / np.linalg.norm(axis)
+
+		return axis.tolist()
+
+	def orthogonal_to_pair(self, axis1 = [1,0,0], axis1_tag = "x", axis2 = [0,1,0], axis2_tag = "y"):
+		
+		axis1_tag = axis1_tag.lower()
+		axis2_tag = axis2_tag.lower()
+
+		if (axis1_tag not in ["x","y","z"] ) or (axis2_tag not in ["x","y","z"] ):
+			raise ValueError("Not proper tags are used")
+
+		if axis1_tag == axis2_tag:
+			raise ValueError("Tags should differ")
+
+		axis1 = np.array(axis1)
+		axis2 = np.array(axis2)
+
+		axis1 = axis1/np.linalg.norm(axis1)
+		axis2 = axis2 - (axis1 @ axis2)*axis1
+		axis2 = axis2/np.linalg.norm(axis2)
+
+		axis3 = np.cross(axis1, axis2)
+
+		tags = axis1_tag + axis2_tag
+
+		if tags=="xz" or tags=="yx" or tags=="zy":
+			axis3 = -axis3
+
+		return axis3.tolist()
+
+
+
+
+
