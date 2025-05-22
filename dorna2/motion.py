@@ -64,7 +64,7 @@ class Motion:
                 print("Failed to generate scene:", response.text)
 
         except FileNotFoundError:
-            print(f"File not found: {file_path}")
+            print(f"File not found: {item['file_path']}")
         except Exception as e:
             print(f"An error occurred: {e}")
 

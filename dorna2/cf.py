@@ -299,18 +299,6 @@ class CF(object):
 
 		return z
 
-	def get_Z_axis(self, mat = None, xyzabc = None):
-		if xyzabc is not None :
-			mat = self.xyzabc_to_mat(xyzabc)
-		if mat is None :
-			return np.array([0.0,0.0,1.0])
-
-		z = np.array([0.0,0.0,0.0])
-		z[0] = mat[0,2]
-		z[1] = mat[1,2]
-		z[2] = mat[2,2]
-
-		return z
 
 	def rotate_rvec(self, rvec=[0,0,0], axis=[1,0,0], angle=0, local=False ):
 		
@@ -413,7 +401,7 @@ class CF(object):
 		norm = np.linalg.norm(n)
 
 		if norm == 0:
-		    raise ValueError("Cannot normalize a zero vector")
+			raise ValueError("Cannot normalize a zero vector")
 
 		n = n / norm	
 
@@ -449,8 +437,6 @@ class CF(object):
 			axis3 = -axis3
 
 		return axis3.tolist()
-
-
 
 
 
