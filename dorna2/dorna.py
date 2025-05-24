@@ -896,8 +896,7 @@ class Dorna(WS):
             joint = self.kinematic.inv(pose, current_joint, False, freedom=freedom)[0]
 
             # add auxiliary axes
-            for i in range(6, len(pose)):
-                joint.append(pose[i])
+            joint = np.append(joint, pose[6:])
 
         # ej
         for i in range(min(len(ej), len(joint))):
