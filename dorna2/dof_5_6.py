@@ -235,7 +235,7 @@ class Dof(DH):
 	find all the possible robot orientations 
 	"""
 
-	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom ):
+	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom):
 		thr = [np.pi, np.pi, np.pi, np.pi/2, np.pi, np.pi]
 		#thr = [np.pi, np.pi, np.pi, np.pi, np.pi, np.pi]
 		goal_matrix = np.matmul(T_tcp_r_world, self.inv_T_tcp_r_flange)
