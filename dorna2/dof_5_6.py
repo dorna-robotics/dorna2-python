@@ -324,7 +324,7 @@ class Dof(DH):
 
 		return []
 
-	def  nearest_pose(self, poses, current_joint, freedom):
+	def  nearest_pose(self, poses, current_joint, freedom={"num":200, "range":[2, 2, 2], "early_exit":True }):
 
 		current_theta = np.array(current_joint)*np.pi/180.0
 
