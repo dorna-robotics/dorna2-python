@@ -219,9 +219,9 @@ class CF(object):
 			u[0] = (mat[2,1] - mat[1,2]) / st / 2.
 		else:
 			theta = np.pi
-			u[0] = np.sqrt(max(mat[0, 0]+ 1.,0.) / 2.);
-			u[1] = np.sqrt(max(mat[1, 1]+ 1.,0.) / 2.);
-			u[2] = np.sqrt(max(mat[2, 2]+ 1.,0.) / 2.);
+			u[0] = np.sqrt(max(mat[0, 0]+ 1.,0.) / 2.)
+			u[1] = np.sqrt(max(mat[1, 1]+ 1.,0.) / 2.)
+			u[2] = np.sqrt(max(mat[2, 2]+ 1.,0.) / 2.)
 
 			c1 = mat[1, 0]
 			c2 = mat[2, 0]
@@ -238,8 +238,7 @@ class CF(object):
 
 
 	def axis_angle_to_mat(self, u):
-
-		lu = np.sqrt(u[0] * u[0] + u[1] * u[1] + u[2] * u[2])
+		lu = np.linalg.norm(u)
 
 		theta = np.pi / 180 * lu
 

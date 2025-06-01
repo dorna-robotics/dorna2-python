@@ -54,7 +54,7 @@ def solve_cs_equation( aa,  bb,  cc,  i):
 		c1 = -aa / bb
 		if (abs(c1) > 1.0):
 			return [False,0,0]
-		s1 = sqrt(1.0 - c1 * c1)
+		s1 = np.sqrt(1.0 - c1 * c1)
 
 		if (i == 1):
 			s1 = -s1

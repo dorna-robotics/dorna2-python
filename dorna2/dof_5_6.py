@@ -2,7 +2,7 @@ import numpy as np
 from dorna2.ik6r_2 import ik
 
 from dorna2.cf import CF
-#from cf import CF
+
 """
 Sources:
 	http://rasmusan.blog.aau.dk/files/ur5_kinematics.pdf
@@ -23,6 +23,8 @@ def clamp(num, min_value, max_value):
         #num = max(min(num, max_value), min_value)
         return num
 
+
+
 def d_theta(t1,t2):
 	dt = t2 - t1
 	while dt > np.pi:
@@ -30,6 +32,7 @@ def d_theta(t1,t2):
 	while dt < -np.pi:
 		dt = dt + 2 * np.pi
 	return dt
+
 
 def angle_space_distance(s1, s2):
     return np.linalg.norm(np.array(s1)[0:min(len(s1), len(s2))] - np.array(s2)[0:min(len(s1), len(s2))])
@@ -230,99 +233,210 @@ class Dof(DH):
 
 		return np.matmul(T_flange_r_world, self.T_tcp_r_flange)
 
-	"""
-	The robot T_tcp_r_base is given
-	find all the possible robot orientations 
-	"""
 
-	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom):
-		thr = [np.pi, np.pi, np.pi, np.pi/2, np.pi, np.pi]
-		#thr = [np.pi, np.pi, np.pi, np.pi, np.pi, np.pi]
-		goal_matrix = np.matmul(T_tcp_r_world, self.inv_T_tcp_r_flange)
-
-
-		if all_sol:
-
-			all_sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], goal_matrix)
-			approved_sol = []
-			for s in all_sol:
-				t = self.t_flange_r_world(theta=s)
-				mdist = np.sqrt(np.sum( np.array(t - goal_matrix)**2))
+	def inv_base_old(self, T_tcp_r_world, theta_current, all_sol, freedom, thr=[np.pi, np.pi, np.pi, np.pi/2, np.pi, np.pi]):
+		goal_matrix = T_tcp_r_world @ self.inv_T_tcp_r_flange
+		sol = []
+		retval = []
+		
+		if freedom is None: # freedom is None
+			sol += ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], goal_matrix)
+			for s in sol:
+				# mdist
+				mdist = np.linalg.norm(self.t_flange_r_world(theta = s) - tmp_matrix)
 				if(mdist>0.01):
 					continue
+				retval.append(s)
 
-				approved_sol.append(s)
-				
-			return approved_sol
+			return retval
 
-		if theta_current is not None: 
 
+		elif theta_current is not None: # freedom is not None
+			# adjust freedom
+			if "range" not in freedom:
+				freedom["range"] = [4.0,4.0,4.0] #in degrees
+
+			# current
 			initial_xyzabc = self.mat_to_xyzabc( self.t_flange_r_world(theta = theta_current))
+			
+			# goal
 			goal_xyzabc = self.mat_to_xyzabc( goal_matrix)
 
-			joint_space_distance_treshold = np.sqrt(np.sum( np.array(initial_xyzabc - goal_xyzabc)**2)) / 50
+			# joint space distance
+			joint_space_distance_treshold = np.linalg.norm(initial_xyzabc - goal_xyzabc) / 50
 
+			# x, y, z axis
+			x_axis = self.get_X_axis(goal_matrix)
+			y_axis = self.get_Y_axis(goal_matrix)
+			z_axis = self.get_Z_axis(goal_matrix)
+			
+			for sample in range(max(1,freedom["num"])):
+				tmp_matrix = goal_matrix.copy()
+				
+				# not first
+				if sample > 0:
+					random_vector = 2*(np.random.rand(3) - np.array([0.5,0.5,0.5]))
+					random_vector =   x_axis * random_vector[0] * freedom["range"][0] + y_axis * random_vector[1] * freedom["range"][1] + z_axis * random_vector[2] *freedom["range"][2]
 
-			all_sol = []
-			if freedom is None:
-				new_sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], goal_matrix)
-				for s in new_sol:
-					t = self.t_flange_r_world(theta = s)
-					mdist = np.sqrt(np.sum( np.array(t - goal_matrix)**2))
-					if(mdist>0.01):
-						continue
-					all_sol.append(s)
-			else:
-				for sample in range(max(1,freedom["num"])):
-					tmp_matrix = goal_matrix
+					random_rotation_matrix = self.axis_angle_to_mat(random_vector)
+					tmp_matrix = tmp_matrix @ random_rotation_matrix
 					
-					if sample>0:
-						random_vector = (np.random.rand(3) - np.array([0.5,0.5,0.5])) * 2
+				new_sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], tmp_matrix)
 
-						if "range" not in freedom:
-							freedom["range"] = [4.0,4.0,4.0] #in degrees
+				# early exit
+				if "early_exit" in freedom and freedom["early_exit"]:
+					# sort
+					new_sol = sorted(
+						new_sol,
+						key=lambda s: angle_space_distance(np.array(s), np.array(theta_current))
+					)
 
-						random_vector =   self.get_X_axis(tmp_matrix) * random_vector[0] * freedom["range"][0] + self.get_Y_axis(tmp_matrix) * random_vector[1] * freedom["range"][1] + self.get_Z_axis(tmp_matrix) * random_vector[2] *freedom["range"][2]
-
-						random_rotation_matrix = self.axis_angle_to_mat(random_vector)
-						tmp_matrix = np.matmul(tmp_matrix,  random_rotation_matrix)
-						
-
-					new_sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], tmp_matrix)
-
-					no_need_to_continue = False
-
+					# condition
 					for s in new_sol:
-						t = self.t_flange_r_world(theta = s)
-						mdist = np.sqrt(np.sum( np.array(t - tmp_matrix)**2))
+						# mdist
+						mdist = np.linalg.norm(self.t_flange_r_world(theta = s) - tmp_matrix)
 						if(mdist>0.01):
 							continue
 
-						#if(counter == 1):#check if first try has valid solutions
-						#	if angle_space_distance(np.array(s) , np.array(theta_current))<joint_space_distance_treshold:
-						#		no_need_to_continue = True
+						# distance threshold
+						if angle_space_distance(np.array(s) , np.array(theta_current)) < joint_space_distance_treshold:
+							if all([abs(s[i]-theta_current[i]) < thr[i] for i in range(min(len(theta_current), len(s)))]):
+								return [s]	
 
-						if "early_exit" in freedom and freedom["early_exit"]:
-							if angle_space_distance(np.array(s) , np.array(theta_current)) < joint_space_distance_treshold:
-								if all([abs(s[i]-theta_current[i]) < thr[i] for i in range(min(len(theta_current), len(s)))]):
-									no_need_to_continue = True	
+				else:
+					for s in new_sol:
+						sol.append([s, tmp_matrix])
 
-						all_sol.append(s)
+			if sol:
+				# sort
+				sorted_pairs = sorted(
+					sol,
+					key=lambda pair: angle_space_distance(
+						np.array(pair[0]),
+						np.array(theta_current)
+					)
+				)
 
-					if no_need_to_continue:
-						break
+				# 2) Unzip into two lists in the same (sorted) order
+				sorted_sol = [pair[0] for pair in sorted_pairs]         # list of s’s
+				tmp_matrix_list = [pair[1] for pair in sorted_pairs]  # corresponding tmp_matrices
+				
+				# condition
+				for s, tmp_matrix in zip(sorted_sol, tmp_matrix_list):
+					# mdist
+					mdist = np.linalg.norm(self.t_flange_r_world(theta = s) - tmp_matrix)
+					if(mdist>0.01):
+						continue
 
-			if not all_sol:
-				return []
+					# distance threshold
+					if angle_space_distance(np.array(s) , np.array(theta_current)) < joint_space_distance_treshold:
+						if all([abs(s[i]-theta_current[i]) < thr[i] for i in range(min(len(theta_current), len(s)))]):
+							return [s]
+		
+		return retval
+
+
+	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom, thr=[np.pi, np.pi, np.pi, np.pi/2, np.pi, np.pi]):
+		goal_matrix = T_tcp_r_world @ self.inv_T_tcp_r_flange
+		sol = []
+		retval = []
+		
+		if freedom is None: # freedom is None
+			sol += ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], goal_matrix)
+			for s in sol:
+				# mdist
+				mdist = np.linalg.norm(self.t_flange_r_world(theta = s) - tmp_matrix)
+				if(mdist>0.01):
+					continue
+				retval.append(s)
+			return retval
+
+
+		elif theta_current is not None: # freedom is not None
+			# adjust freedom
+			if "range" not in freedom:
+				freedom["range"] = [4.0,4.0,4.0] #in degrees
+
+			# current
+			initial_xyzabc = self.mat_to_xyzabc( self.t_flange_r_world(theta = theta_current))
 			
-			# Pick the solution with the minimum angular distance.
-			best_solution = min(all_sol, key=lambda s: angle_space_distance(np.array(s), np.array(theta_current)))
-			#best_distance = angle_space_distance(np.array(best_solution), np.array(theta_current))
-			
-			# Return the best solution if it's within the threshold.
-			return [best_solution]
+			# goal
+			goal_xyzabc = self.mat_to_xyzabc( goal_matrix)
 
-		return []
+			# joint space distance
+			joint_space_distance_treshold = np.linalg.norm(initial_xyzabc - goal_xyzabc) / 50
+
+			# x, y, z axis
+			x_axis = self.get_X_axis(goal_matrix)
+			y_axis = self.get_Y_axis(goal_matrix)
+			z_axis = self.get_Z_axis(goal_matrix)
+
+			# sample
+			for sample in range(max(1,freedom["num"])):
+				tmp_matrix = goal_matrix.copy()
+				
+				# not first
+				if sample > 0:
+					random_vector = 2*(np.random.rand(3) - np.array([0.5,0.5,0.5]))
+					random_vector =   x_axis * random_vector[0] * freedom["range"][0] + y_axis * random_vector[1] * freedom["range"][1] + z_axis * random_vector[2] *freedom["range"][2]
+
+					random_rotation_matrix = self.axis_angle_to_mat(random_vector)
+					tmp_matrix = tmp_matrix @ random_rotation_matrix
+					
+				new_sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], tmp_matrix)
+
+				# early exit
+				if "early_exit" in freedom and freedom["early_exit"]:
+					# sort
+					new_sol = sorted(
+						new_sol,
+						key=lambda s: angle_space_distance(np.array(s), np.array(theta_current))
+					)
+
+					# condition
+					for s in new_sol:
+						# mdist
+						mdist = np.linalg.norm(self.t_flange_r_world(theta = s) - tmp_matrix)
+						if(mdist>0.01):
+							continue
+
+						# distance threshold
+						if angle_space_distance(np.array(s) , np.array(theta_current)) < joint_space_distance_treshold:
+							if all([abs(s[i]-theta_current[i]) < thr[i] for i in range(min(len(theta_current), len(s)))]):
+								return [s]	
+
+				else:
+					for s in new_sol:
+						sol.append([s, tmp_matrix])
+
+			if sol:
+				# sort
+				sorted_pairs = sorted(
+					sol,
+					key=lambda pair: angle_space_distance(
+						np.array(pair[0]),
+						np.array(theta_current)
+					)
+				)
+
+				# 2) Unzip into two lists in the same (sorted) order
+				sorted_sol = [pair[0] for pair in sorted_pairs]         # list of s’s
+				tmp_matrix_list = [pair[1] for pair in sorted_pairs]  # corresponding tmp_matrices
+				
+				# condition
+				for s, tmp_matrix in zip(sorted_sol, tmp_matrix_list):
+					# mdist
+					mdist = np.linalg.norm(self.t_flange_r_world(theta = s) - tmp_matrix)
+					if(mdist>0.01):
+						continue
+
+					# distance threshold
+					if angle_space_distance(np.array(s) , np.array(theta_current)) < joint_space_distance_treshold:
+						if all([abs(s[i]-theta_current[i]) < thr[i] for i in range(min(len(theta_current), len(s)))]):
+							return [s]
+		
+		return retval
+
 
 	def  nearest_pose(self, poses, current_joint, freedom):
 
@@ -348,6 +462,9 @@ class Dof(DH):
 					best_pose = pose
 
 		return best_pose
+
+
+
 
 	def approach(self, T_tcp_r_world, theta_current):
 		try: 
@@ -377,7 +494,7 @@ class Dof(DH):
 				for s in sol:
 
 					t = self.fw_base(theta=s)
-					mdist = np.sqrt(np.sum( np.array(t - tcp)**2))
+					mdist = np.linalg.norm(t - tcp)
 
 					if(mdist>0.01):
 						continue
@@ -424,7 +541,7 @@ class Dof(DH):
 		p5y_0 = p5_0[1,0]
 		rtn = []
 		try:
-			alpha = np.asin(clamp(-self.d[4]/np.sqrt(p5x_0**2 + p5y_0**2), -1.0 , 1.0))
+			alpha = np.asin(np.clip(-self.d[4]/np.linalg.norm([p5x_0, p5y_0]), -1.0, 1.0))
 			phi_1 = np.atan2(p5y_0, p5x_0)
 
 			rtn = [phi_1-alpha, phi_1+alpha-np.pi]
@@ -444,7 +561,7 @@ class Dof(DH):
 		nom = T_last_r0[1,3]*np.cos(theta_1)-T_last_r0[0,3]*np.sin(theta_1)+self.d[4]
 		rtn = []
 		try:
-			phi = np.acos(clamp(nom/self.d[6],-1.0,1.0))
+			phi = np.acos(np.clip(nom/self.d[6],-1.0,1.0))
 			rtn = [phi, -phi]
 			
 			if t5 is not None:
@@ -496,8 +613,8 @@ class Dof(DH):
 
 		try:
 			# theta 3
-			p4xz_norm = np.sqrt(p4z**2+(p4x-self.a[2])**2)
-			t_3 = np.acos(clamp((p4xz_norm**2 - self.a[3]**2 - self.a[4]**2)/(2*self.a[3]*self.a[4]),-1.0,1.0))
+			p4xz_norm = np.linalg.norm([p4z, p4x-self.a[2]])
+			t_3 = np.acos(np.clip((p4xz_norm**2 - self.a[3]**2 - self.a[4]**2)/(2*self.a[3]*self.a[4]),-1.0,1.0))
 
 			t_3_list = [t_3, -t_3]
 			
@@ -511,7 +628,8 @@ class Dof(DH):
 					# theta 2
 					phi_3 = np.pi - theta_3
 					phi_1 = np.atan2(p4z, (p4x-self.a[2]))
-					phi_2 = np.asin(clamp(self.a[4]*np.sin(phi_3)/np.sqrt(p4z**2+(p4x-self.a[2])**2),-1.0,1.0))
+					phi_2 = np.asin(np.clip(self.a[4]*np.sin(phi_3)/np.linalg.norm([p4z, p4x-self.a[2]]),-1.0,1.0))
+
 					theta_2 = phi_1 - phi_2
 
 					# theta_4
@@ -636,13 +754,9 @@ class Kinematic(Dof):
 					theta_current[5] = theta_5
 
 		theta_all = self.inv_base(np.array(T_tcp_r_world), theta_current=theta_current, all_sol=all_sol , freedom = freedom)
-		#theta_all = self.approach(np.array(T_tcp_r_world), theta_current=theta_current)
-
 
 		# all the solution
 		joint_all = np.array([self.theta_to_joint(theta) for theta in theta_all ])
-		#if(self.n_dof==5):
-		#	joint_all = [self.theta_to_joint(theta[:5]) + [theta[5]] for theta in theta_all ]
 
 		return joint_all
 
