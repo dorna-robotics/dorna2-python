@@ -139,23 +139,35 @@ def rotate_abc(abc, axis=[0,0,1], angle=0, local=False):
     return rmat_to_abc(RT)
 
 
-def align_abc(abc, align="Z", axis=[0, 0, 1]):
+def align_abc(abc, align=[0, 0, 1], axis=[0, 0, 1], fix=[1, 0, 0]):
     """
     Rotate the pose so that its local X/Y/Z axis aligns with `axis`.
     - abc:    [ax, ay, az] axis-angle in degrees
-    - align:  'X', 'Y', or 'Z'
+    - align:  initial direction in local frame
     - axis:   target direction in world frame
+    - fix: arbitrary vector in local frame so the rotation fixs it (or projects it at most)
     Returns a new [ax, ay, az] so that the requested local axis now points along `axis`.
     """
     # 1) Build current rotation matrix
-    current_rmat = np.array(self.abc_to_rmat(abc))
+    current_rmat = np.array(abc_to_rmat(abc))
+    
+    align = np.array(align)
 
-    # 2) Pick the local axis column
-    idx = {"x": 0, "y": 1, "z": 2}.get(align.lower())
-    if idx is None:
-        raise ValueError("align must be 'X', 'Y', or 'Z'")
-    a = current_rmat[:, idx]
+    #defining auxilary vectors a,b,c, all living in globla coorfinate frame
+    a = align
+    a = np.array(np.matmul(current_rmat, a).flatten().tolist())
     a = a / np.linalg.norm(a)
+
+    #prepare parameteres for the case if fix exist
+    if fix is not None:
+        fix = np.array(fix)
+
+        fix = fix - align * np.dot(fix, align)
+        if(np.isclose(np.linalg.norm(fix),0.0)):
+            fix = None
+        else:
+            fix = fix / np.linalg.norm(fix) 
+            c = np.array(np.matmul(current_rmat, fix).flatten().tolist())
 
     # 3) Normalize the target axis
     b = np.array(axis, dtype=float)
@@ -184,8 +196,18 @@ def align_abc(abc, align="Z", axis=[0, 0, 1]):
         rot_deg = np.degrees(np.arccos(dot))
 
     # 8) Apply rotation around `orth`
-    return self.rotate_abc(abc, orth.tolist(), rot_deg, local=False)
+    result = rotate_abc(abc, orth.tolist(), rot_deg, local=False)
+
+    # 9) in case fixture mechanism exist one extra step is needed
+    if fix is not None:
+        proj_c = c - b * np.dot(c, b)
+        proj_c = proj_c / np.linalg.norm(proj_c)
+        return align_abc(result, fix, proj_c, fix=None)
+
+    return result 
 
 
 def align_abc_to_pixel_line():
     pass
+
+
