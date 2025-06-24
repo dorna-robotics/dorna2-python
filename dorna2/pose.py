@@ -204,10 +204,6 @@ def align_abc(abc, align=[0, 0, 1], axis=[0, 0, 1], fix=[1, 0, 0]):
         proj_c = proj_c / np.linalg.norm(proj_c)
         return align_abc(result, fix, proj_c, fix=None)
 
-    return result 
-
-
-def align_abc_to_pixel_line():
-    pass
+    return result
 
 
