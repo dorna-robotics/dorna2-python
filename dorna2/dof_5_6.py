@@ -234,118 +234,16 @@ class Dof(DH):
 		return np.matmul(T_flange_r_world, self.T_tcp_r_flange)
 
 
-	def inv_base_old(self, T_tcp_r_world, theta_current, all_sol, freedom, thr=[np.pi, np.pi, np.pi, np.pi/2, np.pi, np.pi]):
-		goal_matrix = T_tcp_r_world @ self.inv_T_tcp_r_flange
-		sol = []
-		retval = []
-		
-		if freedom is None: # freedom is None
-			sol += ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], goal_matrix)
-			for s in sol:
-				# mdist
-				mdist = np.linalg.norm(self.t_flange_r_world(theta = s) - tmp_matrix)
-				if(mdist>0.01):
-					continue
-				retval.append(s)
-
-			return retval
-
-
-		elif theta_current is not None: # freedom is not None
-			# adjust freedom
-			if "range" not in freedom:
-				freedom["range"] = [4.0,4.0,4.0] #in degrees
-
-			# current
-			initial_xyzabc = self.mat_to_xyzabc( self.t_flange_r_world(theta = theta_current))
-			
-			# goal
-			goal_xyzabc = self.mat_to_xyzabc( goal_matrix)
-
-			# joint space distance
-			joint_space_distance_treshold = np.linalg.norm(initial_xyzabc - goal_xyzabc) / 50
-
-			# x, y, z axis
-			x_axis = self.get_X_axis(goal_matrix)
-			y_axis = self.get_Y_axis(goal_matrix)
-			z_axis = self.get_Z_axis(goal_matrix)
-			
-			for sample in range(max(1,freedom["num"])):
-				tmp_matrix = goal_matrix.copy()
-				
-				# not first
-				if sample > 0:
-					random_vector = 2*(np.random.rand(3) - np.array([0.5,0.5,0.5]))
-					random_vector =   x_axis * random_vector[0] * freedom["range"][0] + y_axis * random_vector[1] * freedom["range"][1] + z_axis * random_vector[2] *freedom["range"][2]
-
-					random_rotation_matrix = self.axis_angle_to_mat(random_vector)
-					tmp_matrix = tmp_matrix @ random_rotation_matrix
-					
-				new_sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], tmp_matrix)
-
-				# early exit
-				if "early_exit" in freedom and freedom["early_exit"]:
-					# sort
-					new_sol = sorted(
-						new_sol,
-						key=lambda s: angle_space_distance(np.array(s), np.array(theta_current))
-					)
-
-					# condition
-					for s in new_sol:
-						# mdist
-						mdist = np.linalg.norm(self.t_flange_r_world(theta = s) - tmp_matrix)
-						if(mdist>0.01):
-							continue
-
-						# distance threshold
-						if angle_space_distance(np.array(s) , np.array(theta_current)) < joint_space_distance_treshold:
-							if all([abs(s[i]-theta_current[i]) < thr[i] for i in range(min(len(theta_current), len(s)))]):
-								return [s]	
-
-				else:
-					for s in new_sol:
-						sol.append([s, tmp_matrix])
-
-			if sol:
-				# sort
-				sorted_pairs = sorted(
-					sol,
-					key=lambda pair: angle_space_distance(
-						np.array(pair[0]),
-						np.array(theta_current)
-					)
-				)
-
-				# 2) Unzip into two lists in the same (sorted) order
-				sorted_sol = [pair[0] for pair in sorted_pairs]         # list of s’s
-				tmp_matrix_list = [pair[1] for pair in sorted_pairs]  # corresponding tmp_matrices
-				
-				# condition
-				for s, tmp_matrix in zip(sorted_sol, tmp_matrix_list):
-					# mdist
-					mdist = np.linalg.norm(self.t_flange_r_world(theta = s) - tmp_matrix)
-					if(mdist>0.01):
-						continue
-
-					# distance threshold
-					if angle_space_distance(np.array(s) , np.array(theta_current)) < joint_space_distance_treshold:
-						if all([abs(s[i]-theta_current[i]) < thr[i] for i in range(min(len(theta_current), len(s)))]):
-							return [s]
-		
-		return retval
-
-
 	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom, thr=[np.pi, np.pi, np.pi, np.pi/2, np.pi, np.pi]):
 		goal_matrix = T_tcp_r_world @ self.inv_T_tcp_r_flange
 		sol = []
 		retval = []
 		
-		if freedom is None: # freedom is None
+		if all_sol and freedom is None: # freedom is None
 			sol += ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], goal_matrix)
 			for s in sol:
 				# mdist
-				mdist = np.linalg.norm(self.t_flange_r_world(theta = s) - tmp_matrix)
+				mdist = np.linalg.norm(self.t_flange_r_world(theta = s) - goal_matrix)
 				if(mdist>0.01):
 					continue
 				retval.append(s)
