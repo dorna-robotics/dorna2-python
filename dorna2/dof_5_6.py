@@ -239,7 +239,7 @@ class Dof(DH):
 		sol = []
 		retval = []
 		
-		if all_sol and freedom is None: # freedom is None
+		if all_sol: # all solutions
 			sol += ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], goal_matrix)
 			for s in sol:
 				# mdist
@@ -252,8 +252,8 @@ class Dof(DH):
 
 		elif theta_current is not None: # freedom is not None
 			# adjust freedom
-			if "range" not in freedom:
-				freedom["range"] = [4.0,4.0,4.0] #in degrees
+			if freedom is None:
+				freedom = {"num": 1, "range": [0, 0, 0], "early_exit": False}
 
 			# current
 			initial_xyzabc = self.mat_to_xyzabc( self.t_flange_r_world(theta = theta_current))
