@@ -304,7 +304,6 @@ class CF(object):
 		axis = np.array(axis)
 
 		T = self.axis_angle_to_mat([rvec[0],rvec[1],rvec[2]])
-
 		if local:
 			axis = axis[0] * self.get_X_axis(T) + axis[1] * self.get_Y_axis(T) + axis[2] * self.get_Z_axis(T)
 
@@ -313,7 +312,6 @@ class CF(object):
 		R = self.axis_angle_to_mat(axis * angle)
 
 		RT = np.matmul(R,T)
-
 		RTv = self.mat_to_axis_angle(RT)
 
 		return [float(RTv[0]), float(RTv[1]), float(RTv[2])]

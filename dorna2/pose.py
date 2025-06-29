@@ -97,12 +97,14 @@ def rmat_to_abc(rmat):
         y = (rmat[0,2] - rmat[2,0])/(2*st)
         z = (rmat[1,0] - rmat[0,1])/(2*st)
     else:
-        x = np.sqrt(max(rmat[0,0]+1, 0))/2
-        y = np.sqrt(max(rmat[1,1]+1, 0))/2
-        z = np.sqrt(max(rmat[2,2]+1, 0))/2
+        x = np.sqrt(max(rmat[0,0] + 1, 0) / 2)
+        y = np.sqrt(max(rmat[1,1] + 1, 0) / 2)
+        z = np.sqrt(max(rmat[2,2] + 1, 0) / 2)
+
         if rmat[1,0]<0: y = -y
         if rmat[2,0]<0: z = -z
-    return [x*np.degrees(theta), y*np.degrees(theta), z*np.degrees(theta)]
+    return [float(a * np.degrees(theta)) for a in [x, y, z]]
+
 
 def T_to_xyzabc(T):
     T = np.array(T, dtype=float)
