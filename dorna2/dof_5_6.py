@@ -2,7 +2,7 @@ import numpy as np
 from dorna2.ik6r_2 import ik
 
 from dorna2.cf import CF
-
+from dorna2.helper import solve_cs_equation
 """
 Sources:
 	http://rasmusan.blog.aau.dk/files/ur5_kinematics.pdf
@@ -23,7 +23,8 @@ def clamp(num, min_value, max_value):
         #num = max(min(num, max_value), min_value)
         return num
 
-
+def normal_angle(x):
+	return (x+np.pi) % (np.pi*2.0)  - np.pi
 
 def d_theta(t1,t2):
 	dt = t2 - t1
@@ -438,6 +439,96 @@ class Dof(DH):
 		return retval
 
 
+	def ik_xyzj345(self, xyz, j345 , current = None ):
+		#This function solves inverse kinematic when the 3 last joint values are known
+		#We use this function in lmove path generation (interpolation)
+		#j345 are degree values
+
+		j345 = np.array(j345) * np.pi / 180.0 
+
+		c3 = np.cos(j345[0])
+		s3 = np.sin(j345[0])
+		c4 = np.cos(j345[1])
+		s4 = np.sin(j345[1])
+		c5 = np.cos(j345[2])
+		s5 = np.sin(j345[2])
+
+		d1 = self.d[0]
+		d4 = -self.d[3]
+		d5 = self.d[4]
+		d6 = self.d[5]
+		d7 = self.d[6]
+
+		a2 = self.a[1]
+		a3 = self.a[2]
+
+		solj0 = solve_cs_equation(-d4 + c3 * d6 + d7 * s3 * s4, xyz[1], -xyz[0])
+
+		if solj0 is None:
+			return []
+
+		sols = []
+
+		for sol0 in solj0:
+			c0 = sol0[0]
+			s0 = sol0[1]
+
+			if np.isclose(s0,0.0):
+				A = (- xyz[0] + (-d4 + c3*d6 + d7*s3*s4) * s0) / c0 + a2 
+			else:
+				A = (- xyz[1] + (+d4 - c3*d6 - d7*s3*s4) * c0) / s0 + a2
+
+			B = d1 - xyz[2]
+			f = d5 + c4*d7
+			g = d6*s3 - c3*d7*s4
+
+			solj1 = solve_cs_equation(B*B + A*A + a3*a3 - f*f - g*g, 2*A*a3, 2*B*a3)
+
+			if solj1 is None:
+				continue
+
+			j0 = np.arctan2(s0,c0)
+
+			for sol1 in solj1:
+				c1 = sol1[0]
+				s1 = sol1[1]
+
+				solj12 = solve_cs_equation(B + a3*s1 , -g , f)
+
+				if solj12 is None:
+					continue
+
+				j1 = np.arctan2(s1,c1)
+
+				for sol12 in solj12:
+					c12 = sol12[0]
+					s12 = sol12[1]
+
+					j12 = np.arctan2(s12 , c12)
+
+					j2 = normal_angle(j12 - j1) 
+
+					#check final result
+					xx = (-d4+c3*d6+d7*s3*s4)*s0 + c0*(a2+a3*c1+(d5+c4*d7)*c12+(d6*s3-c3*d7*s4)*s12)
+					yy = (+d4-c3*d6-d7*s3*s4)*c0 + s0*(a2+a3*c1+(d5+c4*d7)*c12+(d6*s3-c3*d7*s3)*s12)
+
+					if True:#np.abs(xx-xyz[0])<1e-1 and np.abs(yy-xyz[1])<1e-1:
+						sols.append([normal_angle(float(j0))*180/np.pi, normal_angle(float(j1))*180/np.pi, normal_angle(float(j2))*180/np.pi])
+
+		if current is not None:
+			best_dis = 1000000
+			best_sol = current
+			for s in sols:
+				dis = angle_space_distance(np.array(s) , np.array(current))
+				if dis < best_dis:
+					best_dis = dis
+					best_sol = s
+
+			return best_sol
+
+		return sols
+
+
 	def  nearest_pose(self, poses, current_joint, freedom):
 
 		current_theta = np.array(current_joint)*np.pi/180.0
@@ -724,7 +815,7 @@ class Kinematic(Dof):
 		#abc = [np.degrees(r) for r in abc]
 
 		#give different result: fw, fw can later be changed to pos + abg
-		return [fw[0,3], fw[1,3], fw[2,3]] + abc
+		return [float(fw[0,3]), float(fw[1,3]), float(fw[2,3]), float(abc[0]), float(abc[1]), float(abc[2])] 
 
 
 	def inv(self, xyzabc, joint_current=None, all_sol=False, freedom = None): #xyzabg
@@ -765,12 +856,20 @@ def main_dorna_c():
 	knmtc = Kinematic("dorna_ta")
 	#knmtc.set_tcp_xyzabc([0, 0, 43, 0, 0, 90])
 
-	joint = [60,60,0,0,0,60]
 
-	fw = knmtc.fw(joint)
+	for i in range(1000):
+		joint = [np.random.uniform(0, 360), np.random.uniform(0, 360),np.random.uniform(0, 360),np.random.uniform(0, 360),np.random.uniform(0, 360),np.random.uniform(0, 360)]
 
-	print(knmtc.xyzquat_to_xyzabc([0.194881896*1000, 0.206358182*1000, 0.053252138000000004*1000, 0.01803234197700197, 0.9667316721684709, 0.25165134004776635, -0.04214631325916844] )
-)
+		fw = knmtc.fw(joint)
+
+		xyz = [fw[0],fw[1],fw[2]]
+
+		r = knmtc.ik_xyzj345( xyz, [joint[3],joint[4],joint[5]], joint)
+
+		s = np.array([r[0],r[1],r[2]]) - np.array([joint[0],joint[1],joint[2]])
+		print(np.linalg.norm(s))
+
+
 	#print(knmtc.xyzquat_to_xyzabc([0,0,0,1,0,0,0]))
 	#ik_result = knmtc.inv(xyzabc, joint, False,freedom)
 

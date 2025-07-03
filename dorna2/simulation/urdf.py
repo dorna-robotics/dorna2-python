@@ -27,12 +27,14 @@ class UrdfRobot:
         else:  # fixed or unsupported
             return T
 
-    def __init__(self, urdf_file, joint_values={}):
+    def __init__(self, urdf_file, joint_values={}, parent = None):
         self.robot = URDF.load(urdf_file)
-        link_nodes = {}
+        self.link_nodes = {}
+        self.link_names = []
 
         def recurse(link_name, parent_node):
             link = self.robot.link_map[link_name]
+            self.link_names.append(link_name)
             joint = next((j for j in self.robot.joints if j.child == link_name), None)
             joint_value = joint_values.get(joint.name, 0.0) if joint else 0.0
 
@@ -40,7 +42,7 @@ class UrdfRobot:
             node = Node(link.name, parent_node, local_tf)
             node.lock = True
 
-            link_nodes[link.name] = node
+            self.link_nodes[link.name] = node
 
             # Visuals and Collisions
             for vis in link.visuals:
@@ -52,10 +54,9 @@ class UrdfRobot:
                 if col.origin is not None:
                     tf = np.matrix(col.origin)
 
-
                 # Example: only support box/sphere/cylinder for now
                 if shape.box:
-                    half_extents = shape.box.size / 2
+                    half_extents = shape.box.size
                     obj = (fcl.Box(*half_extents)) #fcl.CollisionObject
                 elif shape.sphere:
                     obj = (fcl.Sphere(shape.sphere.radius))
@@ -63,15 +64,15 @@ class UrdfRobot:
                     obj = (fcl.Cylinder(shape.cylinder.radius, shape.cylinder.length))
                 else:
                     continue
-                node.collisions.append((obj,tf))
+                node.add_collision(obj,tf)
 
             for j in self.robot.joints:
                 if j.parent == link_name:
                     recurse(j.child, node)
 
         self.root_link = self.robot.base_link
-        self.root_node = Node(self.root_link.name)
-        link_nodes[self.root_link.name] = self.root_node
+        self.root_node = Node(self.root_link.name, parent)
+        self.link_nodes[self.root_link.name] = self.root_node
         recurse(self.root_link.name, self.root_node)
 
     def set_joint_values(self, joints = [0,0,0,0,0,0,0]):
@@ -89,6 +90,8 @@ class UrdfRobot:
             node = parent_node.children[0]
             node.lock = True
             node.set_local_transform(local_tf)
+
+            node.update_collision_object_transforms()
 
             for j in self.robot.joints:
                 if j.parent == link_name:
