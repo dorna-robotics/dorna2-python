@@ -5,21 +5,25 @@ import trimesh
 import pybullet as p
 
 
-def load_mesh(filepath):
-    # Load with trimesh
-    mesh = trimesh.load(filepath, force='mesh')
-    if not isinstance(mesh, trimesh.Trimesh):
-        raise ValueError("Loaded file does not contain a single mesh.")
-    
-    # Ensure triangulated faces
-    mesh = mesh.as_triangles()
-    
-    # Vertices and triangles
-    vertices = np.array(mesh.vertices, dtype=np.float32)
-    faces = np.array(mesh.faces, dtype=np.int32)
-    
-    return vertices, faces
+def axis_angle_to_quaternion(axis_angle):
+    theta = np.linalg.norm(axis_angle)
+    if theta < 1e-6:
+        return [0, 0, 0, 1]
+    axis = axis_angle / theta
+    x, y, z = axis
+    s = np.sin(theta / 2.0)
+    return [x * s, y * s, z * s, np.cos(theta / 2.0)]
 
+def transform_to_matrix(xyz, rvec):
+    quat = axis_angle_to_quaternion(rvec)
+    tf = fcl.Transform(quaternion=quat, translation=xyz)
+    return tf, quat
+
+class UnifiedObject:
+    def __init__(self, fcl_obj, pybullet_id, pose):
+        self.fcl_object = fcl_obj
+        self.pybullet_id = pybullet_id
+        self.pose = pose
 
 #some good functions
 def fcl_transform_from_matrix(matrix4x4):
@@ -28,22 +32,75 @@ def fcl_transform_from_matrix(matrix4x4):
     return fcl.Transform(rotation, translation)
 
 
-class Shape:
-    def __init__(self, parent_node_, local_transform_):
-        self.parent_node = parent_node_
-        self.local_transform = local_transform_
+def create_cube(xyz_rvec, scale=[1,1,1]):
+    xyz = xyz_rvec[:3]
+    rvec = xyz_rvec[3:]
+    tf, quat = transform_to_matrix(xyz, rvec)
+
+    # FCL
+    half_extents = [s / 2.0 for s in scale]
+    box = fcl.Box(*scale)
+    fcl_obj = fcl.CollisionObject(box, tf)
+
+    # PyBullet
+    col_id = p.createCollisionShape(p.GEOM_BOX, halfExtents=half_extents)
+    vis_id = p.createVisualShape(p.GEOM_BOX, halfExtents=half_extents, rgbaColor=[1,0,0,1])
+    body_id = p.createMultiBody(0, col_id, vis_id, basePosition=xyz, baseOrientation=quat)
+
+    return UnifiedObject(fcl_obj, body_id, (xyz, quat))
 
 
-class VisualShape(Shape):
-    def __init__(self, parent_node_, local_transform_):
-        super().__init__(parent_node_, local_transform_)
+def create_mesh(mesh_path, xyz_rvec, scale=[1,1,1]):
+    xyz = xyz_rvec[:3]
+    rvec = xyz_rvec[3:]
+    tf, quat = transform_to_matrix(xyz, rvec)
+
+    # Load mesh
+    mesh = trimesh.load(mesh_path, force='mesh').as_triangles()
+    mesh.apply_scale(scale)
+    
+    vertices = mesh.vertices.tolist()
+    triangles = [list(face) for face in mesh.faces]
+
+    # FCL
+    bvh = fcl.BVHModel()
+    bvh.beginModel(len(vertices), len(triangles))
+    bvh.addSubModel(vertices, triangles)
+    bvh.endModel()
+    fcl_obj = fcl.CollisionObject(bvh, tf)
+
+    # Save mesh as temp .obj for PyBullet
+    with tempfile.NamedTemporaryFile(suffix=".obj", delete=False, mode='w') as f:
+        for v in mesh.vertices:
+            f.write(f"v {v[0]} {v[1]} {v[2]}\n")
+        for tri in mesh.faces:
+            f.write(f"f {tri[0]+1} {tri[1]+1} {tri[2]+1}\n")
+        mesh_file = f.name
+
+    col_id = p.createCollisionShape(p.GEOM_MESH, fileName=mesh_file, meshScale=[1,1,1])
+    vis_id = p.createVisualShape(p.GEOM_MESH, fileName=mesh_file, meshScale=[1,1,1])
+    body_id = p.createMultiBody(0, col_id, vis_id, basePosition=xyz, baseOrientation=quat)
+
+    os.remove(mesh_file)
+    return UnifiedObject(fcl_obj, body_id, (xyz, quat))
 
 
-class CollisionShape(Shape):
-    def __init__(self, parent_node_, local_transform_, fcl_collision_shape_, fcl_collision_object_):
-        super().__init__(parent_node_, local_transform_)
-        self.fcl_collision_shape = fcl_collision_shape_
-        self.fcl_collision_object = fcl_collision_object_
+
+def create_sphere(xyz_rvec, scale=[1,1,1]):
+    xyz = xyz_rvec[:3]
+    rvec = xyz_rvec[3:]
+    tf, quat = transform_to_matrix(xyz, rvec)
+    
+    radius = scale[0]  # uniform scale only
+    sphere = fcl.Sphere(radius)
+    fcl_obj = fcl.CollisionObject(sphere, tf)
+
+    col_id = p.createCollisionShape(p.GEOM_SPHERE, radius=radius)
+    vis_id = p.createVisualShape(p.GEOM_SPHERE, radius=radius, rgbaColor=[0,0,1,1])
+    body_id = p.createMultiBody(0, col_id, vis_id, basePosition=xyz, baseOrientation=quat)
+
+    return UnifiedObject(fcl_obj, body_id, (xyz, quat))
+
 
 
 class Node:
@@ -56,7 +113,6 @@ class Node:
         self.local_transform = local_transform if local_transform is not None else np.eye(4)
 
         # Geometry
-        self.visuals = []  # List of mesh or shape representations (could be your own format)
         self.collisions = []  # List of collision objects
 
         self.tags = set(tags)
