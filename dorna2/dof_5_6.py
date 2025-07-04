@@ -51,7 +51,7 @@ class DH(CF):
 		self.delta = [0, 0, 0, 0, 0, np.pi/2, np.pi/2] #Rotation of Ci with respect to C(i-1) around the y axis of Ci
 		self.a = [0, 1, 1, 1, 0,0,0] # Translation of Ci with respect to C(i-1) along the x axis of Ci
 		self.d = [0, 1, 0, 0,-1,1,1] #Translation of Ci with respect to C(i-1) along the z axis of Ci
-		self.rail_vec_r_base = [0,0,0]  #The vector that describes the motion of base on rail
+		self.rail_dir_r_base = [0,0,0]  #The vector that describes the motion of base on rail
 		self.rail_limit = [-100,200] #max and min value for rail joint
 		self.rail_on = False
 
@@ -137,8 +137,16 @@ class Dof(DH):
 
 		T = self.T_rail_r_world.copy()
 
+		if self.n_dof == 6 and len(theta)>6:
+			rail_value = theta[6] * 180 / np.pi # to neuteralize the np.radian forced on joints before
+			rail_d_vec = np.matmul(T, [[self.rail_dir_r_base[0]*rail_value], [self.rail_dir_r_base[1]*rail_value], [self.rail_dir_r_base[2]*rail_value], [0]])
+			T[0,3] += rail_d_vec[0,0]
+			T[1,3] += rail_d_vec[1,0]
+			T[2,3] += rail_d_vec[2,0]			
+
 		if self.n_dof == 5:#rail transformation
-			rail_d_vec = np.matmul(T, [[self.rail_vec_r_base[0]*theta[5]], [self.rail_vec_r_base[1]*theta[5]], [self.rail_vec_r_base[2]*theta[5]], [0]])
+			rail_value = theta[5] * 180 / np.pi # to neuteralize the np.radian forced on joints before
+			rail_d_vec = np.matmul(T, [[self.rail_dir_r_base[0]*rail_value], [self.rail_dir_r_base[1]*rail_value], [self.rail_dir_r_base[2]*rail_value], [0]])
 			T[0,3] += rail_d_vec[0,0]
 			T[1,3] += rail_d_vec[1,0]
 			T[2,3] += rail_d_vec[2,0]
