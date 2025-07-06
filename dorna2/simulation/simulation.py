@@ -4,6 +4,13 @@ from urdf import UrdfRobot
 import fcl
 from pathGen import pathGen
 from dorna2 import Dorna
+import time 
+import pybullet as p 
+import dorna2.pose as dp
+
+#must be deleted:
+import inspect
+
 
 class Simulation:
 
@@ -11,7 +18,6 @@ class Simulation:
 		self.root_node = Node("root")
 		self.init_robot()
 		self.dorna = Dorna()
-
 
 
 	def init_robot(self):
@@ -157,7 +163,7 @@ class Simulation:
 
 		return collision_res
 
-
+"""
 	def check_path(self, motion, j1, j2, steps = 100):
 		path = pathGen(motion, j1, j2, steps, self.dorna.kinematic)
 
@@ -169,4 +175,142 @@ class Simulation:
 		res["collision"] = self.check_motion_collision(path)
 
 		return res
+"""
+	def preview_animation(self, path, all_visuals):
+		t = 0
 
+		while True:
+			j = path.path.get_point(t%1.0)
+
+			self.robot.set_joint_values([j[6],j[0],j[1],j[2],j[3],j[4],j[5]]) 
+
+			for a in all_visuals:
+				prnt_mat = np.eye(4)
+
+				if id(a.fcl_shape) in self.robot.prnt_map:
+					prnt_mat = self.robot.prnt_map[id(a.fcl_shape)].get_global_transform()
+
+				gmat = prnt_mat@a.mat
+				xyzabc = dp.T_to_xyzabc(gmat)
+
+				translation = [float(xyzabc[0]),float(xyzabc[1]),float(xyzabc[2])]  # fcl.Vector3f
+				rotation = dp.rmat_to_quat(gmat[:3,:3])
+				p.resetBasePositionAndOrientation(a.pybullet_id, translation, rotation)
+
+			t = t + 0.01
+			time.sleep(1./240.)
+
+
+
+
+	@staticmethod
+	def check_path(motion, start_joint, end_joint, tcp = [0,0,0,0,0,0], tool = [], scene = [], steps = 50):
+		sim = Simulation("tmp")
+
+		all_visuals = [] #for visualization
+		all_objects = [] #to create bvh
+		dynamic_objects = [] #to update bvh
+
+		#placing scene objects
+		for obj in scene:
+			sim.root_node.collisions.append(obj.fcl_object)
+			all_objects.append(obj.fcl_object)
+			all_visuals.append(obj)
+
+		#placing tool objects
+		for obj in tool:
+			sim.robot.link_nodes["j6_link"].collisions.append(obj)
+			sim.robot.all_objs.append(obj)
+			sim.robot.prnt_map[id(obj.fcl_shape)] = sim.robot.link_nodes["j6_link"]
+
+		#registering robot ojbects
+		for obj in sim.robot.all_objs:
+			dynamic_objects.append(obj)
+			all_objects.append(obj.fcl_object)
+			all_visuals.append(obj)
+
+
+		manager = fcl.DynamicAABBTreeCollisionManager()
+		manager.registerObjects(all_objects)  # list of all your CollisionObjects
+		manager.setup()  # Builds the BVH tree
+
+		path = pathGen(motion, start_joint, end_joint, steps, sim.dorna.kinematic,tcp)
+
+		sample_points = steps
+		start_time = time.perf_counter()
+
+		col_res = []
+
+		for i in range(sample_points):
+
+			t = float(i) / float(sample_points - 1 ) 
+			j = path.path.get_point(t%1.0)
+			j6 = 0 #check for rail
+
+			if len(j)>6:
+				j6 = j[6]
+
+			sim.robot.set_joint_values([j6,j[0],j[1],j[2],j[3],j[4],j[5]]) 
+
+			#update dynamics
+			for do in dynamic_objects:
+				manager.update(do.fcl_object)
+
+			
+			cdata = fcl.CollisionData()
+
+
+			def my_collect_all_callback(o1, o2, cdata):
+				fcl.collide(o1, o2, cdata.request, cdata.result)
+				return False
+
+			manager.collide(cdata, my_collect_all_callback)#fcl.defaultCollisionCallback)
+
+			tmp_res = None
+
+			for contact in cdata.result.contacts:
+			    # Extract collision geometries that are in contact
+			    coll_geom_0 = contact.o1
+			    coll_geom_1 = contact.o2
+
+			    prnt0 = None
+			    prnt1 = None
+
+			    num_parents = 0
+
+			    if id(coll_geom_0) in sim.robot.prnt_map:
+			    	prnt0 = sim.robot.prnt_map[id(coll_geom_0)]
+			    	num_parents = num_parents + 1
+
+			    if id(coll_geom_1) in sim.robot.prnt_map:
+			    	prnt1 = sim.robot.prnt_map[id(coll_geom_1)]
+			    	num_parents = num_parents + 1
+
+
+			    #this collision has nothing to do with robot
+			    if num_parents == 0:
+			    	continue 
+
+			    #this is external collision, good to go
+			    if num_parents == 1: 
+			    	pass
+
+			    #this is internal collision, needs to be filtered
+			    if num_parents == 2:
+			    	if prnt0.parent == prnt1 or prnt1.parent == prnt0 or prnt0 == prnt1:
+			    		continue
+
+			    #if here, meaning that a valid collision has been detected
+			    tmp_res = ['scene' if prnt0 is None else prnt0.name, 'scene' if prnt1 is None else prnt1.name]
+			    break
+
+			if tmp_res is None:
+				continue
+
+			col_res.append({"t":t,"links":tmp_res,"joint":j})
+
+			#print('-',t,' : ', cdata["collisions"])
+
+		print(f"Collision check took {(time.perf_counter() - start_time)*1000:.3f} ms")
+
+		return (sim, path, all_visuals, col_res)

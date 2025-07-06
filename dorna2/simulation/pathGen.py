@@ -28,7 +28,7 @@ class Path:
 
 class pathGen:
 
-	def __init__(self, motion_, j1_, j2_, steps_, kinematic_):
+	def __init__(self, motion_, j1_, j2_, steps_, kinematic_, tcp_):
 		self.kin = kinematic_
 		
 		if steps_<3:
@@ -85,7 +85,6 @@ class pathGen:
 			new_joint[:3]= ikj[:3]
 
 			velocity = np.linalg.norm(np.array(new_joint) - np.array(last_joint))
-			print(velocity)
 			if velocity > self.velocity_treshold : 
 				self.singular = True
 

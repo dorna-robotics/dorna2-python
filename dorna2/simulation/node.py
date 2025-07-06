@@ -4,6 +4,7 @@ import fcl
 import trimesh
 import pybullet as p
 
+import dorna2.pose as dp
 
 def axis_angle_to_quaternion(axis_angle):
     theta = np.linalg.norm(axis_angle)
@@ -11,19 +12,21 @@ def axis_angle_to_quaternion(axis_angle):
         return [0, 0, 0, 1]
     axis = axis_angle / theta
     x, y, z = axis
+    theta = theta * 180.0 / np.pi
     s = np.sin(theta / 2.0)
     return [x * s, y * s, z * s, np.cos(theta / 2.0)]
 
 def transform_to_matrix(xyz, rvec):
     quat = axis_angle_to_quaternion(rvec)
-    tf = fcl.Transform(quaternion=quat, translation=xyz)
+    tf = fcl.Transform(quat, xyz)
     return tf, quat
 
 class UnifiedObject:
-    def __init__(self, fcl_obj, pybullet_id, pose):
+    def __init__(self, fcl_obj, pybullet_id, mat, fcl_shape):
         self.fcl_object = fcl_obj
         self.pybullet_id = pybullet_id
-        self.pose = pose
+        self.mat = mat
+        self.fcl_shape = fcl_shape
 
 #some good functions
 def fcl_transform_from_matrix(matrix4x4):
@@ -32,10 +35,12 @@ def fcl_transform_from_matrix(matrix4x4):
     return fcl.Transform(rotation, translation)
 
 
+
 def create_cube(xyz_rvec, scale=[1,1,1]):
     xyz = xyz_rvec[:3]
     rvec = xyz_rvec[3:]
-    tf, quat = transform_to_matrix(xyz, rvec)
+    tf, quat = transform_to_matrix(xyz,rvec)
+    mat = dp.xyzabc_to_T(xyz_rvec)
 
     # FCL
     half_extents = [s / 2.0 for s in scale]
@@ -43,17 +48,17 @@ def create_cube(xyz_rvec, scale=[1,1,1]):
     fcl_obj = fcl.CollisionObject(box, tf)
 
     # PyBullet
-    col_id = p.createCollisionShape(p.GEOM_BOX, halfExtents=half_extents)
     vis_id = p.createVisualShape(p.GEOM_BOX, halfExtents=half_extents, rgbaColor=[1,0,0,1])
-    body_id = p.createMultiBody(0, col_id, vis_id, basePosition=xyz, baseOrientation=quat)
+    body_id = p.createMultiBody(baseVisualShapeIndex=vis_id, basePosition=xyz, baseOrientation=quat)
 
-    return UnifiedObject(fcl_obj, body_id, (xyz, quat))
+    return UnifiedObject(fcl_obj, body_id, mat, box)
 
 
 def create_mesh(mesh_path, xyz_rvec, scale=[1,1,1]):
     xyz = xyz_rvec[:3]
     rvec = xyz_rvec[3:]
     tf, quat = transform_to_matrix(xyz, rvec)
+    mat = dp.xyzabc_to_T(xyz_rvec)
 
     # Load mesh
     mesh = trimesh.load(mesh_path, force='mesh').as_triangles()
@@ -77,12 +82,11 @@ def create_mesh(mesh_path, xyz_rvec, scale=[1,1,1]):
             f.write(f"f {tri[0]+1} {tri[1]+1} {tri[2]+1}\n")
         mesh_file = f.name
 
-    col_id = p.createCollisionShape(p.GEOM_MESH, fileName=mesh_file, meshScale=[1,1,1])
     vis_id = p.createVisualShape(p.GEOM_MESH, fileName=mesh_file, meshScale=[1,1,1])
-    body_id = p.createMultiBody(0, col_id, vis_id, basePosition=xyz, baseOrientation=quat)
+    body_id = p.createMultiBody(baseVisualShapeIndex=vis_id, basePosition=xyz, baseOrientation=quat)
 
     os.remove(mesh_file)
-    return UnifiedObject(fcl_obj, body_id, (xyz, quat))
+    return UnifiedObject(fcl_obj, body_id, mat, bvh)
 
 
 
@@ -90,16 +94,15 @@ def create_sphere(xyz_rvec, scale=[1,1,1]):
     xyz = xyz_rvec[:3]
     rvec = xyz_rvec[3:]
     tf, quat = transform_to_matrix(xyz, rvec)
-    
+    mat = dp.xyzabc_to_T(xyz_rvec)
     radius = scale[0]  # uniform scale only
     sphere = fcl.Sphere(radius)
     fcl_obj = fcl.CollisionObject(sphere, tf)
 
-    col_id = p.createCollisionShape(p.GEOM_SPHERE, radius=radius)
     vis_id = p.createVisualShape(p.GEOM_SPHERE, radius=radius, rgbaColor=[0,0,1,1])
-    body_id = p.createMultiBody(0, col_id, vis_id, basePosition=xyz, baseOrientation=quat)
+    body_id = p.createMultiBody(baseVisualShapeIndex=vis_id, basePosition=xyz, baseOrientation=quat)
 
-    return UnifiedObject(fcl_obj, body_id, (xyz, quat))
+    return UnifiedObject(fcl_obj, body_id, mat, sphere)
 
 
 
@@ -160,8 +163,9 @@ class Node:
         self.collisions.append(CollisionShape(self,tf, obj, collision_obj))
 
 
-    def update_collision_object_transforms(self):
-        gt = self.get_global_transform()
-        for coll_shape in self.collisions:
-            new_tf = fcl_transform_from_matrix(gt @ coll_shape.local_transform)
-            coll_shape.fcl_collision_object.setTransform(new_tf)
+    def update_collision_object_transforms(self, gt=None):
+        if gt is None:
+            gt = self.get_global_transform()
+        for coll_obj in self.collisions:
+            new_tf = fcl_transform_from_matrix(gt @ coll_obj.mat)
+            coll_obj.fcl_object.setTransform(new_tf)

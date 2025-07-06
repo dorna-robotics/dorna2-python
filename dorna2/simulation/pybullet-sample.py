@@ -7,9 +7,12 @@ from urdfpy import URDF
 import fcl
 import time 
 from pathGen import pathGen
-
 from node import Node
-from simulation import Simulation
+from node import create_cube
+
+#from simulation import Simulation
+
+from dorna2.simulation import check_path
 
 spawned_visuals = []
 
@@ -55,7 +58,6 @@ p.setGravity(0,0,-9.81)
 
 
 
-
 # defininf simulation
 
 
@@ -73,8 +75,21 @@ sim.robot.nodes["tcp"] = [box3]
 res = motion_gen.line_move(j1 , pose, tcp , step = 100)
 """
 
-j = 0
+scene = [] 
+for i in range(4):
+    t = i * np.pi / 2 + np.pi/4
+    l = 0.48
+    tf = [l*np.cos(t),l*np.sin(t),0,0,0,0]
 
+    scene.append(create_cube(tf, [0.05,0.05,0.8]))
+
+tool = [create_cube([0,0,0,0,0,0], [0.02,0.02,0.3])]
+
+
+sim, path, all_visuals, col_res = Simulation.check_path(motion="lmove", start_joint=[-90,0,0,0,0,0,0], end_joint=[0,0,0,0,0,0,0], scene=scene, tool=tool, tcp=[0,0,0,0,0,0], steps=30, early_exit=True)
+print(col_res)
+sim.preview_animation(path, all_visuals)
+"""
 start_time = time.time()
 
 tool = load()
@@ -90,27 +105,4 @@ print(res)
 
 print("--- %s seconds ---" % (time.time() - start_time))
 
-t = 0
-
-
-while True:
-    # clear and redraw
-    p.removeAllUserDebugItems()
-    clear_shapes()
-    draw_node_shapes(sim.root_node)
-
-    j = res["path"].get_point(t%1.0)
-
-    sim.robot.set_joint_values([j[6],j[0],j[1],j[2],j[3],j[4],j[5]]) 
-
-    #rob.kinematic.fw(j))
-
-    #
-
-    #print(sim.robot_external_collision())
-
-   
-    t = t + 0.01
-    #   p.stepSimulation()
-    #time.sleep(1./240.)
-
+"""
