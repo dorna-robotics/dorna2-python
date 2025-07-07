@@ -34,8 +34,6 @@ def fcl_transform_from_matrix(matrix4x4):
     translation = matrix4x4[:3, 3]
     return fcl.Transform(rotation, translation)
 
-
-
 def create_cube(xyz_rvec, scale=[1,1,1]):
     xyz = xyz_rvec[:3]
     rvec = xyz_rvec[3:]
@@ -48,6 +46,7 @@ def create_cube(xyz_rvec, scale=[1,1,1]):
     fcl_obj = fcl.CollisionObject(box, tf)
 
     # PyBullet
+    body_id = 0
     vis_id = p.createVisualShape(p.GEOM_BOX, halfExtents=half_extents, rgbaColor=[1,0,0,1])
     body_id = p.createMultiBody(baseVisualShapeIndex=vis_id, basePosition=xyz, baseOrientation=quat)
 
@@ -82,6 +81,7 @@ def create_mesh(mesh_path, xyz_rvec, scale=[1,1,1]):
             f.write(f"f {tri[0]+1} {tri[1]+1} {tri[2]+1}\n")
         mesh_file = f.name
 
+    body_id = 0
     vis_id = p.createVisualShape(p.GEOM_MESH, fileName=mesh_file, meshScale=[1,1,1])
     body_id = p.createMultiBody(baseVisualShapeIndex=vis_id, basePosition=xyz, baseOrientation=quat)
 
@@ -99,6 +99,7 @@ def create_sphere(xyz_rvec, scale=[1,1,1]):
     sphere = fcl.Sphere(radius)
     fcl_obj = fcl.CollisionObject(sphere, tf)
 
+    body_id = 0
     vis_id = p.createVisualShape(p.GEOM_SPHERE, radius=radius, rgbaColor=[0,0,1,1])
     body_id = p.createMultiBody(baseVisualShapeIndex=vis_id, basePosition=xyz, baseOrientation=quat)
 

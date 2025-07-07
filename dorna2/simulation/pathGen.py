@@ -50,7 +50,7 @@ class pathGen:
 			self.path = self.gen_jmove(j1_,j2_,steps_)
 
 		if self.motion=="lmove":
-			self.path = self.gen_lmove(j1_,j2_,steps_)
+			self.path = self.gen_lmove(j1_,j2_,steps_,tcp_)
 
 	def gen_jmove(self, j1, j2, steps):
 		j1 = np.array(j1)
@@ -64,7 +64,8 @@ class pathGen:
 
 		return Path(points)
 
-	def gen_lmove(self, j1, j2, steps):
+	def gen_lmove(self, j1, j2, steps, tcp):
+		self.kin.set_frame_tcp(frame=None, tcp=self.kin.xyzabc_to_mat(tcp))
 		fw1 = np.array(self.kin.fw(j1))
 		fw2 = np.array(self.kin.fw(j2))
 		jj1 = np.array(j1)
@@ -76,14 +77,13 @@ class pathGen:
 		for i in range(1, steps):
 			t = float(i)/float(steps-1)
 
-			fw = fw1 + (fw2-fw1)*t
-			jj = jj1 + (jj2-jj1)*t
-
-			ikj = self.kin.ik_xyzj345([fw[0],fw[1],fw[2]] , [float(jj[3]),float(jj[4]),float(jj[5])], last_joint)
+			fw = fw1 + (fw2-fw1) * t
+			jj = jj1 + (jj2-jj1) * t
+			ikj = self.kin.ik_xyzj345([fw[0],fw[1],fw[2]] , [float(jj[3]),float(jj[4]),float(jj[5])], tcp, last_joint)
 
 			new_joint = jj
 			new_joint[:3]= ikj[:3]
-
+			print(last_joint[:3])
 			velocity = np.linalg.norm(np.array(new_joint) - np.array(last_joint))
 			if velocity > self.velocity_treshold : 
 				self.singular = True

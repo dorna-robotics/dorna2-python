@@ -3,6 +3,9 @@ from dorna2.ik6r_2 import ik
 
 from dorna2.cf import CF
 from dorna2.helper import solve_cs_equation
+
+import dorna2.pose as pose
+
 """
 Sources:
 	http://rasmusan.blog.aau.dk/files/ur5_kinematics.pdf
@@ -439,10 +442,26 @@ class Dof(DH):
 		return retval
 
 
-	def ik_xyzj345(self, xyz, j345 , current = None ):
+	def ik_xyzj345(self, xyz, j345 , tcp, current=None ):
 		#This function solves inverse kinematic when the 3 last joint values are known
 		#We use this function in lmove path generation (interpolation)
 		#j345 are degree values
+
+		mtcp = np.matrix(pose.xyzabc_to_T(tcp))
+		T00 = mtcp[0,0]
+		T01 = mtcp[0,1]
+		T02 = mtcp[0,2]
+		T03 = mtcp[0,3]
+
+		T10 = mtcp[1,0]
+		T11 = mtcp[1,1]
+		T12 = mtcp[1,2]
+		T13 = mtcp[1,3]
+
+		T20 = mtcp[2,0]
+		T21 = mtcp[2,1]
+		T22 = mtcp[2,2]
+		T23 = mtcp[2,3]
 
 		j345 = np.array(j345) * np.pi / 180.0 
 
@@ -462,7 +481,11 @@ class Dof(DH):
 		a2 = self.a[1]
 		a3 = self.a[2]
 
-		solj0 = solve_cs_equation(-d4 + c3 * d6 + d7 * s3 * s4, xyz[1], -xyz[0])
+		X = xyz[0]
+		Y = xyz[1]
+		Z = xyz[2]
+
+		solj0 = solve_cs_equation(-d4 + c3*d6 + d7*s3*s4 + c4*c5*s3*T03 + c3*s5*T03 + c3*c5*T13 - c4*s3*s5*T13 + s3*s4*T23 , Y, -X)
 
 		if solj0 is None:
 			return []
@@ -473,16 +496,12 @@ class Dof(DH):
 			c0 = sol0[0]
 			s0 = sol0[1]
 
-			if np.isclose(s0,0.0):
-				A = (- xyz[0] + (-d4 + c3*d6 + d7*s3*s4) * s0) / c0 + a2 
-			else:
-				A = (- xyz[1] + (+d4 - c3*d6 - d7*s3*s4) * c0) / s0 + a2
+			A = d5**2 + d6**2*s3**2 - 2*c3*d6*d7*s3*s4 + c3**2*d7**2*s4**2 + 2*d6*s3**2*s5*T03 - 2*c3*d7*s3*s4*s5*T03 + c5**2*s4**2*T03**2 + s3**2*s5**2*T03**2 + 2*c5*d6*s3**2*T13 - 2*c3*c5*d7*s3*s4*T13 + 2*c5*s3**2*s5*T03*T13 - 2*c5*s4**2*s5*T03*T13 + c5**2*s3**2*T13**2 + s4**2*s5**2*T13**2 - 2*c3*d6*s3*s4*T23 + 2*c3**2*d7*s4**2*T23 - 2*c3*s3*s4*s5*T03*T23 - 2*c3*c5*s3*s4*T13*T23 + c3**2*s4**2*T23**2 + c4**2*(d7**2 + c3**2*(c5*T03 - s5*T13)**2 + 2*d7*T23 + T23**2) + 2*d5*((-c5)*s4*T03 + s4*s5*T13 + c4*(d7 + T23)) - 2*c4*(c5*T03 - s5*T13)*(c3*s3*(d6 + s5*T03 + c5*T13) + s4*(d7 + T23) - c3**2*s4*(d7 + T23))
 
-			B = d1 - xyz[2]
-			f = d5 + c4*d7
-			g = d6*s3 - c3*d7*s4
+			B = a2**2 + a3**2 + d1**2 - 2*a2*c0*X + c0**2*X**2 - 2*a2*s0*Y + 2*c0*s0*X*Y + s0**2*Y**2 - 2*d1*Z + Z**2 
 
-			solj1 = solve_cs_equation(B*B + A*A + a3*a3 - f*f - g*g, 2*A*a3, 2*B*a3)
+
+			solj1 = solve_cs_equation(B-A, 2*a3*(a2 - c0*X - s0*Y), 2*a3*(d1 - Z))
 
 			if solj1 is None:
 				continue
@@ -493,7 +512,7 @@ class Dof(DH):
 				c1 = sol1[0]
 				s1 = sol1[1]
 
-				solj12 = solve_cs_equation(B + a3*s1 , -g , f)
+				solj12 = solve_cs_equation(a2 - c0*X - s0*Y + a3*c1 , (d5 - c5*s4*T03 + s4*s5*T13 + c4*(d7 + T23)) , (d6*s3 + s3*(s5*T03 + c5*T13) - c3*(d7*s4 + c4*c5*T03 - c4*s5*T13 + s4*T23)))
 
 				if solj12 is None:
 					continue
@@ -507,12 +526,15 @@ class Dof(DH):
 					j12 = np.arctan2(s12 , c12)
 
 					j2 = normal_angle(j12 - j1) 
-
 					#check final result
-					xx = (-d4+c3*d6+d7*s3*s4)*s0 + c0*(a2+a3*c1+(d5+c4*d7)*c12+(d6*s3-c3*d7*s4)*s12)
-					yy = (+d4-c3*d6-d7*s3*s4)*c0 + s0*(a2+a3*c1+(d5+c4*d7)*c12+(d6*s3-c3*d7*s3)*s12)
+					xx = s0*(-d4 + c3*(d6 + s5*T03 + c5*T13) + s3*(d7*s4 + c4*c5*T03 - c4*s5*T13 + s4*T23)) + c0*(a2 + a3*c1 + d6*s12*s3 - c3*d7*s12*s4 - c3*c4*c5*s12*T03 + s12*s3*s5*T03 + c5*s12*s3*T13 + c3*c4*s12*s5*T13 - c3*s12*s4*T23 + c12*(d5 - c5*s4*T03 + s4*s5*T13 + c4*(d7 + T23)))
 
-					if True:#np.abs(xx-xyz[0])<1e-1 and np.abs(yy-xyz[1])<1e-1:
+					yy = c0*(d4 - c3*(d6 + s5*T03 + c5*T13) - s3*(d7*s4 + c4*c5*T03 - c4*s5*T13 + s4*T23)) + s0*(a2 + a3*c1 + d6*s12*s3 - c3*d7*s12*s4 - c3*c4*c5*s12*T03 + s12*s3*s5*T03 + c5*s12*s3*T13 + c3*c4*s12*s5*T13 - c3*s12*s4*T23 + c12*(d5 - c5*s4*T03 + s4*s5*T13 + c4*(d7 + T23)))
+					
+					zz = d1  - (d6*s3 + s3*(s5*T03 + c5*T13) - c3*(d7*s4 + c4*c5*T03 - c4*s5*T13 + s4*T23))*c12 + a3*s1 + d5*s12 + c4*d7*s12 - c5*s4*T03*s12 + s4*s5*T13*s12 + c4*T23*s12
+
+					dist = np.linalg.norm(np.array(xyz)-np.array([xx,yy,zz]))
+					if dist<0.1:
 						sols.append([normal_angle(float(j0))*180/np.pi, normal_angle(float(j1))*180/np.pi, normal_angle(float(j2))*180/np.pi])
 
 		if current is not None:
@@ -523,7 +545,6 @@ class Dof(DH):
 				if dis < best_dis:
 					best_dis = dis
 					best_sol = s
-
 			return best_sol
 
 		return sols
@@ -857,17 +878,20 @@ def main_dorna_c():
 	#knmtc.set_tcp_xyzabc([0, 0, 43, 0, 0, 90])
 
 
-	for i in range(1000):
-		joint = [np.random.uniform(0, 360), np.random.uniform(0, 360),np.random.uniform(0, 360),np.random.uniform(0, 360),np.random.uniform(0, 360),np.random.uniform(0, 360)]
+	for i in range(1):
+		joint = [np.random.uniform(-180, 180), np.random.uniform(-180, 180),np.random.uniform(-180, 180),np.random.uniform(-180, 180),np.random.uniform(-180, 180),np.random.uniform(-180, 180)]
 
+		#joint = [-126.76318338378618, -90.45139678651121, -18.170899927518235, -119.57082729283547, -101.74340571761198, -157.2656689663714]
+		joint=[0,0,0,0,0,0]
 		fw = knmtc.fw(joint)
 
-		xyz = [fw[0],fw[1],fw[2]]
+		xyz = [  62.8137931 ,-481.13103448,230.]#[fw[0],fw[1],fw[2]]
 
-		r = knmtc.ik_xyzj345( xyz, [joint[3],joint[4],joint[5]], joint)
+		r = knmtc.ik_xyzj345( xyz, [joint[3],joint[4],joint[5]], [0,0,0,0,0,0])
 
-		s = np.array([r[0],r[1],r[2]]) - np.array([joint[0],joint[1],joint[2]])
-		print(np.linalg.norm(s))
+		#s = np.array([r[0],r[1],r[2]]) - np.array([joint[0],joint[1],joint[2]])
+		print(r)
+		#print(np.linalg.norm(s))
 
 
 	#print(knmtc.xyzquat_to_xyzabc([0,0,0,1,0,0,0]))

@@ -20,16 +20,14 @@ def solve_cs_equation(aa, bb, cc):
         s1 = -aa / cc
         if abs(s1) > 1.0:
             return None
-        c1 = np.sqrt(1.0 - s1 * s1)
-
+        c1 = np.sqrt(max(1.0 - s1 * s1,0))
         return [[c1,s1],[-c1,s1]]
 
     if np.isclose(cc,0.0):
         c1 = -aa / bb
         if abs(c1) > 1.0:
             return None
-        s1 = np.sqrt(1.0 - c1 * c1)
-
+        s1 = np.sqrt(max(0.,1.0 - c1 * c1))
         return [[c1, s1],[c1,-s1]]
 
     denom = bb * bb + cc * cc
