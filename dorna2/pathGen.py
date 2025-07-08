@@ -1,8 +1,6 @@
 import numpy as np
 from dorna2 import Dorna
 
-
-
 class Path:
 	def __init__(self, points):
 		self.num_steps = len(points)
@@ -83,7 +81,6 @@ class pathGen:
 
 			new_joint = jj
 			new_joint[:3]= ikj[:3]
-			print(last_joint[:3])
 			velocity = np.linalg.norm(np.array(new_joint) - np.array(last_joint))
 			if velocity > self.velocity_treshold : 
 				self.singular = True

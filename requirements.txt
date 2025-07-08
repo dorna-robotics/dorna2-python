@@ -1,2 +1,5 @@
 setuptools
 numpy
+trimesh
+fcl
+urdfpy

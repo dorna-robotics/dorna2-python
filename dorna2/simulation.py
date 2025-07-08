@@ -1,15 +1,20 @@
 import numpy as np
-import node
-from urdf import UrdfRobot
-import fcl
-from pathGen import pathGen
-from dorna2 import Dorna
 import time 
-import dorna2.pose as dp
-import pybullet as p
-#must be deleted:
-import inspect
+import sys
+import fcl
 
+from dorna2 import Dorna
+from dorna2.pathGen import pathGen
+from dorna2.urdf import UrdfRobot
+import dorna2.node as node
+import dorna2.pose as dp
+#import pybullet as p
+
+
+def pybullet_test():
+    if 'p' in globals() and 'pybullet' in sys.modules and globals()['p'] is sys.modules['pybullet']:
+        return True
+    return False
 
 class Simulation:
 
@@ -120,20 +125,6 @@ class Simulation:
 		return recruse(self.root_node)
 
 
-	def create_simple_scene(self):
-		for i in range(4):
-			t = i * np.pi / 2
-			l = 0.2
-			tf = np.matrix([[1,0,0,l*np.cos(t)],[0,1,0,l*np.sin(t)],[0,0,1,0],[0,0,0,1]])
-
-			n = node.Node("column"+str(i), self.root_node, tf, [], [])
-
-			half_extents = [0.05,0.05,0.8]
-			obj = fcl.Box(*half_extents)
-
-			n.add_collision(obj, tf)
-
-
 	def check_motion_collision(self, path):
 		sample_points = 100
 		collision_res = {"col":False,"col_time":0 , "internal":False, "external":False}
@@ -164,6 +155,9 @@ class Simulation:
 
 
 	def preview_animation(self, path, all_visuals):
+		if not pybullet_test():
+			return
+
 		t = 0
 		while True:
 			j = path.path.get_point(t%1.0)
@@ -187,7 +181,7 @@ class Simulation:
 			time.sleep(1./240.)
 
 
-def check_path(motion, start_joint, end_joint, tcp=[0,0,0,0,0,0], tool=[], scene=[], steps=50, early_exit=False):
+def check_path(motion, start_joint, end_joint, tool=[0,0,0,0,0,0], load=[], scene=[], steps=50, early_exit=False):
 	sim = Simulation("tmp")
 
 	all_visuals = [] #for visualization
@@ -201,7 +195,7 @@ def check_path(motion, start_joint, end_joint, tcp=[0,0,0,0,0,0], tool=[], scene
 		all_visuals.append(obj)
 
 	#placing tool objects
-	for obj in tool:
+	for obj in load:
 		sim.robot.link_nodes["j6_link"].collisions.append(obj)
 		sim.robot.all_objs.append(obj)
 		sim.robot.prnt_map[id(obj.fcl_shape)] = sim.robot.link_nodes["j6_link"]
@@ -216,7 +210,7 @@ def check_path(motion, start_joint, end_joint, tcp=[0,0,0,0,0,0], tool=[], scene
 	manager.registerObjects(all_objects)  # list of all your CollisionObjects
 	manager.setup()  # Builds the BVH tree
 
-	path = pathGen(motion, start_joint, end_joint, steps, sim.dorna.kinematic, tcp)
+	path = pathGen(motion, start_joint, end_joint, steps, sim.dorna.kinematic, tool)
 
 	sample_points = steps
 	start_time = time.perf_counter()

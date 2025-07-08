@@ -1,10 +1,14 @@
 import numpy as np
 import fcl
-
+import sys
 import trimesh
-import pybullet as p
-
+#import pybullet as p
 import dorna2.pose as dp
+
+def pybullet_test():
+    if 'p' in globals() and 'pybullet' in sys.modules and globals()['p'] is sys.modules['pybullet']:
+        return True
+    return False
 
 def axis_angle_to_quaternion(axis_angle):
     theta = np.linalg.norm(axis_angle)
@@ -16,10 +20,12 @@ def axis_angle_to_quaternion(axis_angle):
     s = np.sin(theta / 2.0)
     return [x * s, y * s, z * s, np.cos(theta / 2.0)]
 
+
 def transform_to_matrix(xyz, rvec):
     quat = axis_angle_to_quaternion(rvec)
     tf = fcl.Transform(quat, xyz)
     return tf, quat
+
 
 class UnifiedObject:
     def __init__(self, fcl_obj, pybullet_id, mat, fcl_shape):
@@ -47,8 +53,9 @@ def create_cube(xyz_rvec, scale=[1,1,1]):
 
     # PyBullet
     body_id = 0
-    vis_id = p.createVisualShape(p.GEOM_BOX, halfExtents=half_extents, rgbaColor=[1,0,0,1])
-    body_id = p.createMultiBody(baseVisualShapeIndex=vis_id, basePosition=xyz, baseOrientation=quat)
+    if pybullet_test():
+        vis_id = p.createVisualShape(p.GEOM_BOX, halfExtents=half_extents, rgbaColor=[1,0,0,1])
+        body_id = p.createMultiBody(baseVisualShapeIndex=vis_id, basePosition=xyz, baseOrientation=quat)
 
     return UnifiedObject(fcl_obj, body_id, mat, box)
 
@@ -82,12 +89,12 @@ def create_mesh(mesh_path, xyz_rvec, scale=[1,1,1]):
         mesh_file = f.name
 
     body_id = 0
-    vis_id = p.createVisualShape(p.GEOM_MESH, fileName=mesh_file, meshScale=[1,1,1])
-    body_id = p.createMultiBody(baseVisualShapeIndex=vis_id, basePosition=xyz, baseOrientation=quat)
+    if pybullet_test():
+        vis_id = p.createVisualShape(p.GEOM_MESH, fileName=mesh_file, meshScale=[1,1,1])
+        body_id = p.createMultiBody(baseVisualShapeIndex=vis_id, basePosition=xyz, baseOrientation=quat)
 
     os.remove(mesh_file)
     return UnifiedObject(fcl_obj, body_id, mat, bvh)
-
 
 
 def create_sphere(xyz_rvec, scale=[1,1,1]):
@@ -100,15 +107,14 @@ def create_sphere(xyz_rvec, scale=[1,1,1]):
     fcl_obj = fcl.CollisionObject(sphere, tf)
 
     body_id = 0
-    vis_id = p.createVisualShape(p.GEOM_SPHERE, radius=radius, rgbaColor=[0,0,1,1])
-    body_id = p.createMultiBody(baseVisualShapeIndex=vis_id, basePosition=xyz, baseOrientation=quat)
+    if pybullet_test():
+        vis_id = p.createVisualShape(p.GEOM_SPHERE, radius=radius, rgbaColor=[0,0,1,1])
+        body_id = p.createMultiBody(baseVisualShapeIndex=vis_id, basePosition=xyz, baseOrientation=quat)
 
     return UnifiedObject(fcl_obj, body_id, mat, sphere)
 
 
-
 class Node:
-
     def __init__(self, name, parent=None, local_transform=None, tags=[], target_tags=[]):
         self.name = name
         self.parent = None
