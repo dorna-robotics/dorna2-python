@@ -141,7 +141,7 @@ def rotate_abc(abc, axis=[0,0,1], angle=0, local=False):
     return rmat_to_abc(RT)
 
 
-def align_abc(abc, align=[0, 0, 1], axis=[0, 0, 1], fix=[1, 0, 0]):
+def align_abc(abc, align=[0, 0, 1], axis=[0, 0, 1], fix=None):
     """
     Rotate the pose so that its local X/Y/Z axis aligns with `axis`.
     - abc:    [ax, ay, az] axis-angle in degrees
@@ -209,3 +209,24 @@ def align_abc(abc, align=[0, 0, 1], axis=[0, 0, 1], fix=[1, 0, 0]):
     return result
 
 
+def robot_to_frame(xyzabc, aux=[0, 0], aux_dir=[[1, 0, 0], [0, 0, 0]], base_in_world=[0, 0, 0, 0, 0, 0], frame_in_world = [0, 0, 0, 0, 0, 0]):
+    # adjust xyzabcde
+    xyzabc = list(xyzabc+ [0 for _ in range(6)])[0:6]
+    aux_offset = aux[0]*np.append(aux_dir[0],[0, 0, 0]) + aux[1]*np.append(aux_dir[1],[0, 0, 0])
+
+    # xyzabc
+    xyzabc_base = np.array(xyzabc) + aux_offset
+    xyzabc_world = transform_pose(xyzabc_base, from_frame=base_in_world, to_frame=[0,0,0,0,0,0])
+    xyzabc_frame = transform_pose(xyzabc_world, from_frame=[0,0,0,0,0,0], to_frame=frame_in_world)
+    return xyzabc_frame
+
+def frame_to_robot(xyzabc, aux=[0, 0], aux_dir=[[1, 0, 0], [0, 0, 0]], base_in_world=[0, 0, 0, 0, 0, 0], frame_in_world = [0, 0, 0, 0, 0, 0]):
+    # adjust xyzabcde
+    xyzabc = list(xyzabc+ [0 for _ in range(6)])[0:6]
+    aux_offset = aux[0]*np.append(aux_dir[0],[0, 0, 0]) + aux[1]*np.append(aux_dir[1],[0, 0, 0])
+
+    # xyzabc
+    xyzabc_world = transform_pose(xyzabc, from_frame=frame_in_world, to_frame=[0,0,0,0,0,0])
+    xyzabc_base = np.array(transform_pose(xyzabc_world, from_frame=[0,0,0,0,0,0], to_frame=base_in_world))
+    xyzabc_robot = xyzabc_base - aux_offset
+    return xyzabc_robot.tolist()

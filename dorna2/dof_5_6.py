@@ -67,12 +67,13 @@ class DH(CF):
 			self.inv_T_tcp_r_flange = np.linalg.inv(self.T_tcp_r_flange) # TCP r flange		
 
 	def set_tcp_xyzabc(self, xyzabc):
-		abc = [xyzabc[3], xyzabc[4], xyzabc[5]]
-		tcp = self.axis_angle_to_mat(abc)
-		tcp[0,3] = xyzabc[0]
-		tcp[1,3] = xyzabc[1]
-		tcp[2,3] = xyzabc[2]
-		self.set_frame_tcp( frame = None, tcp = tcp)
+		if xyzabc is not None:
+			abc = [xyzabc[3], xyzabc[4], xyzabc[5]]
+			tcp = self.axis_angle_to_mat(abc)
+			tcp[0,3] = xyzabc[0]
+			tcp[1,3] = xyzabc[1]
+			tcp[2,3] = xyzabc[2]
+			self.set_frame_tcp( frame = None, tcp = tcp)
 
 	def T(self, i, theta):
 		ct = np.cos(theta+self.delta[i])
@@ -242,7 +243,7 @@ class Dof(DH):
 		return np.matmul(T_flange_r_world, self.T_tcp_r_flange)
 
 
-	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom, thr=[np.pi, np.pi, np.pi, np.pi/2, np.pi, np.pi]):
+	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom, thr=[np.pi, np.pi, np.pi, np.pi/2, np.pi, 2*np.pi]):
 		goal_matrix = T_tcp_r_world @ self.inv_T_tcp_r_flange
 		sol = []
 		retval = []
