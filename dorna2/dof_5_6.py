@@ -271,7 +271,8 @@ class Dof(DH):
 			goal_xyzabc = self.mat_to_xyzabc( goal_matrix)
 
 			# joint space distance
-			joint_space_distance_treshold = np.linalg.norm(initial_xyzabc - goal_xyzabc) / 50
+			#joint_space_distance_treshold = np.linalg.norm(initial_xyzabc - goal_xyzabc) / 50
+			joint_space_distance_treshold = np.linalg.norm(initial_xyzabc - goal_xyzabc) / 25
 
 			# x, y, z axis
 			x_axis = self.get_X_axis(goal_matrix)
@@ -306,7 +307,7 @@ class Dof(DH):
 						mdist = np.linalg.norm(self.t_flange_r_world(theta = s) - tmp_matrix)
 						if(mdist>0.01):
 							continue
-
+						
 						# distance threshold
 						if angle_space_distance(np.array(s) , np.array(theta_current)) < joint_space_distance_treshold:
 							if all([abs(s[i]-theta_current[i]) < thr[i] for i in range(min(len(theta_current), len(s)))]):
