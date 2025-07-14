@@ -243,7 +243,7 @@ class Dof(DH):
 		return np.matmul(T_flange_r_world, self.T_tcp_r_flange)
 
 
-	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom, thr=[np.pi, np.pi, np.pi, np.pi/2, np.pi, 2*np.pi]):
+	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom, thr=[np.pi, np.pi, np.pi, 3/4*np.pi, np.pi, np.pi, 2*np.pi]):
 		goal_matrix = T_tcp_r_world @ self.inv_T_tcp_r_flange
 		sol = []
 		retval = []
@@ -310,6 +310,7 @@ class Dof(DH):
 						
 						# distance threshold
 						if angle_space_distance(np.array(s) , np.array(theta_current)) < joint_space_distance_treshold:
+
 							if all([abs(s[i]-theta_current[i]) < thr[i] for i in range(min(len(theta_current), len(s)))]):
 								return [s]	
 
