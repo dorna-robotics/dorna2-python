@@ -243,7 +243,7 @@ class Dof(DH):
 		return np.matmul(T_flange_r_world, self.T_tcp_r_flange)
 
 
-	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom, thr=[np.pi, np.pi, np.pi, 3/4*np.pi, np.pi, np.pi, 2*np.pi]):
+	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom, thr=[np.pi, np.pi, np.pi, 3/4*np.pi, np.pi, 2*np.pi]):
 		goal_matrix = T_tcp_r_world @ self.inv_T_tcp_r_flange
 		sol = []
 		retval = []
