@@ -353,21 +353,23 @@ class Dof(DH):
 		if len(poses) < 1:
 			return 0
 
-		best_pose = poses[0]
+		best_pose = None
 		
 		best_distance = 1000000
 
 		for pose in poses:
+			try:
+				goal_matrix = self.xyzabc_to_mat(pose)
 
-			goal_matrix = self.xyzabc_to_mat(pose)
+				ik_sols = self.inv_base(np.array(goal_matrix), theta_current = current_theta, all_sol = False , freedom = freedom)
+				for s in ik_sols:
 
-			ik_sols = self.inv_base(np.array(goal_matrix), theta_current = current_theta, all_sol = False , freedom = freedom)
-			for s in ik_sols:
-
-				dist = angle_space_distance(np.array(s) , np.array(current_theta))
-				if dist < best_distance:
-					best_distance = dist
-					best_pose = pose
+					dist = angle_space_distance(np.array(s) , np.array(current_theta))
+					if dist < best_distance:
+						best_distance = dist
+						best_pose = pose
+			except:
+				pass
 
 		return best_pose
 

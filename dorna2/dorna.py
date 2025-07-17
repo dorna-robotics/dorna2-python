@@ -925,235 +925,6 @@ class Dorna(WS):
 
         return _cmd_list
 
-
-    def pick_n_place_old(self,
-                    pick={},
-                    place={},
-                    middle=[],
-                    end={},
-                    base_in_world=[0, 0, 0, 0, 0, 0],
-                    aux_dir=[[1, 0, 0], [0, 0, 0]],
-                    sleep=0.5,
-                    current_joint=None, motion="jmove", vaj=None, cvaj=None, speed=0.2, cont=1, corner=100, 
-                    freedom={"num":200, "range":[2, 2, 2], "early_exit":True }, timeout=-1, sim=0, **kwargs,
-        ):
-        
-        # location
-        _location = {
-            "type": "robot", # robot, world, joint
-            "loc": None, # [[x, y, z, a, b, c], [aux0, aux1]]
-            "tool": [None, None],
-            "frame": [0, 0, 0, 0, 0, 0],
-            "ej": [0, 0, 0, 0, 0, 0, 0, 0],
-            "output": [],
-            "cmd": [],
-            "approach": [[0, 0, -50, 0, 0, 0], [0, 0, -50, 0, 0, 0]],
-            }
-
-        pick = {**_location, **pick}
-        place = {**_location, **place}
-        middle = [{**_location, **m} for m in middle]
-        end = {**_location, **end}
-            
-        # init
-        cmd_list = []
-                
-        # Speed
-        speed = min(1, max(0, speed))
-
-        # vaj
-        if vaj is None:
-            vaj = [x * speed for x in self.config["speed"]["very_quick"][motion].values()]
-        
-        # cvaj
-        if cvaj is None:
-            if cont == 1:
-                cvaj = [x * speed for x in self.config["speed"]["very_quick"]["c"+motion].values()]
-            else:
-                cvaj = vaj
-
-        ###########################
-        ###### current joint ######
-        ###########################
-        self.kinematic.set_tcp_xyzabc(pick["tool"][0])
-        current_joint = current_joint if current_joint is not None else self.get_all_joint()
-        current_joint = (current_joint + [0, 0, 0, 0, 0, 0, 0, 0])[:8]
-        current_pose = np.array(self.kinematic.fw(joint=current_joint[0:6]))
-        current_aux = current_joint[6:8]
-
-
-        ##################
-        ###### Pick ######
-        ##################
-        # pose
-        ignore_pick = False
-        if pick["loc"] is None:
-            ignore_pick = True
-            pick_pose = np.array(current_pose)
-            pick_aux = current_aux
-        elif pick["type"] == "robot":
-            pick_pose = np.array(dorna_pose.transform_pose(pick["loc"][0], from_frame=pick["frame"]))
-            pick_aux = pick["loc"][1]
-        elif pick["type"] == "world":
-            pick_pose = np.array(dorna_pose.frame_to_robot(pick["loc"][0], pick["loc"][1], aux_dir=aux_dir, frame_in_world=pick["frame"], base_in_world=base_in_world))      
-            pick_aux = pick["loc"][1]
-        elif pick["type"] == "joint":
-            self.kinematic.set_tcp_xyzabc(pick["tool"][0])
-            pick_pose = np.array(self.kinematic.fw(joint=pick["loc"][0][0:6]))
-            pick_aux = pick["loc"][1]
-        
-        # above pick
-        above_pick_pose_0 = dorna_pose.transform_pose(pick["approach"][0], from_frame=pick_pose)
-        above_pick_pose_1 = dorna_pose.transform_pose(pick["approach"][1], from_frame=pick_pose) 
-
-        # Joint
-        self.kinematic.set_tcp_xyzabc(pick["tool"][0])
-        above_pick_joint_0 = np.append(self.kinematic.inv(above_pick_pose_0, current_joint[0:6], False, freedom=freedom)[0], pick_aux)
-        pick_joint = np.append(self.kinematic.inv(pick_pose, above_pick_joint_0[0:6], False, freedom=freedom)[0], pick_aux)
-
-        self.kinematic.set_tcp_xyzabc(pick["tool"][1])
-        above_pick_joint_1 = np.append(self.kinematic.inv(above_pick_pose_1[0:6], current_joint[0:6], False, freedom=freedom)[0], pick_aux)
-        
-        # ej
-        for i in range(min(len(pick["ej"]), len(pick_joint))):
-            above_pick_joint_0[i] -= pick["ej"][i]
-            above_pick_joint_1[i] -= pick["ej"][i]
-            pick_joint[i] -= pick["ej"][i]
-        # last joint
-        last_joint = above_pick_joint_1
-        
-        # cmd
-        if not ignore_pick:
-            cmd_list += [
-                {"cmd": motion, "rel": 0, "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont": 0} | {"j"+str(i): above_pick_joint_0[i] for i in range(len(above_pick_joint_0))},
-                {"cmd": motion, "rel": 0} | {"j"+str(i): pick_joint[i] for i in range(len(pick_joint))},
-            ]
-        for output_config in pick["output"]:
-            cmd_list += [
-                {"cmd": "output", "out" + str(output_config[0]): output_config[1], "queue": 0},
-            ]
-
-
-        cmd_list += [{"cmd": "sleep", "time": sleep},
-            *pick["cmd"],
-            {"cmd": motion, "rel": 0, "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont, "corner": corner} | {"j"+str(i): above_pick_joint_1[i] for i in range(len(above_pick_joint_1))},
-        ]
-
-        ##################
-        ###### place #####
-        ##################
-        place_pose = None
-        if place["loc"] is not None:
-            # tool
-            if place["type"] == "robot":
-                place_pose = np.array(dorna_pose.transform_pose(place["loc"][0], from_frame=place["frame"]))
-                place_aux = place["loc"][1]
-            elif place["type"] == "world":
-                place_pose = np.array(dorna_pose.frame_to_robot(place["loc"][0], place["loc"][1], aux_dir=aux_dir, frame_in_world=place["frame"], base_in_world=base_in_world))      
-                place_aux = place["loc"][1]
-            elif place["type"] == "joint":
-                self.kinematic.set_tcp_xyzabc(place["tool"][0])
-                place_pose = np.array(self.kinematic.fw(joint=place["loc"][0][0:6]))
-                place_aux = place["loc"][1]
-
-            # above place
-            above_place_pose_0 = dorna_pose.transform_pose(place["approach"][0], from_frame=place_pose)
-            above_place_pose_1 = dorna_pose.transform_pose(place["approach"][1], from_frame=place_pose) 
-
-        ##################
-        ###### middle ####
-        ##################
-        middle_joint = []
-        for mp in middle:
-            if mp["loc"] is None:
-                continue
-
-            if mp["type"] == "joint":
-                mp_joint = mp["loc"][0] + mp["loc"][1]
-                mp_aux = list(mp["loc"][1])
-            else:
-                if mp["type"] == "robot":
-                    mp_pose = np.array(dorna_pose.transform_pose(mp["loc"][0], from_frame=place["frame"]))
-                    mp_aux = list(mp["loc"][1])
-                elif mp["type"] == "world":
-                    mp_pose = np.array(dorna_pose.frame_to_robot(mp["loc"][0], mp["loc"][1], aux_dir=aux_dir, frame_in_world=mp["frame"], base_in_world=base_in_world))      
-                    mp_aux = list(mp["loc"][1])
-                
-                self.kinematic.set_tcp_xyzabc(mp["tool"])
-                mp_joint = np.append(self.kinematic.inv(mp_pose, above_pick_joint_1[0:6], False, freedom=freedom)[0], mp_aux)
-            
-            # cmd
-            middle_joint.append(mp_joint)
-            last_joint = list(mp_joint)
-            cmd_list += [{"cmd": motion, "rel": 0} | {"j"+str(i): mp_joint[i] for i in range(len(mp_joint))}]
-
-
-        #####################
-        ###### place again ##
-        #####################
-        if place_pose is not None:
-            
-            self.kinematic.set_tcp_xyzabc(place["tool"][0])
-            above_place_joint_0 = np.append(self.kinematic.inv(above_place_pose_0[0:6], last_joint[0:6], False, freedom=freedom)[0], place_aux)
-            place_joint = np.append(self.kinematic.inv(place_pose[0:6], above_place_joint_0[0:6], False, freedom=freedom)[0], place_aux)
-          
-            self.kinematic.set_tcp_xyzabc(place["tool"][1])
-            above_place_joint_1 = np.append(self.kinematic.inv(above_place_pose_1[0:6], last_joint[0:6], False, freedom=freedom)[0], place_aux)         
-
-
-            # ej
-            for i in range(min(len(place["ej"]), len(place_joint))):
-                above_place_joint_0[i] -= place["ej"][i]
-                above_place_joint_1[i] -= place["ej"][i]
-                place_joint[i] -= place["ej"][i]
-            last_joint = above_place_joint_1
-            
-            # cmd
-            cmd_list += [
-                {"cmd": motion, "rel": 0, "cont": 0} | {"j"+str(i): above_place_joint_0[i] for i in range(len(above_place_joint_0))},
-                {"cmd": motion, "rel": 0, "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2]} | {"j"+str(i): place_joint[i] for i in range(len(place_joint))},
-            ]
-            for output_config in place["output"]:
-                cmd_list += [{"cmd": "output", "out" + str(output_config[0]): output_config[1], "queue": 0}]
-            cmd_list += [{"cmd": "sleep", "time": sleep},
-                *place["cmd"]]
-            
-            # above place
-            if end["loc"] is not None:
-                cmd_list += [{"cmd": motion, "rel": 0, "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont} | {"j"+str(i): above_place_joint_1[i] for i in range(len(above_place_joint_1))}]
-
-
-        ###############
-        ###### end ####
-        ###############
-        end_joint = None
-        if end["loc"] is not None:
-            if end["type"] == "joint":
-                end_joint = end["loc"][0] + end["loc"][1]
-                end_aux = end["loc"][1]
-            else:
-                if end["type"] == "robot":
-                    end_pose = np.array(dorna_pose.transform_pose(end["loc"][0], from_frame=end["frame"]))
-                    end_aux = end["loc"][1]
-                elif end["type"] == "world":
-                    end_pose = np.array(dorna_pose.frame_to_robot(end["loc"][0], end["loc"][1], aux_dir=aux_dir, frame_in_world=end["frame"], base_in_world=base_in_world))
-                    end_aux = end["loc"][1]
-                
-                self.kinematic.set_tcp_xyzabc(end["tool"])
-                end_joint = np.append(self.kinematic.inv(end_pose, last_joint[0:6], False, freedom=freedom)[0], end_aux)
-            
-        # ej
-        if end_joint is not None:
-            cmd_list +=[
-                {"cmd": motion, "rel": 0} | {"j"+str(i): end_joint[i] for i in range(len(end_joint))}
-            ]
-
-        # sim
-        if sim:
-            return cmd_list
-        
-        # play list
-        return self.play_list(cmd_list, timeout=timeout)
     
     def pick_n_place(self,
                     pick={},
@@ -1180,244 +951,256 @@ class Dorna(WS):
             "exit": [],
             }
 
-        pick = {**_location, **pick}
-        place = {**_location, **place}
-        middle = [{**_location, **m} for m in middle]
-        end = {**_location, **end}
+        try:
 
-        # init
-        cmd_list = []
-                
-        # Speed
-        speed = min(1, max(0, speed))
+            pick = {**_location, **pick}
+            place = {**_location, **place}
+            middle = [{**_location, **m} for m in middle]
+            end = {**_location, **end}
 
-        # vaj
-        if vaj is None:
-            vaj = [x * speed for x in self.config["speed"]["very_quick"][motion].values()]
-        
-        # cvaj
-        if cvaj is None:
-            if cont == 1:
-                cvaj = [x * speed for x in self.config["speed"]["very_quick"]["c"+motion].values()]
-            else:
-                cvaj = vaj
+            # init
+            cmd_list = []
+                    
+            # Speed
+            speed = min(1, max(0, speed))
 
-        ###########################
-        ###### current joint ######
-        ###########################
-        self.kinematic.set_tcp_xyzabc(pick["tool"][0])
-        current_joint = current_joint if current_joint is not None else self.get_all_joint()
-        current_joint = (current_joint + [0, 0, 0, 0, 0, 0, 0, 0])[:8]
-        current_pose = np.array(self.kinematic.fw(joint=current_joint[0:6]))
-        current_aux = current_joint[6:8]
+            # vaj
+            if vaj is None:
+                vaj = [x * speed for x in self.config["speed"]["very_quick"][motion].values()]
+            
+            # cvaj
+            if cvaj is None:
+                if cont == 1:
+                    cvaj = [x * speed for x in self.config["speed"]["very_quick"]["c"+motion].values()]
+                else:
+                    cvaj = vaj
 
-        # last joint
-        last_joint = np.array(current_joint)
-
-
-        ##################
-        ###### Pick ######
-        ##################
-        # pose
-        ignore_pick = False
-        if pick["loc"] is None:
-            ignore_pick = True
-            pick_pose = np.array(current_pose)
-            pick_aux = current_aux
-        elif pick["type"] == "robot":
-            pick_pose = np.array(dorna_pose.transform_pose(pick["loc"][0], from_frame=pick["frame"]))
-            pick_aux = pick["loc"][1]
-        elif pick["type"] == "world":
-            pick_pose = np.array(dorna_pose.frame_to_robot(pick["loc"][0], pick["loc"][1], aux_dir=aux_dir, frame_in_world=pick["frame"], base_in_world=base_in_world))      
-            pick_aux = pick["loc"][1]
-        elif pick["type"] == "joint":
+            ###########################
+            ###### current joint ######
+            ###########################
             self.kinematic.set_tcp_xyzabc(pick["tool"][0])
-            pick_pose = np.array(self.kinematic.fw(joint=pick["loc"][0][0:6]))
-            pick_aux = pick["loc"][1]
-        
-        # approach pick pose
-        approach_pick_pose_list = [dorna_pose.transform_pose(pose, from_frame=pick_pose) for pose in pick["approach"]]
-        
-        # exit pick pose
-        exit_pick_pose_list = [dorna_pose.transform_pose(pose, from_frame=pick_pose) for pose in pick["exit"]]
+            current_joint = current_joint if current_joint is not None else self.get_all_joint()
+            current_joint = (current_joint + [0, 0, 0, 0, 0, 0, 0, 0])[:8]
+            current_pose = np.array(self.kinematic.fw(joint=current_joint[0:6]))
+            current_aux = current_joint[6:8]
 
-        # approach pick joint
-        approach_pick_joint_list = []
-        self.kinematic.set_tcp_xyzabc(pick["tool"][0])
-        for pose in approach_pick_pose_list:
-            last_joint = np.append(self.kinematic.inv(pose, last_joint[0:6], False, freedom=freedom)[0], pick_aux)
-            approach_pick_joint_list.append(last_joint)
-
-        # pick joint
-        pick_joint = np.append(self.kinematic.inv(pick_pose, last_joint[0:6], False, freedom=freedom)[0], pick_aux)
-        last_joint = np.array(pick_joint) # update last joint
-
-        # exit pick joint
-        exit_pick_joint_list = []
-        self.kinematic.set_tcp_xyzabc(pick["tool"][1])
-        for pose in exit_pick_pose_list:
-            last_joint = np.append(self.kinematic.inv(pose, last_joint[0:6], False, freedom=freedom)[0], pick_aux)
-            exit_pick_joint_list.append(last_joint)
-
-        # ej
-        for joint in approach_pick_joint_list + [pick_joint] + exit_pick_joint_list:
-            for i in range(min(len(pick["ej"]), len(joint))):
-                joint[i] -= pick["ej"][i]
-                
-        # cmd pick approach
-        if not ignore_pick:
-            for joint in approach_pick_joint_list + [pick_joint]:
-                cmd_list.append(
-                    {"cmd": motion, "rel": 0, "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont": 0} | {"j"+str(i): float(joint[i]) for i in range(len(joint))}
-                )
-
-        # cmd pick output
-        for output_config in pick["output"]:
-            cmd_list.append({"cmd": "output", "out" + str(output_config[0]): output_config[1], "queue": 0})
-
-        # cmd pick_sleep
-        cmd_list.append({"cmd": "sleep", "time": sleep})
-
-        # pick cmd list
-        cmd_list += pick["cmd"]
-
-        # cmd pick exit
-        for joint in exit_pick_joint_list:
-            cmd_list.append(
-                {"cmd": motion, "rel": 0, "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont, "corner": corner} | {"j"+str(i): float(joint[i]) for i in range(len(joint))}
-            )
+            # last joint
+            last_joint = np.array(current_joint)
 
 
-        ##################
-        ###### place #####
-        ##################
-        place_pose = None
-        if place["loc"] is not None:
-            # tool
-            if place["type"] == "robot":
-                place_pose = np.array(dorna_pose.transform_pose(place["loc"][0], from_frame=place["frame"]))
-                place_aux = place["loc"][1]
-            elif place["type"] == "world":
-                place_pose = np.array(dorna_pose.frame_to_robot(place["loc"][0], place["loc"][1], aux_dir=aux_dir, frame_in_world=place["frame"], base_in_world=base_in_world))      
-                place_aux = place["loc"][1]
-            elif place["type"] == "joint":
-                self.kinematic.set_tcp_xyzabc(place["tool"][0])
-                place_pose = np.array(self.kinematic.fw(joint=place["loc"][0][0:6]))
-                place_aux = place["loc"][1]
-
-            # approach place pose
-            approach_place_pose_list = [dorna_pose.transform_pose(pose, from_frame=place_pose) for pose in place["approach"]]
-
-            # exit place pose
-            exit_place_pose_list = [dorna_pose.transform_pose(pose, from_frame=place_pose) for pose in place["exit"]]
-
-
-        ##################
-        ###### middle ####
-        ##################
-        middle_joint = []
-        for mp in middle:
-            if mp["loc"] is None:
-                continue
-
-            if mp["type"] == "joint":
-                mp_joint = mp["loc"][0] + mp["loc"][1]
-                mp_aux = list(mp["loc"][1])
-            else:
-                if mp["type"] == "robot":
-                    mp_pose = np.array(dorna_pose.transform_pose(mp["loc"][0], from_frame=place["frame"]))
-                    mp_aux = list(mp["loc"][1])
-                elif mp["type"] == "world":
-                    mp_pose = np.array(dorna_pose.frame_to_robot(mp["loc"][0], mp["loc"][1], aux_dir=aux_dir, frame_in_world=mp["frame"], base_in_world=base_in_world))      
-                    mp_aux = list(mp["loc"][1])
-                
-                self.kinematic.set_tcp_xyzabc(mp["tool"])
-                mp_joint = np.append(self.kinematic.inv(mp_pose, last_joint[0:6], False, freedom=freedom)[0], mp_aux)
+            ##################
+            ###### Pick ######
+            ##################
+            # pose
+            ignore_pick = False
+            if pick["loc"] is None:
+                ignore_pick = True
+                pick_pose = np.array(current_pose)
+                pick_aux = current_aux
+            elif pick["type"] == "robot":
+                pick_pose = np.array(dorna_pose.transform_pose(pick["loc"][0], from_frame=pick["frame"]))
+                pick_aux = pick["loc"][1]
+            elif pick["type"] == "world":
+                pick_pose = np.array(dorna_pose.frame_to_robot(pick["loc"][0], pick["loc"][1], aux_dir=aux_dir, frame_in_world=pick["frame"], base_in_world=base_in_world))      
+                pick_aux = pick["loc"][1]
+            elif pick["type"] == "joint":
+                self.kinematic.set_tcp_xyzabc(pick["tool"][0])
+                pick_pose = np.array(self.kinematic.fw(joint=pick["loc"][0][0:6]))
+                pick_aux = pick["loc"][1]
             
-            # cmd
-            middle_joint.append(mp_joint)
-            last_joint = list(mp_joint)
-            cmd_list += [{"cmd": motion, "rel": 0} | {"j"+str(i): float(mp_joint[i]) for i in range(len(mp_joint))}]
-
-        #####################
-        ###### place again ##
-        #####################
-        if place_pose is not None:
-            # approach
-            approach_place_joint_list = []
-            self.kinematic.set_tcp_xyzabc(place["tool"][0])
-            for pose in approach_place_pose_list:
-                last_joint = np.append(self.kinematic.inv(pose, last_joint[0:6], False, freedom=freedom)[0], place_aux)
-                approach_place_joint_list.append(last_joint)
+            # approach pick pose
+            approach_pick_pose_list = [dorna_pose.transform_pose(pose, from_frame=pick_pose) for pose in pick["approach"]]
             
-            place_joint = np.append(self.kinematic.inv(place_pose[0:6], last_joint[0:6], False, freedom=freedom)[0], place_aux)
-            last_joint = np.array(place_joint) # update last joint
+            # exit pick pose
+            exit_pick_pose_list = [dorna_pose.transform_pose(pose, from_frame=pick_pose) for pose in pick["exit"]]
 
-            # exit
-            exit_place_joint_list = []
-            self.kinematic.set_tcp_xyzabc(place["tool"][1])
-            for pose in exit_place_pose_list:
-                last_joint = np.append(self.kinematic.inv(pose, last_joint[0:6], False, freedom=freedom)[0], place_aux)
-                exit_place_joint_list.append(last_joint)
+            # approach pick joint
+            approach_pick_joint_list = []
+            self.kinematic.set_tcp_xyzabc(pick["tool"][0])
+            for pose in approach_pick_pose_list:
+                last_joint = np.append(self.kinematic.inv(pose, last_joint[0:6], False, freedom=freedom)[0], pick_aux)
+                approach_pick_joint_list.append(last_joint)
 
+            # pick joint
+            pick_joint = np.append(self.kinematic.inv(pick_pose, last_joint[0:6], False, freedom=freedom)[0], pick_aux)
+            last_joint = np.array(pick_joint) # update last joint
+
+            # exit pick joint
+            exit_pick_joint_list = []
+            self.kinematic.set_tcp_xyzabc(pick["tool"][1])
+            for pose in exit_pick_pose_list:
+                last_joint = np.append(self.kinematic.inv(pose, last_joint[0:6], False, freedom=freedom)[0], pick_aux)
+                exit_pick_joint_list.append(last_joint)
 
             # ej
-            for joint in approach_place_joint_list + [place_joint] + exit_place_joint_list:
-                for i in range(min(len(place["ej"]), len(joint))):
-                    joint[i] -= place["ej"][i]
+            for joint in approach_pick_joint_list + [pick_joint] + exit_pick_joint_list:
+                for i in range(min(len(pick["ej"]), len(joint))):
+                    joint[i] -= pick["ej"][i]
+                    
+            # cmd pick approach
+            if not ignore_pick:
+                for joint in approach_pick_joint_list + [pick_joint]:
+                    cmd_list.append(
+                        {"cmd": motion, "rel": 0, "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont": 0} | {"j"+str(i): float(joint[i]) for i in range(len(joint))}
+                    )
 
-            
-            # cmd
-            for joint in approach_place_joint_list:
+            # cmd pick output
+            for output_config in pick["output"]:
+                cmd_list.append({"cmd": "output", "out" + str(output_config[0]): output_config[1], "queue": 0})
+                if len(output_config) > 2 and output_config[2] > 0:
+                    cmd_list.append({"cmd": "sleep", "time": output_config[2], "queue": 0})
+
+            # cmd pick_sleep
+            cmd_list.append({"cmd": "sleep", "time": sleep})
+
+            # pick cmd list
+            cmd_list += pick["cmd"]
+
+            # cmd pick exit
+            for joint in exit_pick_joint_list:
                 cmd_list.append(
-                    {"cmd": motion, "rel": 0, "cont": 0} | {"j"+str(i): float(joint[i]) for i in range(len(joint))}
+                    {"cmd": motion, "rel": 0, "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont, "corner": corner} | {"j"+str(i): float(joint[i]) for i in range(len(joint))}
                 )
-            cmd_list.append(
-                {"cmd": motion, "rel": 0, "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2]} | {"j"+str(i): float(place_joint[i]) for i in range(len(place_joint))}
-            )
 
-            for output_config in place["output"]:
-                cmd_list += [{"cmd": "output", "out" + str(output_config[0]): output_config[1], "queue": 0}]
-            cmd_list += [{"cmd": "sleep", "time": sleep},
-                *place["cmd"]]
-            
-            # exit place
-            if end["loc"] is not None:
+
+            ##################
+            ###### place #####
+            ##################
+            place_pose = None
+            if place["loc"] is not None:
+                # tool
+                if place["type"] == "robot":
+                    place_pose = np.array(dorna_pose.transform_pose(place["loc"][0], from_frame=place["frame"]))
+                    place_aux = place["loc"][1]
+                elif place["type"] == "world":
+                    place_pose = np.array(dorna_pose.frame_to_robot(place["loc"][0], place["loc"][1], aux_dir=aux_dir, frame_in_world=place["frame"], base_in_world=base_in_world))      
+                    place_aux = place["loc"][1]
+                elif place["type"] == "joint":
+                    self.kinematic.set_tcp_xyzabc(place["tool"][0])
+                    place_pose = np.array(self.kinematic.fw(joint=place["loc"][0][0:6]))
+                    place_aux = place["loc"][1]
+
+                # approach place pose
+                approach_place_pose_list = [dorna_pose.transform_pose(pose, from_frame=place_pose) for pose in place["approach"]]
+
+                # exit place pose
+                exit_place_pose_list = [dorna_pose.transform_pose(pose, from_frame=place_pose) for pose in place["exit"]]
+
+
+            ##################
+            ###### middle ####
+            ##################
+            middle_joint = []
+            for mp in middle:
+                if mp["loc"] is None:
+                    continue
+
+                if mp["type"] == "joint":
+                    mp_joint = mp["loc"][0] + mp["loc"][1]
+                    mp_aux = list(mp["loc"][1])
+                else:
+                    if mp["type"] == "robot":
+                        mp_pose = np.array(dorna_pose.transform_pose(mp["loc"][0], from_frame=place["frame"]))
+                        mp_aux = list(mp["loc"][1])
+                    elif mp["type"] == "world":
+                        mp_pose = np.array(dorna_pose.frame_to_robot(mp["loc"][0], mp["loc"][1], aux_dir=aux_dir, frame_in_world=mp["frame"], base_in_world=base_in_world))      
+                        mp_aux = list(mp["loc"][1])
+                    
+                    self.kinematic.set_tcp_xyzabc(mp["tool"])
+                    mp_joint = np.append(self.kinematic.inv(mp_pose, last_joint[0:6], False, freedom=freedom)[0], mp_aux)
+                
+                # cmd
+                middle_joint.append(mp_joint)
+                last_joint = list(mp_joint)
+                cmd_list += [{"cmd": motion, "rel": 0} | {"j"+str(i): float(mp_joint[i]) for i in range(len(mp_joint))}]
+
+            #####################
+            ###### place again ##
+            #####################
+            if place_pose is not None:
+                # approach
+                approach_place_joint_list = []
+                self.kinematic.set_tcp_xyzabc(place["tool"][0])
+                for pose in approach_place_pose_list:
+                    last_joint = np.append(self.kinematic.inv(pose, last_joint[0:6], False, freedom=freedom)[0], place_aux)
+                    approach_place_joint_list.append(last_joint)
+                
+                place_joint = np.append(self.kinematic.inv(place_pose[0:6], last_joint[0:6], False, freedom=freedom)[0], place_aux)
+                last_joint = np.array(place_joint) # update last joint
+
+                # exit
+                exit_place_joint_list = []
+                self.kinematic.set_tcp_xyzabc(place["tool"][1])
+                for pose in exit_place_pose_list:
+                    last_joint = np.append(self.kinematic.inv(pose, last_joint[0:6], False, freedom=freedom)[0], place_aux)
+                    exit_place_joint_list.append(last_joint)
+
+
+                # ej
+                for joint in approach_place_joint_list + [place_joint] + exit_place_joint_list:
+                    for i in range(min(len(place["ej"]), len(joint))):
+                        joint[i] -= place["ej"][i]
+
+                
+                # cmd
+                for joint in approach_place_joint_list:
+                    cmd_list.append(
+                        {"cmd": motion, "rel": 0, "cont": 0} | {"j"+str(i): float(joint[i]) for i in range(len(joint))}
+                    )
+                cmd_list.append(
+                    {"cmd": motion, "rel": 0, "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2]} | {"j"+str(i): float(place_joint[i]) for i in range(len(place_joint))}
+                )
+
+                for output_config in place["output"]:
+                    cmd_list.append({"cmd": "output", "out" + str(output_config[0]): output_config[1], "queue": 0})
+                    if len(output_config) > 2 and output_config[2] > 0:
+                        cmd_list.append({"cmd": "sleep", "time": output_config[2], "queue": 0})
+
+
+
+                cmd_list += [{"cmd": "sleep", "time": sleep},
+                    *place["cmd"]]
+                
+                # exit place
                 for joint in exit_place_joint_list:
                     cmd_list.append(
                         {"cmd": motion, "rel": 0, "vel": cvaj[0], "accel": cvaj[1], "jerk": cvaj[2], "cont": cont} | {"j"+str(i): float(joint[i]) for i in range(len(joint))}
                     )
 
 
-        ###############
-        ###### end ####
-        ###############
-        end_joint = None
-        if end["loc"] is not None:
-            if end["type"] == "joint":
-                end_joint = end["loc"][0] + end["loc"][1]
-                end_aux = end["loc"][1]
-            else:
-                if end["type"] == "robot":
-                    end_pose = np.array(dorna_pose.transform_pose(end["loc"][0], from_frame=end["frame"]))
+            ###############
+            ###### end ####
+            ###############
+            end_joint = None
+            if end["loc"] is not None:
+                if end["type"] == "joint":
+                    end_joint = end["loc"][0] + end["loc"][1]
                     end_aux = end["loc"][1]
-                elif end["type"] == "world":
-                    end_pose = np.array(dorna_pose.frame_to_robot(end["loc"][0], end["loc"][1], aux_dir=aux_dir, frame_in_world=end["frame"], base_in_world=base_in_world))
-                    end_aux = end["loc"][1]
+                else:
+                    if end["type"] == "robot":
+                        end_pose = np.array(dorna_pose.transform_pose(end["loc"][0], from_frame=end["frame"]))
+                        end_aux = end["loc"][1]
+                    elif end["type"] == "world":
+                        end_pose = np.array(dorna_pose.frame_to_robot(end["loc"][0], end["loc"][1], aux_dir=aux_dir, frame_in_world=end["frame"], base_in_world=base_in_world))
+                        end_aux = end["loc"][1]
+                    
+                    self.kinematic.set_tcp_xyzabc(end["tool"])
+                    end_joint = np.append(self.kinematic.inv(end_pose, last_joint[0:6], False, freedom=freedom)[0], end_aux)
                 
-                self.kinematic.set_tcp_xyzabc(end["tool"])
-                end_joint = np.append(self.kinematic.inv(end_pose, last_joint[0:6], False, freedom=freedom)[0], end_aux)
-            
-        # ej
-        if end_joint is not None:
-            cmd_list +=[
-                {"cmd": motion, "rel": 0} | {"j"+str(i): float(end_joint[i]) for i in range(len(end_joint))}
-            ]
+            # ej
+            if end_joint is not None:
+                cmd_list +=[
+                    {"cmd": motion, "rel": 0} | {"j"+str(i): float(end_joint[i]) for i in range(len(end_joint))}
+                ]
 
-        # sim
-        if sim:
-            return cmd_list
-        
-        # play list
-        return self.play_list(cmd_list, timeout=timeout)
+            # sim
+            if sim:
+                return cmd_list
+            
+            # play list
+            return self.play_list(cmd_list, timeout=timeout)
+
+        except Exception as ex:
+            self.log(ex)
+        return None
 
