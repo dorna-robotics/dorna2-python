@@ -105,7 +105,6 @@ def rmat_to_abc(rmat):
         if rmat[2,0]<0: z = -z
     return [float(a * np.degrees(theta)) for a in [x, y, z]]
 
-
 def T_to_xyzabc(T):
     T = np.array(T, dtype=float)
     abc = rmat_to_abc(T[:3,:3])
