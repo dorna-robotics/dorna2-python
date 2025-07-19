@@ -108,13 +108,14 @@ def rmat_to_abc(rmat):
 def T_to_xyzabc(T):
     T = np.array(T, dtype=float)
     abc = rmat_to_abc(T[:3,:3])
-    return [T[0,3], T[1,3], T[2,3]] + abc
+    return [float(T[0,3]), float(T[1,3]), float(T[2,3])] + abc
 
 def xyzabc_to_T(xyzabc):
     T = np.eye(4)
     T[:3,:3] = abc_to_rmat(xyzabc[3:])
     T[0,3], T[1,3], T[2,3] = xyzabc[0], xyzabc[1], xyzabc[2]
-    return T.tolist()
+    nested = T.tolist()
+    return [[float(x) for x in row] for row in nested]
 
 def transform_pose(xyzabc, from_frame=[0,0,0,0,0,0], to_frame=[0,0,0,0,0,0]):
     T_pose = np.array(xyzabc_to_T(xyzabc))
