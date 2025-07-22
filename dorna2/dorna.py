@@ -1007,7 +1007,6 @@ class Dorna(WS):
                 self.kinematic.set_tcp_xyzabc(pick["tool"][0])
                 pick_pose = np.array(self.kinematic.fw(joint=pick["loc"][0][0:6]))
                 pick_aux = pick["loc"][1]
-            
             # approach pick pose
             approach_pick_pose_list = [dorna_pose.transform_pose(pose, from_frame=pick_pose) for pose in pick["approach"]]
             
