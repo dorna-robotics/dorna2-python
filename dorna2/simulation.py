@@ -244,39 +244,39 @@ def check_path(motion, start_joint, end_joint, tool=[0,0,0,0,0,0], load=[], scen
 
 		for contact in cdata.result.contacts:
 		    # Extract collision geometries that are in contact
-		    coll_geom_0 = contact.o1
-		    coll_geom_1 = contact.o2
+			coll_geom_0 = contact.o1
+			coll_geom_1 = contact.o2
 
-		    prnt0 = None
-		    prnt1 = None
+			prnt0 = None
+			prnt1 = None
 
-		    num_parents = 0
+			num_parents = 0
 
-		    if id(coll_geom_0) in sim.robot.prnt_map:
-		    	prnt0 = sim.robot.prnt_map[id(coll_geom_0)]
-		    	num_parents = num_parents + 1
+			if id(coll_geom_0) in sim.robot.prnt_map:
+				prnt0 = sim.robot.prnt_map[id(coll_geom_0)]
+				num_parents = num_parents + 1
 
-		    if id(coll_geom_1) in sim.robot.prnt_map:
-		    	prnt1 = sim.robot.prnt_map[id(coll_geom_1)]
-		    	num_parents = num_parents + 1
+			if id(coll_geom_1) in sim.robot.prnt_map:
+				prnt1 = sim.robot.prnt_map[id(coll_geom_1)]
+				num_parents = num_parents + 1
 
 
-		    #this collision has nothing to do with robot
-		    if num_parents == 0:
-		    	continue 
+			#this collision has nothing to do with robot
+			if num_parents == 0:
+				continue 
 
-		    #this is external collision, good to go
-		    if num_parents == 1: 
-		    	pass
+			#this is external collision, good to go
+			if num_parents == 1: 
+				pass
 
-		    #this is internal collision, needs to be filtered
-		    if num_parents == 2:
-		    	if prnt0.parent == prnt1 or prnt1.parent == prnt0 or prnt0 == prnt1:
-		    		continue
+			#this is internal collision, needs to be filtered
+			if num_parents == 2:
+				if prnt0.parent == prnt1 or prnt1.parent == prnt0 or prnt0 == prnt1:
+					continue
 
-		    #if here, meaning that a valid collision has been detected
-		    tmp_res = ['scene' if prnt0 is None else prnt0.name, 'scene' if prnt1 is None else prnt1.name]
-		    break
+			#if here, meaning that a valid collision has been detected
+			tmp_res = ['scene' if prnt0 is None else prnt0.name, 'scene' if prnt1 is None else prnt1.name]
+			break
 
 		if tmp_res is None:
 			continue
@@ -299,3 +299,5 @@ def create_sphere(pose, scale=[1,1,1]):
 
 def create_mesh(mesh_path, pose, scale=[1,1,1]):
 	return node.create_mesh(mesh_path, pose, scale)
+
+
