@@ -230,3 +230,5 @@ def frame_to_robot(xyzabc, aux=[0, 0], aux_dir=[[1, 0, 0], [0, 0, 0]], base_in_w
     xyzabc_base = np.array(transform_pose(xyzabc_world, from_frame=[0,0,0,0,0,0], to_frame=base_in_world))
     xyzabc_robot = xyzabc_base - aux_offset
     return xyzabc_robot.tolist()
+
+
