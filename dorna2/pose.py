@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 def rmat_to_quat(rmat):
     rmat = np.array(rmat, dtype=float)
@@ -232,3 +233,225 @@ def frame_to_robot(xyzabc, aux=[0, 0], aux_dir=[[1, 0, 0], [0, 0, 0]], base_in_w
     return xyzabc_robot.tolist()
 
 
+class Pose:
+    def __init__(self, name, pose, parent=None):
+        """
+        name:   unique identifier
+        pose:   [x, y, z, a, b, c] in mm & degrees
+        parent: another Pose instance or None
+        """
+        self.name = name
+        self.pose = list(pose)
+        self.parent = parent
+        self.children = []
+        if parent is not None:
+            parent.children.append(self)
+
+    def set_pose(self, pose):
+        """Update this node's local pose parameters."""
+        self.pose = list(pose)
+
+    def get_local(self):
+        return list(self.pose)
+
+    def get_global(self):
+        """
+        Compose transforms from root down to this node.
+        """
+        pose_local = self.get_local()
+        if self.parent is None:
+            return pose_local
+        return T_to_xyzabc(np.matrix(xyzabc_to_T(self.parent.get_global())) @ np.matrix(xyzabc_to_T(pose_local)))
+
+    def find(self, name):
+        """Depth-first search for a descendant by name."""
+        if self.name == name:
+            return self
+        for child in self.children:
+            found = child.find(name)
+            if found is not None:
+                return found
+        return None
+
+    def __repr__(self):
+        return f"<Pose {self.name}: pose={self.pose}>"
+
+
+class FixturePlate(Pose):
+    def __init__(
+        self,
+        name,
+        parent=None,
+        connection=None,
+        pose=[0, 0, 0, 0, 0, 0],
+        hole_pitch=25.0,
+        shape = [500, 250],
+    ):
+        """
+        name:               unique plate identifier
+        hole_pitch:         mm between hole centers
+        parent:             another FixturePlate instance (optional)
+        connection:         tuple(parent_hole_name, child_hole_name) to snap child to parent
+        pose:    [x,y,z,a,b,c] pose relative to parent (or world if parent is None)
+        """
+        # init holes
+        holes = self._init_holes(hole_pitch)
+        self.holes = holes
+
+        # init connection holes
+        connection_holes = self._init_connection_holes(holes, hole_pitch)
+
+        # init pose
+        local_pose = self._init_pose(connection_holes, shape, parent, connection, pose)
+
+
+        super().__init__(name, local_pose, parent)
+
+
+    def _init_holes(self, hole_pitch):
+        holes = {}
+        rows = [chr(c) for c in range(ord('A'), ord('J')+1)]
+        for i, row in enumerate(rows):
+            for n in range(1, 21):
+                label = f"{row}{n}"
+                x = (n - 1) * hole_pitch
+                y = i * hole_pitch
+                holes[label] = [x+0.5*(hole_pitch), -y+4.5*(hole_pitch), 0, 0, 0, 0]
+        return holes
+
+
+    def _init_connection_holes(self, holes, hole_pitch):
+        connection_holes =  copy.deepcopy(holes)
+        connection_holes["A3"][1] += hole_pitch/2
+        connection_holes["A8"][1] += hole_pitch/2
+        connection_holes["A13"][1] += hole_pitch/2
+        connection_holes["A18"][1] += hole_pitch/2
+
+        connection_holes["J3"][1] -= hole_pitch/2
+        connection_holes["J8"][1] -= hole_pitch/2
+        connection_holes["J13"][1] -= hole_pitch/2
+        connection_holes["J18"][1] -= hole_pitch/2
+
+        connection_holes["C1"][0] -= hole_pitch/2
+        connection_holes["H1"][0] -= hole_pitch/2
+        connection_holes["C20"][0] += hole_pitch/2
+        connection_holes["H20"][0] += hole_pitch/2
+
+        return connection_holes
+
+
+    def _init_pose(self, connection_holes, shape, parent, connection, pose):
+        local_pose = [0, 0, 0, 0, 0, 0]
+        # determine local pose parameters
+        if parent is not None and connection is not None:
+            ph, ch = connection
+            ph = ph.upper()
+            ch = ch.upper()
+            # rotation
+            if ph[0] == "A":
+                if ch[0] == "A":
+                    local_pose = [
+                        connection_holes[ph][0] + connection_holes[ch][0],
+                        shape[1],
+                        0,
+                        0, 0, 180
+                    ]
+                elif ch[1:] == "20":
+                    local_pose = [
+                        connection_holes[ph][0] - connection_holes[ch][1],
+                        shape[0] + shape[1]/2,
+                        0,
+                        0, 0, -90
+                    ]
+                elif ch[1:] == "1":
+                    local_pose = [
+                        connection_holes[ph][0] + connection_holes[ch][1],
+                        shape[1]/2,
+                        0,
+                        0, 0, 90
+                    ]
+            elif ph[0] == "J":
+                if ch[0] == "J":
+                    local_pose = [
+                        connection_holes[ph][0] + connection_holes[ch][0],
+                        -shape[1],
+                        0,
+                        0, 0, 180
+                    ]
+                elif ch[1:] == "20":
+                    local_pose = [
+                        connection_holes[ph][0] + connection_holes[ch][1],
+                        -(shape[0] + shape[1]/2),
+                        0,
+                        0, 0, 90
+                    ]
+                elif ch[1:] == "1":
+                    local_pose = [
+                        connection_holes[ph][0] - connection_holes[ch][1],
+                        -shape[1]/2,
+                        0,
+                        0, 0, -90
+                    ]
+            elif ph[1:] == "20":
+                if ch[0] == "A":
+                    local_pose = [
+                        shape[0] + shape[1]/2,
+                        connection_holes[ph][1] - connection_holes[ch][0],
+                        0,
+                        0, 0, 90
+                    ]
+                elif ch[0] == "J":
+                    local_pose = [
+                        shape[0] + shape[1]/2,
+                        connection_holes[ph][1] + connection_holes[ch][0],
+                        0,
+                        0, 0, -90
+                    ]
+                elif ch[1:] == "20":
+                    local_pose = [
+                        2*shape[0],
+                        connection_holes[ph][1] + connection_holes[ch][1],
+                        0,
+                        0, 0, 180
+                    ]
+            elif ph[1:] == "1":
+                if ch[0] == "A":
+                    local_pose = [
+                        -shape[1]/2,
+                        connection_holes[ph][1] + connection_holes[ch][0],
+                        0,
+                        0, 0, -90
+                    ]
+                elif ch[0].upper() == "J":
+                    local_pose = [
+                        -shape[1]/2,
+                        connection_holes[ph][1] - connection_holes[ch][0],
+                        0,
+                        0, 0, 90
+                    ]
+                elif ch[1:] == "1":
+                    local_pose = [
+                        0,
+                        connection_holes[ph][1] + connection_holes[ch][1],
+                        0,
+                        0, 0, 180
+                    ]
+        elif pose is not None:
+            local_pose = pose
+
+        return local_pose
+    
+
+
+    def get_hole_local(self, hole_name):
+        """Return local pose [x,y,z,a,b,c] of a hole."""
+        return list(self.holes[hole_name.upper()])
+
+    def get_hole_global(self, hole_name):
+        """Return global pose [x,y,z,a,b,c] of a hole."""
+        plate_global = self.get_global()
+        hole_local = self.holes[hole_name.upper()]
+        return T_to_xyzabc(
+            np.matrix(xyzabc_to_T(plate_global)) @
+            np.matrix(xyzabc_to_T(hole_local))
+        )
