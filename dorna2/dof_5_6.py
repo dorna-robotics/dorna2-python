@@ -877,8 +877,10 @@ def main_dorna_c():
 	knmtc = Kinematic("dorna_ta")
 	#knmtc.set_tcp_xyzabc([0, 0, 43, 0, 0, 90])
 
-
-	for i in range(1):
+	#for i in range(7):
+	#	print(i,knmtc.Ti_r_world(theta=[0,0,0,0,0,0] , i = i))
+	
+	for i in range(0):
 		joint = [np.random.uniform(-180, 180), np.random.uniform(-180, 180),np.random.uniform(-180, 180),np.random.uniform(-180, 180),np.random.uniform(-180, 180),np.random.uniform(-180, 180)]
 
 		#joint = [-126.76318338378618, -90.45139678651121, -18.170899927518235, -119.57082729283547, -101.74340571761198, -157.2656689663714]

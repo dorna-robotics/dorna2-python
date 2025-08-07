@@ -10,7 +10,6 @@ import dorna2.node as node
 import dorna2.pose as dp
 #import pybullet as p
 
-
 def pybullet_test():
     if 'p' in globals() and 'pybullet' in sys.modules and globals()['p'] is sys.modules['pybullet']:
         return True
@@ -181,7 +180,8 @@ class Simulation:
 			time.sleep(1./240.)
 
 
-def check_path(motion, start_joint, end_joint, tool=[0,0,0,0,0,0], load=[], scene=[], steps=50, early_exit=False):
+def check_path(motion, start_joint, end_joint, tool=[0,0,0,0,0,0], load=[], scene=[], steps=50, early_exit=False,
+ base_in_world=[0,0,0,0,0,0], frame_in_world=[0,0,0,0,0,0], aux_dir=[[0, 0, 0], [0, 0, 0]]):
 	sim = Simulation("tmp")
 
 	all_visuals = [] #for visualization
@@ -217,16 +217,34 @@ def check_path(motion, start_joint, end_joint, tool=[0,0,0,0,0,0], load=[], scen
 
 	col_res = []
 
+	base_in_world_mat = sim.dorna.kinematic.xyzabc_to_mat(base_in_world)
+	frame_in_world_inv = sim.dorna.kinematic.inv_dh(sim.dorna.kinematic.xyzabc_to_mat(frame_in_world))
+
+	aux_dir_1 = base_in_world_mat @ np.array([aux_dir[0][0], aux_dir[0][1], aux_dir[0][2],0])
+	aux_dir_2 = base_in_world_mat @ np.array([aux_dir[1][0], aux_dir[1][1], aux_dir[1][2],0])
+
 	for i in range(sample_points):
 
 		t = float(i) / float(sample_points - 1 ) 
 		j = path.path.get_point(t%1.0)
-		j6 = 0 #check for rail
+		if t == 1.0:
+			j = path.path.get_point(1.0)
+
+
+		base_mat = np.array(base_in_world_mat)
+		aux_offset = np.array([0,0,0,0])
+
 
 		if len(j)>6:
-			j6 = j[6]
+			aux_offset = aux_offset + j[6] * aux_dir_1
+		if len(j)>7:
+			aux_offset = aux_offset + j[7] * aux_dir_2
 
-		sim.robot.set_joint_values([j6,j[0],j[1],j[2],j[3],j[4],j[5]]) 
+		base_mat[0, 3] += aux_offset[0, 0]
+		base_mat[1, 3] += aux_offset[0, 1]
+		base_mat[2, 3] += aux_offset[0, 2]
+
+		sim.robot.set_joint_values([0,j[0],j[1],j[2],j[3],j[4],j[5]], frame_in_world_inv @  base_mat) 
 
 		#update dynamics
 		for do in dynamic_objects:

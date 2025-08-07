@@ -2,7 +2,6 @@ import numpy as np
 import math
 from dorna2.cf import CF
 from dorna2.ik6r_matrix import sigma_matrix
-from dorna2.poly import poly
 
 #File containing for a 6-r manipulator with non-zero DH parameters: a2,a3,d1,-d4,d5,d6,d7
 #The algorithm is originaly based on: Raghavan(1993): "Inverse Kinematics of the General 6R Manipulator and Related Linkages"

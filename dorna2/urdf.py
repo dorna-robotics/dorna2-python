@@ -84,7 +84,8 @@ class UrdfRobot:
         self.link_nodes[self.root_link.name] = self.root_node
         recurse(self.root_link.name, self.root_node)
 
-    def set_joint_values(self, joints = [0,0,0,0,0,0,0]):
+
+    def set_joint_values(self, joints = [0,0,0,0,0,0,0], offset_mat = np.eye(4)):
 
         def recurse(link_name, parent_node, joints, count ,parent_tf):
             link = self.robot.link_map[link_name]
@@ -110,5 +111,4 @@ class UrdfRobot:
             for j in self.robot.joints:
                 if j.parent == link_name:
                     recurse(j.child, node, joints, count + 1, g_tf)
-
-        recurse(self.root_link.name, self.root_node, joints, -1 , np.eye(4))
+        recurse(self.root_link.name, self.root_node, joints, -1 , offset_mat)
