@@ -118,6 +118,15 @@ def xyzabc_to_T(xyzabc):
     nested = T.tolist()
     return [[float(x) for x in row] for row in nested]
 
+
+def rvec_to_abc(rvec):
+    return np.degrees(rvec).tolist()    
+
+
+def abc_to_rvec(abc):
+    return np.radians(abc).tolist()
+
+
 def transform_pose(xyzabc, from_frame=[0,0,0,0,0,0], to_frame=[0,0,0,0,0,0]):
     T_pose = np.array(xyzabc_to_T(xyzabc))
     T_from = np.array(xyzabc_to_T(from_frame))
