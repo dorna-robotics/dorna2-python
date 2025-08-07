@@ -8,7 +8,6 @@ import logging
 import logging.handlers
 import copy
 import numpy as np
-from dorna2.motion import Motion
 import dorna2.pose as dorna_pose
 
 class Dorna(WS):
@@ -26,7 +25,7 @@ class Dorna(WS):
         # kinematic
         self.model = model    
         self.set_kinematic(model)
-        self.motion = Motion(dorna_in = self)
+
 
 
     def load_json(self, path, module_name="dorna2.cfg"):
