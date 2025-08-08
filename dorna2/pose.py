@@ -283,31 +283,34 @@ class Pose:
         else:
             raise TypeError("anchors must be dict or list of (name, xyzabc)")
 
-    def get_anchor_local(self, name):
-        if name not in self.anchors:
-            raise KeyError(f"anchor '{name}' not found on {self.name}")
-        return list(self.anchors[name])
-
-    def get_anchor_global(self, name):
-        """Global pose of this anchor."""
-        T_self_world   = np.array(xyzabc_to_T(self.get_global()))
-        T_anchor_local = np.array(xyzabc_to_T(self.get_anchor_local(name)))
-        return T_to_xyzabc(T_self_world @ T_anchor_local)
 
     # ---------- basic pose ops ----------
     def set_pose(self, pose):
         self.pose = list(pose)
 
-    def get_local(self):
-        return list(self.pose)
+    def get_local(self, name=None):
+        if name is None:
+            return list(self.pose)
+        else:
+            if name not in self.anchors:
+                raise KeyError(f"anchor '{name}' not found on {self.name}")
+            return list(self.anchors[name])
+      
 
-    def get_global(self):
-        """Compose transforms from root to this node."""
-        if self.parent is None:
-            return self.get_local()
-        T_parent = np.array(xyzabc_to_T(self.parent.get_global()))
-        T_local  = np.array(xyzabc_to_T(self.get_local()))
-        return T_to_xyzabc(T_parent @ T_local)
+    def get_global(self, name):
+        if name is None:
+            """Compose transforms from root to this node."""
+            if self.parent is None:
+                return self.get_local()
+            T_parent = np.array(xyzabc_to_T(self.parent.get_global()))
+            T_local  = np.array(xyzabc_to_T(self.get_local()))
+            return T_to_xyzabc(T_parent @ T_local)
+        else:
+            """Global pose of this anchor."""
+            T_self_world   = np.array(xyzabc_to_T(self.get_global()))
+            T_anchor_local = np.array(xyzabc_to_T(self.get_local(name)))
+            return T_to_xyzabc(T_self_world @ T_anchor_local)
+        
 
     def find(self, name):
         if self.name == name:
@@ -357,8 +360,8 @@ class Pose:
         """
         # --- lookups & build transforms ---
         T_parent_world = np.array(xyzabc_to_T(parent.get_global()))
-        T_pa = np.array(xyzabc_to_T(parent.get_anchor_local(parent_anchor)))  # parent anchor in parent frame
-        T_ca = np.array(xyzabc_to_T(self.get_anchor_local(child_anchor)))     # child anchor in child frame
+        T_pa = np.array(xyzabc_to_T(parent.get_local(parent_anchor)))  # parent anchor in parent frame
+        T_ca = np.array(xyzabc_to_T(self.get_local(child_anchor)))     # child anchor in child frame
 
         # --- alignment tweak: R_extra (world) ---
         R_extra = np.eye(4)
