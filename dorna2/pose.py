@@ -242,225 +242,198 @@ def frame_to_robot(xyzabc, aux=[0, 0], aux_dir=[[1, 0, 0], [0, 0, 0]], base_in_w
     return xyzabc_robot.tolist()
 
 
+import numpy as np
+
 class Pose:
-    def __init__(self, name, pose, parent=None):
+    def __init__(self, name, pose=None, parent=None, anchors=None):
         """
-        name:   unique identifier
-        pose:   [x, y, z, a, b, c] in mm & degrees
-        parent: another Pose instance or None
+        name:    unique identifier
+        pose:    [x,y,z,a,b,c] local to parent (defaults to identity)
+        parent:  Pose or None
+        anchors: dict{name:[x,y,z,a,b,c]} OR list[(name, [x,y,z,a,b,c]), ...]
         """
         self.name = name
-        self.pose = list(pose)
+        self.pose = list(pose or [0,0,0,0,0,0])
         self.parent = parent
         self.children = []
+        self.anchors = {}
+
         if parent is not None:
             parent.children.append(self)
 
+        if anchors:
+            self.add_anchors(anchors)
+
+    # ---------- anchors ----------
+    def add_anchor(self, name, xyzabc_local):
+        """Register/overwrite an anchor in this node's local frame."""
+        self.anchors[name] = list(xyzabc_local)
+
+    def add_anchors(self, anchors):
+        """Accepts dict or list of (name, xyzabc)."""
+        if isinstance(anchors, dict):
+            for k, v in anchors.items():
+                self.add_anchor(k, v)
+        elif isinstance(anchors, (list, tuple)):
+            for item in anchors:
+                if not (isinstance(item, (list, tuple)) and len(item) == 2):
+                    raise ValueError("anchors list must contain (name, xyzabc) pairs")
+                name, xyzabc = item
+                self.add_anchor(name, xyzabc)
+        else:
+            raise TypeError("anchors must be dict or list of (name, xyzabc)")
+
+    def get_anchor_local(self, name):
+        if name not in self.anchors:
+            raise KeyError(f"anchor '{name}' not found on {self.name}")
+        return list(self.anchors[name])
+
+    def get_anchor_global(self, name):
+        """Global pose of this anchor."""
+        T_self_world   = np.array(xyzabc_to_T(self.get_global()))
+        T_anchor_local = np.array(xyzabc_to_T(self.get_anchor_local(name)))
+        return T_to_xyzabc(T_self_world @ T_anchor_local)
+
+    # ---------- basic pose ops ----------
     def set_pose(self, pose):
-        """Update this node's local pose parameters."""
         self.pose = list(pose)
 
     def get_local(self):
         return list(self.pose)
 
     def get_global(self):
-        """
-        Compose transforms from root down to this node.
-        """
-        pose_local = self.get_local()
+        """Compose transforms from root to this node."""
         if self.parent is None:
-            return pose_local
-        return T_to_xyzabc(np.matrix(xyzabc_to_T(self.parent.get_global())) @ np.matrix(xyzabc_to_T(pose_local)))
+            return self.get_local()
+        T_parent = np.array(xyzabc_to_T(self.parent.get_global()))
+        T_local  = np.array(xyzabc_to_T(self.get_local()))
+        return T_to_xyzabc(T_parent @ T_local)
 
     def find(self, name):
-        """Depth-first search for a descendant by name."""
         if self.name == name:
             return self
-        for child in self.children:
-            found = child.find(name)
-            if found is not None:
-                return found
+        for c in self.children:
+            hit = c.find(name)
+            if hit is not None:
+                return hit
         return None
 
     def __repr__(self):
-        return f"<Pose {self.name}: pose={self.pose}>"
+        return f"<Pose {self.name}: pose={self.pose}, anchors={list(self.anchors.keys())}>"
 
+    # ---------- graph helpers ----------
+    def detach(self):
+        """Remove from current parent (if any)."""
+        if self.parent is not None and self in self.parent.children:
+            self.parent.children.remove(self)
+        self.parent = None
 
-class FixturePlate(Pose):
-    def __init__(
+    # ---------- attach (child-side) ----------
+    def attach_to(
         self,
-        name,
-        parent=None,
-        connection=None,
-        pose=[0, 0, 0, 0, 0, 0],
-        hole_pitch=25.0,
-        shape = [500, 250],
+        parent,
+        parent_anchor,
+        child_anchor,
+        *,
+        align=('z','z'),
+        flip=False,
+        offset=[0,0,0,0,0,0],    # [dx,dy,dz, ax,ay,az] (mm, deg)
+        offset_frame='parent',   # 'parent' or 'child'
+        preview=False
     ):
         """
-        name:               unique plate identifier
-        hole_pitch:         mm between hole centers
-        parent:             another FixturePlate instance (optional)
-        connection:         tuple(parent_hole_name, child_hole_name) to snap child to parent
-        pose:    [x,y,z,a,b,c] pose relative to parent (or world if parent is None)
+        Place THIS pose (child) onto 'parent' by mating anchors.
+
+        Default behavior (no offset, align=('z','z'), flip=False):
+        - Child's 'child_anchor' frame is made coincident with the parent's 'parent_anchor' frame
+          (same position & orientation).
+
+        Options:
+        - align=(child_axis, parent_axis): 'x'|'y'|'z' to align a child axis to a parent axis.
+        - flip=True: align to the negative of the parent axis.
+        - offset=[dx,dy,dz, ax,ay,az]: applied AFTER mating, in 'offset_frame' coords.
+        - offset_frame: 'parent' (applied in parent anchor frame) or 'child' (applied in child anchor frame).
+        - preview=True: compute and return the would-be local pose without mutating the graph.
         """
-        # init holes
-        holes = self._init_holes(hole_pitch)
-        self.holes = holes
+        # --- lookups & build transforms ---
+        T_parent_world = np.array(xyzabc_to_T(parent.get_global()))
+        T_pa = np.array(xyzabc_to_T(parent.get_anchor_local(parent_anchor)))  # parent anchor in parent frame
+        T_ca = np.array(xyzabc_to_T(self.get_anchor_local(child_anchor)))     # child anchor in child frame
 
-        # init connection holes
-        connection_holes = self._init_connection_holes(holes, hole_pitch)
+        # --- alignment tweak: R_extra (world) ---
+        R_extra = np.eye(4)
+        if align is not None:
+            ax_map = {'x': np.array([1.,0.,0.]),
+                      'y': np.array([0.,1.,0.]),
+                      'z': np.array([0.,0.,1.])}
+            c_ax = ax_map[align[0].lower()]
+            p_ax = ax_map[align[1].lower()]
 
-        # init pose
-        local_pose = self._init_pose(connection_holes, shape, parent, connection, pose)
+            R_parent_anchor = (T_parent_world @ T_pa)[:3,:3]
+            R_child_anchor  = T_ca[:3,:3]
 
+            c_axis_w = R_child_anchor @ c_ax
+            p_axis_w = R_parent_anchor @ p_ax
+            if flip:
+                p_axis_w = -p_axis_w
 
-        super().__init__(name, local_pose, parent)
+            # normalize
+            c_axis_w = c_axis_w / np.linalg.norm(c_axis_w)
+            p_axis_w = p_axis_w / np.linalg.norm(p_axis_w)
 
+            dot = float(np.clip(np.dot(c_axis_w, p_axis_w), -1.0, 1.0))
+            if dot >= 1.0 - 1e-12:
+                R_world = np.eye(3)
+            elif dot <= -1.0 + 1e-12:
+                # rotate 180° about any axis ⟂ c_axis_w
+                tmp = np.array([1.0, 0.0, 0.0])
+                if abs(np.dot(tmp, c_axis_w)) > 0.9:
+                    tmp = np.array([0.0, 1.0, 0.0])
+                k = np.cross(c_axis_w, tmp)
+                k = k / np.linalg.norm(k)
+                R_world = np.array(abc_to_rmat((k * 180.0).tolist()))
+            else:
+                k = np.cross(c_axis_w, p_axis_w)
+                k_norm = np.linalg.norm(k)
+                if k_norm < 1e-12:
+                    R_world = np.eye(3)
+                else:
+                    k /= k_norm
+                    ang = np.degrees(np.arccos(dot))
+                    R_world = np.array(abc_to_rmat((k * ang).tolist()))
 
-    def _init_holes(self, hole_pitch):
-        holes = {}
-        rows = [chr(c) for c in range(ord('A'), ord('J')+1)]
-        for i, row in enumerate(rows):
-            for n in range(1, 21):
-                label = f"{row}{n}"
-                x = (n - 1) * hole_pitch
-                y = i * hole_pitch
-                holes[label] = [x+0.5*(hole_pitch), -y+4.5*(hole_pitch), 0, 0, 0, 0]
-        return holes
+            R_extra[:3,:3] = R_world
 
+        # --- base child world pose (anchors coincident, aligned) ---
+        # T_child_world = T_parent_world * T_pa * R_extra * inv(T_ca)
+        T_child_world = T_parent_world @ T_pa @ R_extra @ np.linalg.inv(T_ca)
 
-    def _init_connection_holes(self, holes, hole_pitch):
-        connection_holes =  copy.deepcopy(holes)
-        connection_holes["A3"][1] += hole_pitch/2
-        connection_holes["A8"][1] += hole_pitch/2
-        connection_holes["A13"][1] += hole_pitch/2
-        connection_holes["A18"][1] += hole_pitch/2
+        # --- apply offset AFTER mating ---
+        if offset is not None:
+            dx,dy,dz, ax,ay,az = [float(v) for v in offset]
+            T_off = np.array(xyzabc_to_T([dx,dy,dz, ax,ay,az]))
 
-        connection_holes["J3"][1] -= hole_pitch/2
-        connection_holes["J8"][1] -= hole_pitch/2
-        connection_holes["J13"][1] -= hole_pitch/2
-        connection_holes["J18"][1] -= hole_pitch/2
+            if offset_frame == 'parent':
+                # apply in parent-anchor frame: insert after T_parent_world@T_pa@R_extra
+                T_child_world = T_parent_world @ T_pa @ R_extra @ T_off @ np.linalg.inv(T_ca)
+            elif offset_frame == 'child':
+                # apply in child frame after mating
+                T_child_world = T_child_world @ T_off
+            else:
+                raise ValueError("offset_frame must be 'parent' or 'child'")
 
-        connection_holes["C1"][0] -= hole_pitch/2
-        connection_holes["H1"][0] -= hole_pitch/2
-        connection_holes["C20"][0] += hole_pitch/2
-        connection_holes["H20"][0] += hole_pitch/2
+        # --- convert to child's LOCAL pose w.r.t parent ---
+        # T_child_world = T_parent_world @ T_child_local  => T_child_local = inv(T_parent_world) @ T_child_world
+        T_child_local = np.linalg.inv(T_parent_world) @ T_child_world
+        child_local_xyzabc = T_to_xyzabc(T_child_local)
 
-        return connection_holes
+        if preview:
+            return child_local_xyzabc
 
-
-    def _init_pose(self, connection_holes, shape, parent, connection, pose):
-        local_pose = [0, 0, 0, 0, 0, 0]
-        # determine local pose parameters
-        if parent is not None and connection is not None:
-            ph, ch = connection
-            ph = ph.upper()
-            ch = ch.upper()
-            # rotation
-            if ph[0] == "A":
-                if ch[0] == "A":
-                    local_pose = [
-                        connection_holes[ph][0] + connection_holes[ch][0],
-                        shape[1],
-                        0,
-                        0, 0, 180
-                    ]
-                elif ch[1:] == "20":
-                    local_pose = [
-                        connection_holes[ph][0] - connection_holes[ch][1],
-                        shape[0] + shape[1]/2,
-                        0,
-                        0, 0, -90
-                    ]
-                elif ch[1:] == "1":
-                    local_pose = [
-                        connection_holes[ph][0] + connection_holes[ch][1],
-                        shape[1]/2,
-                        0,
-                        0, 0, 90
-                    ]
-            elif ph[0] == "J":
-                if ch[0] == "J":
-                    local_pose = [
-                        connection_holes[ph][0] + connection_holes[ch][0],
-                        -shape[1],
-                        0,
-                        0, 0, 180
-                    ]
-                elif ch[1:] == "20":
-                    local_pose = [
-                        connection_holes[ph][0] + connection_holes[ch][1],
-                        -(shape[0] + shape[1]/2),
-                        0,
-                        0, 0, 90
-                    ]
-                elif ch[1:] == "1":
-                    local_pose = [
-                        connection_holes[ph][0] - connection_holes[ch][1],
-                        -shape[1]/2,
-                        0,
-                        0, 0, -90
-                    ]
-            elif ph[1:] == "20":
-                if ch[0] == "A":
-                    local_pose = [
-                        shape[0] + shape[1]/2,
-                        connection_holes[ph][1] - connection_holes[ch][0],
-                        0,
-                        0, 0, 90
-                    ]
-                elif ch[0] == "J":
-                    local_pose = [
-                        shape[0] + shape[1]/2,
-                        connection_holes[ph][1] + connection_holes[ch][0],
-                        0,
-                        0, 0, -90
-                    ]
-                elif ch[1:] == "20":
-                    local_pose = [
-                        2*shape[0],
-                        connection_holes[ph][1] + connection_holes[ch][1],
-                        0,
-                        0, 0, 180
-                    ]
-            elif ph[1:] == "1":
-                if ch[0] == "A":
-                    local_pose = [
-                        -shape[1]/2,
-                        connection_holes[ph][1] + connection_holes[ch][0],
-                        0,
-                        0, 0, -90
-                    ]
-                elif ch[0].upper() == "J":
-                    local_pose = [
-                        -shape[1]/2,
-                        connection_holes[ph][1] - connection_holes[ch][0],
-                        0,
-                        0, 0, 90
-                    ]
-                elif ch[1:] == "1":
-                    local_pose = [
-                        0,
-                        connection_holes[ph][1] + connection_holes[ch][1],
-                        0,
-                        0, 0, 180
-                    ]
-        elif pose is not None:
-            local_pose = pose
-
-        return local_pose
-    
-
-
-    def get_hole_local(self, hole_name):
-        """Return local pose [x,y,z,a,b,c] of a hole."""
-        return list(self.holes[hole_name.upper()])
-
-    def get_hole_global(self, hole_name):
-        """Return global pose [x,y,z,a,b,c] of a hole."""
-        plate_global = self.get_global()
-        hole_local = self.holes[hole_name.upper()]
-        return T_to_xyzabc(
-            np.matrix(xyzabc_to_T(plate_global)) @
-            np.matrix(xyzabc_to_T(hole_local))
-        )
+        # mutate graph
+        if self.parent is not None and self in self.parent.children:
+            self.parent.children.remove(self)
+        self.parent = parent
+        parent.children.append(self)
+        self.pose = child_local_xyzabc
+        return child_local_xyzabc
