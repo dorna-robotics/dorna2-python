@@ -288,17 +288,17 @@ class Pose:
     def set_pose(self, pose):
         self.pose = list(pose)
 
-    def get_local(self, name=None):
-        if name is None:
+    def get_local(self, anchor=None):
+        if anchor is None:
             return list(self.pose)
         else:
-            if name not in self.anchors:
-                raise KeyError(f"anchor '{name}' not found on {self.name}")
-            return list(self.anchors[name])
+            if anchor not in self.anchors:
+                raise KeyError(f"anchor '{anchor}' not found on {self.name}")
+            return list(self.anchors[anchor])
       
 
-    def get_global(self, name):
-        if name is None:
+    def get_global(self, anchor=None):
+        if anchor is None:
             """Compose transforms from root to this node."""
             if self.parent is None:
                 return self.get_local()
@@ -308,7 +308,7 @@ class Pose:
         else:
             """Global pose of this anchor."""
             T_self_world   = np.array(xyzabc_to_T(self.get_global()))
-            T_anchor_local = np.array(xyzabc_to_T(self.get_local(name)))
+            T_anchor_local = np.array(xyzabc_to_T(self.get_local(anchor)))
             return T_to_xyzabc(T_self_world @ T_anchor_local)
         
 
