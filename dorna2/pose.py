@@ -437,3 +437,5 @@ class Pose:
         parent.children.append(self)
         self.pose = child_local_xyzabc
         return child_local_xyzabc
+
+
