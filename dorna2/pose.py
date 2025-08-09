@@ -253,7 +253,7 @@ class Pose:
         anchors: dict{name:[x,y,z,a,b,c]} OR list[(name, [x,y,z,a,b,c]), ...]
         """
         self.name = name
-        self.pose = list(pose or [0,0,0,0,0,0])
+        self.local_pose = list(pose or [0,0,0,0,0,0])
         self.parent = parent
         self.children = []
         self.anchors = {}
@@ -285,31 +285,58 @@ class Pose:
 
 
     # ---------- basic pose ops ----------
-    def set_pose(self, pose):
-        self.pose = list(pose)
+    def get_local(self, anchor):
+        if anchor not in self.anchors:
+            raise KeyError(f"anchor '{anchor}' not found on {self.name}")
+        return list(self.anchors[anchor])
 
-    def get_local(self, anchor=None):
-        if anchor is None:
-            return list(self.pose)
-        else:
+
+    def set_pose(self, pose):
+        self.local_pose = list(pose)
+
+
+    def pose(self, anchor=None, pose=None, in_frame=None):
+        """
+        Get this object's pose expressed in another frame.
+
+        anchor:    if given, use this anchor's pose (local to this object)
+        pose:      if given and anchor=None, interpret as local pose in this object
+        in_frame:  Pose object to express pose in (None = world, self = local)
+        """
+        # Step 1: starting pose in this object's frame
+        if anchor is not None:
             if anchor not in self.anchors:
                 raise KeyError(f"anchor '{anchor}' not found on {self.name}")
-            return list(self.anchors[anchor])
-      
-
-    def get_global(self, anchor=None):
-        if anchor is None:
-            """Compose transforms from root to this node."""
-            if self.parent is None:
-                return self.get_local()
-            T_parent = np.array(xyzabc_to_T(self.parent.get_global()))
-            T_local  = np.array(xyzabc_to_T(self.get_local()))
-            return T_to_xyzabc(T_parent @ T_local)
+            local_pose = list(self.anchors[anchor])
+        elif pose is not None:
+            local_pose = list(pose)
         else:
-            """Global pose of this anchor."""
-            T_self_world   = np.array(xyzabc_to_T(self.get_global()))
-            T_anchor_local = np.array(xyzabc_to_T(self.get_local(anchor)))
-            return T_to_xyzabc(T_self_world @ T_anchor_local)
+            local_pose = list(self.local_pose)
+
+        # Step 2: get this object's transform to world
+        if self.parent is None:
+            T_self_world = np.array(xyzabc_to_T(self.local_pose))
+        else:
+            T_self_world = np.array(xyzabc_to_T(self.parent.pose())) @ np.array(xyzabc_to_T(self.local_pose))
+
+        # If anchor or custom pose was given, apply it in local coords
+        if anchor is not None or pose is not None:
+            T_self_world = T_self_world @ np.array(xyzabc_to_T(local_pose))
+
+        # Step 3: convert to requested frame
+        if in_frame is None:  # world frame
+            return T_to_xyzabc(T_self_world)
+        elif in_frame is self:  # local frame
+            return local_pose
+        else:
+            # get in_frame transform in world coords
+            if in_frame.parent is None:
+                T_in_world = np.array(xyzabc_to_T(in_frame.pose))
+            else:
+                T_in_world = np.array(xyzabc_to_T(in_frame.parent.pose())) @ np.array(xyzabc_to_T(in_frame.pose))
+            T_world_in = np.linalg.inv(T_in_world)
+            T_in_frame = T_world_in @ T_self_world
+            return T_to_xyzabc(T_in_frame)
         
 
     def find(self, name):
@@ -322,7 +349,7 @@ class Pose:
         return None
 
     def __repr__(self):
-        return f"<Pose {self.name}: pose={self.pose}, anchors={list(self.anchors.keys())}>"
+        return f"<Pose {self.name}: local_pose={self.local_pose}, anchors={list(self.anchors.keys())}>"
 
     # ---------- graph helpers ----------
     def detach(self):
@@ -359,7 +386,7 @@ class Pose:
         - preview=True: compute and return the would-be local pose without mutating the graph.
         """
         # --- lookups & build transforms ---
-        T_parent_world = np.array(xyzabc_to_T(parent.get_global()))
+        T_parent_world = np.array(xyzabc_to_T(parent.pose()))
         T_pa = np.array(xyzabc_to_T(parent.get_local(parent_anchor)))  # parent anchor in parent frame
         T_ca = np.array(xyzabc_to_T(self.get_local(child_anchor)))     # child anchor in child frame
 
@@ -438,7 +465,7 @@ class Pose:
             self.parent.children.remove(self)
         self.parent = parent
         parent.children.append(self)
-        self.pose = child_local_xyzabc
+        self.local_pose = child_local_xyzabc
         return child_local_xyzabc
 
 
