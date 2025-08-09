@@ -330,10 +330,7 @@ class Pose:
             return local_pose
         else:
             # get in_frame transform in world coords
-            if in_frame.parent is None:
-                T_in_world = np.array(xyzabc_to_T(in_frame.pose))
-            else:
-                T_in_world = np.array(xyzabc_to_T(in_frame.parent.pose())) @ np.array(xyzabc_to_T(in_frame.pose))
+            T_in_world = np.array(xyzabc_to_T(in_frame.pose()))
             T_world_in = np.linalg.inv(T_in_world)
             T_in_frame = T_world_in @ T_self_world
             return T_to_xyzabc(T_in_frame)
