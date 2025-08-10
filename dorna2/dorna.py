@@ -916,6 +916,7 @@ class Dorna(WS):
             cmd_motion,
             *cmd_list,
         ]
+
         # sim
         if not sim:
             # play        
