@@ -667,7 +667,13 @@ class Kinematic(Dof):
 		return J
 
 	def solve_dJ_with_last_fixed(self, joint, dX ):
-		damping=0.00001
+		for i in range(3,6):
+			while dX[i]> 180:
+				dX[i] = dX[i]- 360
+			while dX[i]< -180:
+				dX[i] = dX[i]+ 360
+		
+		damping=0.001
 		J = self.jacobian_fw(joint)
 		S = np.eye(6)[:, :5]                # map y∈R^5 -> ΔJ with last=0
 		JS = J @ S
