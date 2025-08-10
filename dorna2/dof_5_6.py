@@ -636,6 +636,49 @@ class Kinematic(Dof):
 		#give different result: fw, fw can later be changed to pos + abg
 		return [fw[0,3], fw[1,3], fw[2,3]] + abc
 
+	def jacobian_fw(self, joint):
+		mode="central"
+		joint = np.asarray(joint, dtype=float).reshape(6)
+		h = 1e-6 * (1.0 + np.abs(joint))
+		h = np.broadcast_to(np.asarray(h, dtype=float).reshape(-1), (6,))
+		assert h.shape == (6,), "h must be scalar or length-6"
+
+		J = np.zeros((6, 6), dtype=float)
+		f0 = np.asarray(self.fw(joint), dtype=float).reshape(6)
+		if mode not in ("central", "forward"):
+			raise ValueError("mode must be 'central' or 'forward'")
+
+		for j in range(6):
+			step = h[j]
+			if step == 0.0:
+				# Protect against zero step (rare). Use a tiny fallback.
+				step = 1e-8
+
+			djoint = np.zeros(6, dtype=float)
+			djoint[j] = step
+
+			f_plus  = np.asarray(self.fw(joint + djoint), dtype=float).reshape(6)
+			f_minus = np.asarray(self.fw(joint - djoint), dtype=float).reshape(6)
+			J[:, j] = (f_plus - f_minus) / (2.0 * step)
+
+			f_plus = np.asarray(self.fw(joint + djoint), dtype=float).reshape(6)
+			J[:, j] = (f_plus - f0) / step
+
+		return J
+
+	def solve_dJ_with_last_fixed(self, joint, dX ):
+		damping=0.00001
+		J = self.jacobian_fw(joint)
+		S = np.eye(6)[:, :5]                # map y∈R^5 -> ΔJ with last=0
+		JS = J @ S
+		if damping > 0:
+			A = JS.T @ JS + (damping**2)*np.eye(5)
+			y = np.linalg.solve(A, JS.T @ np.asarray(dX))
+		else:
+			y, *_ = np.linalg.lstsq(JS, dX, rcond=None)
+		dJ = S @ y                          # ΔJ[5] == 0
+		return dJ
+
 
 	def inv(self, xyzabc, joint_current=None, all_sol=False, freedom = None): #xyzabg
 		#print("inv call:",xyzabc)
@@ -679,8 +722,7 @@ def main_dorna_c():
 
 	fw = knmtc.fw(joint)
 
-	print(knmtc.xyzquat_to_xyzabc([0.194881896*1000, 0.206358182*1000, 0.053252138000000004*1000, 0.01803234197700197, 0.9667316721684709, 0.25165134004776635, -0.04214631325916844] )
-)
+	print(knmtc.solve_dJ_with_last_fixed([0,90,0,0,0,0], [1,0,0,0,0,0]))
 	#print(knmtc.xyzquat_to_xyzabc([0,0,0,1,0,0,0]))
 	#ik_result = knmtc.inv(xyzabc, joint, False,freedom)
 
