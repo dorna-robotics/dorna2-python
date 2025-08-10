@@ -301,7 +301,7 @@ class Pose:
 
         anchor:    if given, use this anchor's pose (local to this object)
         pose:      if given and anchor=None, interpret as local pose in this object
-        in_frame:  Pose object to express pose in (None = world, self = local)
+        frame:  Pose object to express pose in (None = world, self = local)
         """
         # Step 1: starting pose in this object's frame
         if anchor is not None:

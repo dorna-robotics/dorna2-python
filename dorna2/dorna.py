@@ -909,7 +909,7 @@ class Dorna(WS):
             vaj = [x * speed for x in self.config["speed"]["very_quick"][motion].values()]
         
         # cmds
-        cmd_motion = {"cmd": motion, "rel": 0, "accel": vaj[1], "jerk": vaj[2], "cont": cont, "corner": corner}
+        cmd_motion = {"cmd": motion, "rel": 0, "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont": cont, "corner": corner}
         for i in range(len(joint)):
             cmd_motion["j"+str(i)] = float(joint[i])
         _cmd_list = [
@@ -922,6 +922,7 @@ class Dorna(WS):
             for cmd in _cmd_list:
                 self.play(timeout=timeout, msg=cmd)
 
+        self.kinematic.set_tcp_xyzabc([0, 0, 0, 0, 0, 0])
         return _cmd_list
 
     
