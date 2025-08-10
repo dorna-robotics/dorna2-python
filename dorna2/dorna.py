@@ -922,7 +922,7 @@ class Dorna(WS):
             # play        
             for cmd in _cmd_list:
                 self.play(timeout=timeout, msg=cmd)
-
+        
         self.kinematic.set_tcp_xyzabc([0, 0, 0, 0, 0, 0])
         return _cmd_list
 
