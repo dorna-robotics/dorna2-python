@@ -11,196 +11,268 @@ import dorna2.pose as dp
 #import pybullet as p
 
 
-# -------------------------------
-# Standalone collision avoidance utilities (python-fcl)
-# -------------------------------
-import numpy as np
-import fcl
 
-# --------- Public API ----------
+# ---- helpers from your kinematics object (names match your methods) ----
+# Ti_r_world(i, theta=...)  -> 4x4 world transform of joint frame i
+# fw_base(theta)            -> 4x4 world transform of TCP/EE (optional, for convenience)
 
-def find_worst_contact(robot_objs, scene_objs):
+def _origin_and_axis_world(kin, i, theta):
+    """Return origin o_i (3,) and z-axis z_i (3,) of joint i, both in world frame."""
+    Ti = kin.Ti_r_world(theta=theta, i=i)          # 4x4
+    Ri = Ti[:3, :3]
+    oi = Ti[:3, 3]
+    zi = Ri @ np.array([0.0, 0.0, 1.0])            # DH: joint axis = +Z_i
+    return oi, zi
+
+def jacobian_point(kin, link_idx, p_world, theta_deg):
     """
-    Returns a dict describing the worst contact between robot and scene:
-        {
-          'clearance': float,      # >0 = distance; <0 = penetration depth (negative)
-          'p_link': (3,),          # nearest point on the robot object (world)
-          'p_obs':  (3,),          # nearest point on the scene object (world)
-          'normal': (3,),          # unit vector from obstacle -> link (world)
-          'rob_obj': <fcl.CollisionObject>,
-          'obs_obj': <fcl.CollisionObject>,
-          'type': 'clearance' | 'penetration'
-        }
-    Returns None if neither distances nor contacts exist.
+    Spatial point Jacobian at a world-space point p_world rigidly attached to `link_idx`.
+    Returns: {'linear': Jv (3xn), 'angular': Jw (3xn)}
     """
-    wc = _worst_clearance(robot_objs, scene_objs)      # smallest positive distance
-    wp = _worst_penetration(robot_objs, scene_objs)    # largest penetration (negative clearance)
+    n = 6
+    theta = [np.radians(j) for j in theta_deg]
 
-    if wc is None and wp is None:
-        return None
-    if wc is None:
-        return wp
-    if wp is None:
-        return wc
-    # Pick the more dangerous (smaller signed clearance)
-    return wp if wp["clearance"] < wc["clearance"] else wc
+    Jv = np.zeros((3, n))
+    Jw = np.zeros((3, n))
+
+    # Only joints 1..link_idx affect the pose of link_idx in a serial chain
+    # (Assuming your frames are indexed like your Ti_r_world: i=1..6 are actuated)
+    for k in range(1, n+1):
+        if k > link_idx:
+            # joints after the link do not move this point (point is on link_idx)
+            continue
+
+        ok, zk = _origin_and_axis_world(kin, k, theta)
+
+        # revolute: angular = z_k ; linear = z_k × (p - o_k)
+        Jw[:, k-1] = zk
+        Jv[:, k-1] = np.cross(zk, (p_world - ok))
+
+    return {'linear': Jv, 'angular': Jw}
+
+def jacobian_ee_rotation(kin, theta_deg):
+    """
+    Angular Jacobian of the end-effector orientation in world.
+    Returns Jw (3xn).
+    """
+    n = 6
+    theta = [np.radians(j) for j in theta_deg]
+    Jw = np.zeros((3, n))
+    for k in range(1, n+1):
+        ok, zk = _origin_and_axis_world(kin, k, theta)
+        Jw[:, k-1] = zk
+    return Jw
 
 
-def collision_avoid_one_step(
-    q,
-    worst,
-    link_id_from_obj,
-    fk_set_links,
-    jacobian_point_fn,
-    d_safe=0.03,
-    lam=1e-2,
-    alpha=0.35,
-    dq_deg_cap=3.0,
-    clamp_to_limits=lambda q: q,
+def correct_pose_kinematic(
+    joint,
+    scene=[], load=[],
+    base_in_world=[0,0,0,0,0,0],
+    frame_in_world=[0,0,0,0,0,0],
+    keep_ee_rotation=False,
+    keep_rot_weight=1000.0,
+    lam=1e-3,
+    beta=0.9,
+    target_slop=1e-3,
+    max_iters=10,
+    max_step_norm=0.1,
+    line_search=True
 ):
-    """
-    Compute a single joint update that pushes the offending link point away
-    from the obstacle along the contact normal.
+    sim = Simulation("tmp_pose")   # your class
+    n = sim.robot.num_dofs         # or len(joint)
 
-    Parameters
-    ----------
-    q : (n,) ndarray
-        Current joint angles (radians). For a 6-DoF arm, n=6.
-    worst : dict
-        Output from find_worst_contact(...).
-    link_id_from_obj : callable
-        Takes an fcl.CollisionObject (robot) -> returns your link_id (int or name).
-    fk_set_links : callable
-        fk_set_links(q) must update all robot link CollisionObjects' transforms.
-        (We call this only if you do additional checks outside.)
-    jacobian_point_fn : callable
-        jacobian_point_fn(link_id, q, p_world) -> (3xN) position Jacobian at the *surface point* p_world.
-    d_safe : float
-        Safety margin in meters.
-    lam : float
-        Damping for DLS.
-    alpha : float
-        Step gain (0..1). Final Δq is alpha-scaled.
-    dq_deg_cap : float
-        Per-joint step cap in degrees.
-    clamp_to_limits : callable
-        clamp_to_limits(q) -> q_clamped (enforce joint limits).
+    q_deg = np.array(joint, dtype=float)
 
-    Returns
-    -------
-    q_new : (n,) ndarray
-    info : dict with debug fields (gap, Δx, Δq, etc.)
-    """
-    if worst is None:
-        return q.copy(), {"action": "no_contacts"}
+    # ----- mount scene -----
+    all_visuals = []
+    all_objects = []
+    dynamic_objects = []
 
-    gap = d_safe - worst["clearance"]  # how much we are short of margin
-    if gap <= 0.0:
-        return q.copy(), {"action": "clear", "gap": gap}
+    for obj in scene:
+        sim.root_node.collisions.append(obj.fcl_object)
+        all_objects.append(obj.fcl_object)
+        all_visuals.append(obj)
 
-    # Build task-space push
-    n = np.asarray(worst["normal"], dtype=float)
-    n /= (np.linalg.norm(n) + 1e-12)
-    p_link = np.asarray(worst["p_link"], dtype=float)
+    for obj in load:
+        sim.robot.link_nodes["j6_link"].collisions.append(obj)
+        sim.robot.all_objs.append(obj)
+        sim.robot.prnt_map[id(obj.fcl_shape)] = sim.robot.link_nodes["j6_link"]
 
-    link_id = link_id_from_obj(worst["rob_obj"])
-    Jv = jacobian_point_fn(link_id, q, p_link)  # 3×N
+    for obj in sim.robot.all_objs:
+        dynamic_objects.append(obj)
+        all_objects.append(obj.fcl_object)
+        all_visuals.append(obj)
 
-    # Damped least-squares: Δq = J^T (J J^T + λ² I)^-1 Δx
-    Δx = n * gap  # desired translation of that surface point
-    JJt = Jv @ Jv.T
-    Δq = Jv.T @ np.linalg.solve(JJt + (lam**2) * np.eye(3), Δx)
+    manager = fcl.DynamicAABBTreeCollisionManager()
+    manager.registerObjects(all_objects)
+    manager.setup()
 
-    # Cap & scale
-    cap = np.deg2rad(dq_deg_cap)
-    Δq = np.clip(Δq, -cap, cap)
-    q_new = clamp_to_limits(q + alpha * Δq)
+    base_in_world_mat = sim.dorna.kinematic.xyzabc_to_mat(base_in_world)
+    frame_in_world_inv = sim.dorna.kinematic.inv_dh(sim.dorna.kinematic.xyzabc_to_mat(frame_in_world))
+    
+    def set_pose(q):
+        sim.robot.set_joint_values([0, q[0], q[1], q[2], q[3], q[4], q[5]], frame_in_world_inv @ base_in_world_mat)
+        for do in dynamic_objects:
+            manager.update(do.fcl_object)
 
-    return q_new, {
-        "action": "avoid_step",
-        "gap": float(gap),
-        "delta_x": Δx,
-        "delta_q": Δq,
-        "link_id": link_id,
-        "type": worst["type"],
-    }
+    def get_contacts():
+        cdata = fcl.CollisionData()
+        def _cb(o1, o2, cdata):
+            fcl.collide(o1, o2, cdata.request, cdata.result)
+            return False
+        manager.collide(cdata, _cb)
 
-# --------- Internals ----------
+        contacts = []
+        for c in cdata.result.contacts:
+            o1, o2 = c.o1, c.o2
 
-def _worst_clearance(robot_objs, scene_objs):
-    """Smallest positive separation using pairwise fcl.distance (nearest points)."""
-    dreq = fcl.DistanceRequest(enable_nearest_points=True)
-    best = None
-    best_d = np.inf
+            # Parent lookup (like your code)
+            prnt0 = sim.robot.prnt_map.get(id(o1), None)
+            prnt1 = sim.robot.prnt_map.get(id(o2), None)
 
-    # robot_objs/scene_objs can be either plain fcl objects or wrappers with .fcl_object
-    def _obj(x): return x.fcl_object if hasattr(x, "fcl_object") else x
+            num_parents = (prnt0 is not None) + (prnt1 is not None)
+            if num_parents == 0:
+                continue
 
-    for rob in robot_objs:
-        ro = _obj(rob)
-        for obs in scene_objs:
-            so = _obj(obs)
-            dres = fcl.DistanceResult()
-            fcl.distance(ro, so, dreq, dres)
-            d = dres.min_distance
-            if d < best_d:
-                p_link, p_obs = [np.array(p, dtype=float) for p in dres.nearest_points]
-                n = p_link - p_obs
-                nn = np.linalg.norm(n)
-                if nn < 1e-12:
-                    # Coincident points: pick an arbitrary, stable axis
-                    n = np.array([1.0, 0.0, 0.0])
-                else:
-                    n /= nn
-                best_d = d
-                best = {
-                    "clearance": float(d),   # positive
-                    "p_link": p_link,
-                    "p_obs": p_obs,
-                    "normal": n,             # obstacle -> link
-                    "rob_obj": ro,
-                    "obs_obj": so,
-                    "type": "clearance",
-                }
-    return best
+            # filter adjacent/self adjacency if needed
+            if num_parents == 2:
+                if prnt0.parent == prnt1 or prnt1.parent == prnt0 or prnt0 == prnt1:
+                    continue
+
+            # Contact fields from FCL
+            # Note: not all FCL pipelines fill penetration_depth reliably; fall back to small value.
+            p = np.array(c.contact_point)      # world 3-vector
+            n = np.array(c.normal)             # world 3-vector (points from o1 to o2)
+            depth = getattr(c, 'penetration_depth', 0.0)
+
+            # Decide which one is the robot link "A" we will move positively against normal.
+            # We want normal to point from A toward B.
+            linkA = None
+            linkB = None
+            if prnt0 is not None and prnt1 is None:
+                linkA, linkB = prnt0, None                      # environment
+                # normal currently points from o1->o2; if o1 is A, keep as is
+                # (A gets pushed along +n)
+            elif prnt0 is None and prnt1 is not None:
+                linkA, linkB = prnt1, None
+                n = -n                                          # flip so n points from A to B
+            else:
+                # self-collision: both robot
+                linkA, linkB = prnt0, prnt1
+                # ensure n points from A toward B; if not, flip
+                # heuristic: we assume o1 belongs to linkA; if not, flip
+                if prnt0 != linkA:
+                    n = -n
+
+            contacts.append({
+                'p': p, 'n': n / max(1e-12, np.linalg.norm(n)),
+                'depth': depth,          # may be 0; we’ll treat as interpenetrating if distance < slop
+                'linkA': linkA, 'linkB': linkB
+            })
+        return contacts
 
 
-def _worst_penetration(robot_objs, scene_objs):
-    """
-    Largest penetration among robot-vs-scene using collide() contacts.
-    We scan pairs to keep it self-contained & explicit.
-    """
-    req = fcl.CollisionRequest(num_max_contacts=100000, enable_contact=True)
+    # ----- solve loop -----
+    q = np.array(joint, dtype=float).copy()
+    set_pose(q)
 
-    def _obj(x): return x.fcl_object if hasattr(x, "fcl_object") else x
+    debug = {'iters': []}
 
-    worst = None
-    max_pen = -1.0
+    for it in range(max_iters):
+        contacts = get_contacts()
 
-    for rob in robot_objs:
-        ro = _obj(rob)
-        for obs in scene_objs:
-            so = _obj(obs)
-            res = fcl.CollisionResult()
-            fcl.collide(ro, so, req, res)
-            # res.contacts is a list of fcl.Contact
-            for c in getattr(res, "contacts", []):
-                pen = getattr(c, "penetration_depth", 0.0)
-                if pen > max_pen:
-                    n = np.array(c.normal, dtype=float)
-                    n /= (np.linalg.norm(n) + 1e-12)
-                    p = np.array(c.pos, dtype=float)
-                    # Synthesize two points on each side of the contact plane
-                    p_link = p + 0.5 * pen * n
-                    p_obs  = p - 0.5 * pen * n
-                    worst = {
-                        "clearance": -float(pen),  # negative
-                        "p_link": p_link,
-                        "p_obs": p_obs,
-                        "normal": n,               # obstacle -> link (approx)
-                        "rob_obj": ro,
-                        "obs_obj": so,
-                        "type": "penetration",
-                    }
-                    max_pen = pen
-    return worst
+        # Build stacked normal rows
+        rows = []
+        rhs  = []
+
+        # If FCL doesn’t give depth, approximate “penetration” as target_slop along normal
+        # so we still separate by ~slop when in contact.
+        for ct in contacts:
+            n = ct['n'].reshape(1,3)
+            p = ct['p']
+            depth = ct['depth']
+
+            # Build relative linear Jacobian along normal
+            JvA = jacobian_point(sim.dorna.kinematic, ct['linkA'].joint_index, p, q_deg)['linear']          # (3,n)
+            if ct['linkB'] is None:
+                JvB = 0.0
+            else:
+                JvB = jacobian_point(,sim.dorna.kinematic, ct['linkB'].joint_index, p, q_deg)['linear']      # (3,n)
+
+            Jn = n @ (JvA - (JvB if isinstance(JvB, np.ndarray) else 0))
+            rows.append(Jn)  # (1,n)
+
+            # desired displacement along n:
+            # if depth>0, separate a fraction of it + slop; else use slop
+            desired = beta * max(target_slop, depth if depth > 0 else target_slop)
+            rhs.append([desired])
+
+        # Optional: keep end-effector rotation (soft "stay" constraint with big weight)
+        if keep_ee_rotation:
+            Jrot = jacobian_ee_rotation(sim.dorna.kinematic, q_deg)    # (3,n)
+            if isinstance(Jrot, np.ndarray):
+                # We want Δω ≈ 0 → target 0; implement as weighted rows
+                W = keep_rot_weight
+                rows.append(np.sqrt(W) * Jrot[0:1, :])
+                rhs.append([[0.0]])
+                rows.append(np.sqrt(W) * Jrot[1:2, :])
+                rhs.append([[0.0]])
+                rows.append(np.sqrt(W) * Jrot[2:3, :])
+                rhs.append([[0.0]])
+
+        if not rows:
+            # no contacts -> done
+            break
+
+        J = np.vstack(rows)                 # (m,n)
+        d = np.array(rhs, dtype=float)      # (m,1)
+
+        # Damped least squares step: dq = J^T (J J^T + lam^2 I)^-1 d
+        JJt = J @ J.T
+        dq = J.T @ np.linalg.solve(JJt + (lam**2) * np.eye(JJt.shape[0]), d)
+        dq = dq.ravel()
+
+        # Clamp step size for stability
+        norm = np.linalg.norm(dq)
+        if norm > max_step_norm:
+            dq = dq * (max_step_norm / max(norm, 1e-12))
+
+        # Optional line search to ensure improvement (reduce total “penetration” proxy)
+        if line_search:
+            def score():
+                # Sum of positive depths; if none available, count number of contacts
+                s = 0.0
+                for ct in get_contacts():
+                    s += max(target_slop, ct['depth'] if ct['depth'] > 0 else target_slop)
+                return s
+
+            cur_score = score()
+            alpha = 1.0
+            accepted = False
+            for _ in range(6):
+                q_try = q + alpha * dq
+                set_pose(q_try)
+                new_score = score()
+                if new_score <= 0.95 * cur_score:
+                    q = q_try
+                    accepted = True
+                    break
+                alpha *= 0.5
+            if not accepted:
+                # take a tiny step anyway to avoid stalls
+                q = q + 0.2 * dq
+                set_pose(q)
+        else:
+            q = q + dq
+            set_pose(q)
+
+        q_deg = q.copy()
+
+
+        debug['iters'].append({'num_contacts': len(contacts), 'step_norm': float(np.linalg.norm(dq))})
+
+        # Early out if everything looks clear
+        if len(get_contacts()) == 0:
+            break
+
+    return q, {'sim': sim, 'visuals': all_visuals, 'iters': debug['iters']}
