@@ -675,6 +675,8 @@ class Kinematic(Dof):
 		
 		damping=0.001
 		J = self.jacobian_fw(joint)
+		print("jacob:", J)
+		print("dX: ", dX)
 		S = np.eye(6)[:, :5]                # map y∈R^5 -> ΔJ with last=0
 		JS = J @ S
 		if damping > 0:
@@ -728,7 +730,12 @@ def main_dorna_c():
 
 	fw = knmtc.fw(joint)
 
-	print(knmtc.solve_dJ_with_last_fixed([0,90,0,0,0,0], [1,0,0,0,0,0]))
+	knmtc.set_tcp_xyzabc([0, 0, 77.25, 0, 0, 0])
+
+	print(knmtc.solve_dJ_with_last_fixed( joint=[-8.385708947260923, 23.369003388418818, -100.95891040844424, -9.953374353343008, -31.200352143109626, 0.9836717576757544]
+		, dX= np.array([264.0327325889274, 0.33311876809688146, 32.516760538885265, 174.7774732556439, 1.288391688765321, -29.610718149269807])
+		- np.array([262.5, -2.5, 32.999999999999986, -180, 0, 30]) ))
+
 	#print(knmtc.xyzquat_to_xyzabc([0,0,0,1,0,0,0]))
 	#ik_result = knmtc.inv(xyzabc, joint, False,freedom)
 
