@@ -666,17 +666,28 @@ class Kinematic(Dof):
 
 		return J
 
-	def solve_dJ_with_last_fixed(self, joint, dX ):
-		for i in range(3,6):
-			while dX[i]> 180:
-				dX[i] = dX[i]- 360
-			while dX[i]< -180:
-				dX[i] = dX[i]+ 360
-		
+	def solve_dJ_with_last_fixed(self, joint, X1, X2):
+
+		X1 = np.array(X1)
+		X2 = np.array(X2)
+		X1rot = X1[3:6]
+		X2rot = X2[3:6]
+
+		X2rotp = X2rot + 360 * X2rot / np.linalg.norm(X2rot)
+		X2rotpp = X2rot - 360 * X2rot / np.linalg.norm(X2rot) 
+
+		if np.linalg.norm(X1rot - X2rot) > np.linalg.norm(X1rot - X2rotp):
+			X2rot = np.array(X2rotp)
+
+		if np.linalg.norm(X1rot - X2rot) > np.linalg.norm(X1rot - X2rotpp):
+			X2rot = np.array(X2rotpp)
+
+		X2[3:6] = X2rot
+		dX = X1 - X2
+
 		damping=0.001
 		J = self.jacobian_fw(joint)
-		print("jacob:", J)
-		print("dX: ", dX)
+
 		S = np.eye(6)[:, :5]                # map y∈R^5 -> ΔJ with last=0
 		JS = J @ S
 		if damping > 0:
@@ -733,8 +744,8 @@ def main_dorna_c():
 	knmtc.set_tcp_xyzabc([0, 0, 77.25, 0, 0, 0])
 
 	print(knmtc.solve_dJ_with_last_fixed( joint=[-8.385708947260923, 23.369003388418818, -100.95891040844424, -9.953374353343008, -31.200352143109626, 0.9836717576757544]
-		, dX= np.array([264.0327325889274, 0.33311876809688146, 32.516760538885265, 174.7774732556439, 1.288391688765321, -29.610718149269807])
-		- np.array([262.5, -2.5, 32.999999999999986, -180, 0, 30]) ))
+		, X1= np.array([264.0327325889274, 0.33311876809688146, 32.516760538885265, 174.7774732556439, 1.288391688765321, -29.610718149269807])
+		, X2= np.array([262.5, -2.5, 32.999999999999986, -180, 0, 30]) ))
 
 	#print(knmtc.xyzquat_to_xyzabc([0,0,0,1,0,0,0]))
 	#ik_result = knmtc.inv(xyzabc, joint, False,freedom)
