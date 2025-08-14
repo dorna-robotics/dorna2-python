@@ -309,6 +309,121 @@ def check_path(motion, start_joint, end_joint, tool=[0,0,0,0,0,0], load=[], scen
 
 	return ret
 
+def check_collision(joint, tool=[0,0,0,0,0,0], load=[], scene=[],
+ base_in_world=[0,0,0,0,0,0], frame_in_world=[0,0,0,0,0,0], aux_dir=[[0, 0, 0], [0, 0, 0]]):
+	sim = Simulation("tmp")
+
+	all_visuals = [] #for visualization
+	all_objects = [] #to create bvh
+	dynamic_objects = [] #to update bvh
+
+	#placing scene objects
+	for obj in scene:
+		sim.root_node.collisions.append(obj.fcl_object)
+		all_objects.append(obj.fcl_object)
+		all_visuals.append(obj)
+
+	#placing tool objects
+	for obj in load:
+		sim.robot.link_nodes["j6_link"].collisions.append(obj)
+		sim.robot.all_objs.append(obj)
+		sim.robot.prnt_map[id(obj.fcl_shape)] = sim.robot.link_nodes["j6_link"]
+
+	#registering robot ojbects
+	for obj in sim.robot.all_objs:
+		dynamic_objects.append(obj)
+		all_objects.append(obj.fcl_object)
+		all_visuals.append(obj)
+		
+	manager = fcl.DynamicAABBTreeCollisionManager()
+	manager.registerObjects(all_objects)  # list of all your CollisionObjects
+	manager.setup()  # Builds the BVH tree
+
+
+	col_res = []
+
+	base_in_world_mat = sim.dorna.kinematic.xyzabc_to_mat(base_in_world)
+	frame_in_world_inv = sim.dorna.kinematic.inv_dh(sim.dorna.kinematic.xyzabc_to_mat(frame_in_world))
+
+	aux_dir_1 = base_in_world_mat @ np.array([aux_dir[0][0], aux_dir[0][1], aux_dir[0][2],0])
+	aux_dir_2 = base_in_world_mat @ np.array([aux_dir[1][0], aux_dir[1][1], aux_dir[1][2],0])
+
+	j = joint
+
+
+	base_mat = np.array(base_in_world_mat)
+	aux_offset = np.array([0,0,0,0])
+
+
+	if len(j)>6:
+		aux_offset = aux_offset + j[6] * aux_dir_1
+	if len(j)>7:
+		aux_offset = aux_offset + j[7] * aux_dir_2
+
+	base_mat[0, 3] += aux_offset[0, 0]
+	base_mat[1, 3] += aux_offset[0, 1]
+	base_mat[2, 3] += aux_offset[0, 2]
+
+	sim.robot.set_joint_values([0,j[0],j[1],j[2],j[3],j[4],j[5]], frame_in_world_inv @  base_mat) 
+
+	#update dynamics
+	for do in dynamic_objects:
+		manager.update(do.fcl_object)
+
+	cdata = fcl.CollisionData()
+
+	def my_collect_all_callback(o1, o2, cdata):
+		fcl.collide(o1, o2, cdata.request, cdata.result)
+		return False
+
+	manager.collide(cdata, my_collect_all_callback)#fcl.defaultCollisionCallback)
+
+	tmp_res = None
+
+	for contact in cdata.result.contacts:
+	    # Extract collision geometries that are in contact
+		coll_geom_0 = contact.o1
+		coll_geom_1 = contact.o2
+
+		prnt0 = None
+		prnt1 = None
+
+		num_parents = 0
+
+		if id(coll_geom_0) in sim.robot.prnt_map:
+			prnt0 = sim.robot.prnt_map[id(coll_geom_0)]
+			num_parents = num_parents + 1
+
+		if id(coll_geom_1) in sim.robot.prnt_map:
+			prnt1 = sim.robot.prnt_map[id(coll_geom_1)]
+			num_parents = num_parents + 1
+
+
+		#this collision has nothing to do with robot
+		if num_parents == 0:
+			continue 
+
+		#this is external collision, good to go
+		if num_parents == 1: 
+			pass
+
+		#this is internal collision, needs to be filtered
+		if num_parents == 2:
+			if prnt0.parent == prnt1 or prnt1.parent == prnt0 or prnt0 == prnt1:
+				continue
+
+		#if here, meaning that a valid collision has been detected
+		tmp_res = ['scene' if prnt0 is None else prnt0.name, 'scene' if prnt1 is None else prnt1.name]
+		break
+
+	if tmp_res is not None:
+		col_res.append({"links":tmp_res})
+
+
+	ret = {"col":col_res}
+
+	return ret
+
 def create_cube(pose, scale=[1,1,1]):
 	return node.create_cube(pose, scale)
 

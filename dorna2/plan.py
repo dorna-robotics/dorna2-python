@@ -5,6 +5,7 @@ import fcl
 
 from dorna2 import Dorna
 from dorna2.pathGen import pathGen
+from dorna2.simulation import Simulation
 from dorna2.urdf import UrdfRobot
 import dorna2.node as node
 import dorna2.pose as dp
@@ -16,21 +17,28 @@ import dorna2.pose as dp
 # Ti_r_world(i, theta=...)  -> 4x4 world transform of joint frame i
 # fw_base(theta)            -> 4x4 world transform of TCP/EE (optional, for convenience)
 
-def _origin_and_axis_world(kin, i, theta):
+def _origin_and_axis_world(kin, i, joint):
     """Return origin o_i (3,) and z-axis z_i (3,) of joint i, both in world frame."""
-    Ti = kin.Ti_r_world(theta=theta, i=i)          # 4x4
+    Ti = kin.Ti_r_world(joint=joint, i=i)          # 4x4
     Ri = Ti[:3, :3]
     oi = Ti[:3, 3]
     zi = Ri @ np.array([0.0, 0.0, 1.0])            # DH: joint axis = +Z_i
     return oi, zi
 
-def jacobian_point(kin, link_idx, p_world, theta_deg):
+def _vec3(x):
+    x = np.asarray(x)
+    if x.ndim > 1:
+        x = x.squeeze()
+    if x.shape[0] == 4:            # drop homogeneous w if present
+        x = x[:3]
+    return x.astype(float).reshape(3,)
+
+def jacobian_point(kin, link_idx, p_world, joint):
     """
     Spatial point Jacobian at a world-space point p_world rigidly attached to `link_idx`.
     Returns: {'linear': Jv (3xn), 'angular': Jw (3xn)}
     """
     n = 6
-    theta = [np.radians(j) for j in theta_deg]
 
     Jv = np.zeros((3, n))
     Jw = np.zeros((3, n))
@@ -42,27 +50,38 @@ def jacobian_point(kin, link_idx, p_world, theta_deg):
             # joints after the link do not move this point (point is on link_idx)
             continue
 
-        ok, zk = _origin_and_axis_world(kin, k, theta)
+        ok, zk = _origin_and_axis_world(kin, k, joint)
+        ok = _vec3(ok)
+        zk = _vec3(zk)
+        p = _vec3(p_world)
+
+        deg2rad = np.pi / 180.0
 
         # revolute: angular = z_k ; linear = z_k × (p - o_k)
-        Jw[:, k-1] = zk
-        Jv[:, k-1] = np.cross(zk, (p_world - ok))
+        Jw[:, k-1] = zk * deg2rad
+        Jv[:, k-1] = np.cross(zk, (p - ok)) * deg2rad
 
     return {'linear': Jv, 'angular': Jw}
 
-def jacobian_ee_rotation(kin, theta_deg):
+def jacobian_ee_rotation(kin, joint):
     """
     Angular Jacobian of the end-effector orientation in world.
     Returns Jw (3xn).
     """
+    deg2rad = np.pi / 180.0
+ 
     n = 6
-    theta = [np.radians(j) for j in theta_deg]
     Jw = np.zeros((3, n))
     for k in range(1, n+1):
-        ok, zk = _origin_and_axis_world(kin, k, theta)
+        ok, zk = _origin_and_axis_world(kin, k, joint)
         Jw[:, k-1] = zk
-    return Jw
+    return Jw * deg2rad
 
+def link_name_to_num(s):
+    if len(s) < 2:
+        return 0
+    c = s[1]
+    return int(c) if c.isdigit() else 0
 
 def correct_pose_kinematic(
     joint,
@@ -76,10 +95,10 @@ def correct_pose_kinematic(
     target_slop=1e-3,
     max_iters=10,
     max_step_norm=0.1,
-    line_search=True
+    line_search=False
 ):
     sim = Simulation("tmp_pose")   # your class
-    n = sim.robot.num_dofs         # or len(joint)
+    n = 6
 
     q_deg = np.array(joint, dtype=float)
 
@@ -116,7 +135,13 @@ def correct_pose_kinematic(
             manager.update(do.fcl_object)
 
     def get_contacts():
-        cdata = fcl.CollisionData()
+        cdata = fcl.CollisionData(
+                    request=fcl.CollisionRequest(
+                        enable_contact=True,
+                        num_max_contacts=64,         # or higher if you want
+                        enable_cost=False
+                    )
+                )
         def _cb(o1, o2, cdata):
             fcl.collide(o1, o2, cdata.request, cdata.result)
             return False
@@ -141,10 +166,10 @@ def correct_pose_kinematic(
 
             # Contact fields from FCL
             # Note: not all FCL pipelines fill penetration_depth reliably; fall back to small value.
-            p = np.array(c.contact_point)      # world 3-vector
-            n = np.array(c.normal)             # world 3-vector (points from o1 to o2)
-            depth = getattr(c, 'penetration_depth', 0.0)
+            p = np.array(c.pos)      # world 3-vector
+            n = np.array(c.normal)   # world 3-vector (points from o1 to o2)
 
+            depth = getattr(c, 'penetration_depth', 0.0)
             # Decide which one is the robot link "A" we will move positively against normal.
             # We want normal to point from A toward B.
             linkA = None
@@ -193,13 +218,15 @@ def correct_pose_kinematic(
             depth = ct['depth']
 
             # Build relative linear Jacobian along normal
-            JvA = jacobian_point(sim.dorna.kinematic, ct['linkA'].joint_index, p, q_deg)['linear']          # (3,n)
+
+            JvA = jacobian_point(sim.dorna.kinematic, link_name_to_num(ct['linkA'].name), p, q_deg)['linear']          # (3,n)
             if ct['linkB'] is None:
                 JvB = 0.0
             else:
-                JvB = jacobian_point(,sim.dorna.kinematic, ct['linkB'].joint_index, p, q_deg)['linear']      # (3,n)
+                JvB = jacobian_point(sim.dorna.kinematic, link_name_to_num(ct['linkB'].name), p, q_deg)['linear']      # (3,n)
 
             Jn = n @ (JvA - (JvB if isinstance(JvB, np.ndarray) else 0))
+
             rows.append(Jn)  # (1,n)
 
             # desired displacement along n:
@@ -230,14 +257,21 @@ def correct_pose_kinematic(
         # Damped least squares step: dq = J^T (J J^T + lam^2 I)^-1 d
         JJt = J @ J.T
         dq = J.T @ np.linalg.solve(JJt + (lam**2) * np.eye(JJt.shape[0]), d)
+
         dq = dq.ravel()
 
         # Clamp step size for stability
         norm = np.linalg.norm(dq)
+        print(norm)
         if norm > max_step_norm:
+            print("large norm")
             dq = dq * (max_step_norm / max(norm, 1e-12))
 
         # Optional line search to ensure improvement (reduce total “penetration” proxy)
+
+        if q.size > dq.size:
+            dq = np.pad(dq, (0, q.size - dq.size), mode='constant')
+
         if line_search:
             def score():
                 # Sum of positive depths; if none available, count number of contacts
@@ -249,6 +283,10 @@ def correct_pose_kinematic(
             cur_score = score()
             alpha = 1.0
             accepted = False
+
+
+
+
             for _ in range(6):
                 q_try = q + alpha * dq
                 set_pose(q_try)
