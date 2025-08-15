@@ -298,7 +298,7 @@ class Pose:
 
         anchor:    if given, use this anchor's pose (local to this object)
         pose:      if given and anchor=None, interpret as local pose in this object
-        frame:  Pose object to express pose in (None = world, self = local)
+        in_frame:  Pose object to express pose in (None = world, self = local)
         """
         # Step 1: starting pose in this object's frame
         if anchor is not None:
@@ -310,27 +310,70 @@ class Pose:
         else:
             local_pose = list(self.local_pose)
 
-        # Step 2: get this object's transform to world
-        if self.parent is None:
-            T_self_world = np.array(xyzabc_to_T(self.local_pose))
-        else:
-            T_self_world = np.array(xyzabc_to_T(self.parent.pose())) @ np.array(xyzabc_to_T(self.local_pose))
+        # helper to build chain from root to this node
+        def chain_to_root(node):
+            chain = []
+            while node is not None:
+                chain.append(node)
+                node = node.parent
+            return chain[::-1]  # root → self order
 
-        # If anchor or custom pose was given, apply it in local coords
-        if anchor is not None or pose is not None:
-            T_self_world = T_self_world @ np.array(xyzabc_to_T(local_pose))
+        # helper to compute transform from root to node
+        def T_root_to(node):
+            T = np.eye(4)
+            if node.parent is None:
+                return np.array(xyzabc_to_T(node.local_pose))
+            chain = chain_to_root(node)
+            for idx, n in enumerate(chain):
+                if idx == 0:
+                    T = np.array(xyzabc_to_T(n.local_pose))
+                else:
+                    T = T @ np.array(xyzabc_to_T(n.local_pose))
+            return T
 
-        # Step 3: convert to requested frame
-        if in_frame is None:  # world frame
-            return T_to_xyzabc(T_self_world)
-        elif in_frame is self:  # local frame
+        # if asking in_frame == self
+        if in_frame is self:
             return local_pose
-        else:
-            # get in_frame transform in world coords
-            T_in_world = np.array(xyzabc_to_T(in_frame.pose()))
-            T_world_in = np.linalg.inv(T_in_world)
-            T_in_frame = T_world_in @ T_self_world
-            return T_to_xyzabc(T_in_frame)
+
+        # if no in_frame, default is world
+        if in_frame is None:
+            # standard: root/world-relative
+            T_self_world = T_root_to(self)
+            if anchor is not None or pose is not None:
+                T_self_world = T_self_world @ np.array(xyzabc_to_T(local_pose))
+            return T_to_xyzabc(T_self_world)
+
+        # compute direct relative transform between two nodes
+        chain_self = chain_to_root(self)
+        chain_frame = chain_to_root(in_frame)
+
+        # find common ancestor
+        common_ancestor = None
+        for n1, n2 in zip(chain_self, chain_frame):
+            if n1 is n2:
+                common_ancestor = n1
+            else:
+                break
+        if common_ancestor is None:
+            raise ValueError("No common ancestor found in pose graph")
+
+        # transform from common ancestor to self
+        idx_ca_self = chain_self.index(common_ancestor)
+        T_ca_self = np.eye(4)
+        for n in chain_self[idx_ca_self+1:]:
+            T_ca_self = T_ca_self @ np.array(xyzabc_to_T(n.local_pose))
+        if anchor is not None or pose is not None:
+            T_ca_self = T_ca_self @ np.array(xyzabc_to_T(local_pose))
+
+        # transform from common ancestor to in_frame
+        idx_ca_frame = chain_frame.index(common_ancestor)
+        T_ca_frame = np.eye(4)
+        for n in chain_frame[idx_ca_frame+1:]:
+            T_ca_frame = T_ca_frame @ np.array(xyzabc_to_T(n.local_pose))
+
+        # relative transform: in_frame → self
+        T_frame_self = np.linalg.inv(T_ca_frame) @ T_ca_self
+        return T_to_xyzabc(T_frame_self)
         
 
     def find(self, name):
