@@ -897,6 +897,9 @@ class Dorna(WS):
             # add auxiliary axes
             joint = np.append(joint, pose[6:])
 
+        # copy
+        joint = np.array(joint)
+        
         # ej
         for i in range(min(len(ej), len(joint))):
             joint[i] -= ej[i]

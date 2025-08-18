@@ -74,7 +74,7 @@ def solve_cs_equation( aa,  bb,  cc,  i):
 
 
 def ik(a2,a3,d1,d4,d5,d6,d7,mat):
-
+	res = []
 	f11 = mat[0,0]
 	f12 = mat[0,1]
 	f13 = mat[0,2]
@@ -95,9 +95,12 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 	d5 = d5	/100.0 
 	d6 = d6	/100.0 
 	d7 = d7	/100.0 
-
-	mat  = sigma_matrix(a2,a3,d1,d4,d5,d6,d7,f13,f23,f33,f14,f24,f34)
-
+	
+	try:
+		mat  = sigma_matrix(a2,a3,d1,d4,d5,d6,d7,f13,f23,f33,f14,f24,f34)
+	except:
+		return res
+	
 	A = np.zeros((12, 12))
 	B = np.zeros((12, 12))
 	C = np.zeros((12, 12))
@@ -108,9 +111,10 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 			B[i][j] = mat[i][j][1]
 			C[i][j] = mat[i][j][0]
 	
-
-	A_inv = np.linalg.inv(A)
-
+	try:
+		A_inv = np.linalg.inv(A)
+	except:
+		return res
 	B = np.matmul(A_inv, B)
 	C = np.matmul(A_inv, C)
 
@@ -135,7 +139,6 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 
 	eigenvalues, eigenvectors = np.linalg.eig(M)
 
-	res = []
 
 	for i, eigenvalue in enumerate(eigenvalues):
 		if abs(eigenvalue.imag) > 0.9:

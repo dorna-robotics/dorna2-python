@@ -241,6 +241,10 @@ def frame_to_robot(xyzabc, aux=[0, 0], aux_dir=[[1, 0, 0], [0, 0, 0]], base_in_w
     xyzabc_robot = xyzabc_base - aux_offset
     return xyzabc_robot.tolist()
 
+import numpy as np
+from .pose import xyzabc_to_T, T_to_xyzabc, abc_to_rmat
+
+
 class Pose:
     def __init__(self, name, pose=None, parent=None, anchors=None):
         """
@@ -250,7 +254,7 @@ class Pose:
         anchors: dict{name:[x,y,z,a,b,c]} OR list[(name, [x,y,z,a,b,c]), ...]
         """
         self.name = name
-        self.local_pose = list(pose or [0,0,0,0,0,0])
+        self.local_pose = list(pose or [0, 0, 0, 0, 0, 0])
         self.parent = parent
         self.children = []
         self.anchors = {}
@@ -280,101 +284,62 @@ class Pose:
         else:
             raise TypeError("anchors must be dict or list of (name, xyzabc)")
 
-
     # ---------- basic pose ops ----------
     def get_local(self, anchor):
         if anchor not in self.anchors:
             raise KeyError(f"anchor '{anchor}' not found on {self.name}")
         return list(self.anchors[anchor])
 
-
     def set_pose(self, pose):
         self.local_pose = list(pose)
 
-
-    def pose(self, anchor=None, pose=None, in_frame=None):
+    def pose(self, anchor=None, in_frame=None, pose=None):
         """
         Get this object's pose expressed in another frame.
 
         anchor:    if given, use this anchor's pose (local to this object)
-        pose:      if given and anchor=None, interpret as local pose in this object
         in_frame:  Pose object to express pose in (None = world, self = local)
+        pose:      extra local transform applied after anchor
         """
-        # Step 1: starting pose in this object's frame
-        if anchor is not None:
-            if anchor not in self.anchors:
-                raise KeyError(f"anchor '{anchor}' not found on {self.name}")
-            local_pose = list(self.anchors[anchor])
-        elif pose is not None:
-            local_pose = list(pose)
-        else:
-            local_pose = list(self.local_pose)
 
-        # helper to build chain from root to this node
-        def chain_to_root(node):
-            chain = []
-            while node is not None:
-                chain.append(node)
-                node = node.parent
-            return chain[::-1]  # root → self order
-
-        # helper to compute transform from root to node
-        def T_root_to(node):
-            T = np.eye(4)
-            if node.parent is None:
-                return np.array(xyzabc_to_T(node.local_pose))
-            chain = chain_to_root(node)
-            for idx, n in enumerate(chain):
-                if idx == 0:
-                    T = np.array(xyzabc_to_T(n.local_pose))
-                else:
-                    T = T @ np.array(xyzabc_to_T(n.local_pose))
+        # build transform to world
+        def to_world(node, anc=None):
+            T = np.array(xyzabc_to_T(node.local_pose))
+            if anc is not None:
+                T = T @ np.array(xyzabc_to_T(node.get_local(anc)))
+            cur = node.parent
+            while cur is not None:
+                T = np.array(xyzabc_to_T(cur.local_pose)) @ T
+                cur = cur.parent
             return T
 
-        # if asking in_frame == self
+        # -----------------------
+        # in_frame == self
+        # -----------------------
         if in_frame is self:
-            return local_pose
+            if anchor is not None:
+                T_local = np.array(xyzabc_to_T(self.get_local(anchor)))
+            else:
+                T_local = np.eye(4)
+            if pose is not None:
+                T_local = T_local @ np.array(xyzabc_to_T(pose))
+            return T_to_xyzabc(T_local)
 
-        # if no in_frame, default is world
+        # -----------------------
+        # in_frame == world (None)
+        # -----------------------
+        T_self_world = to_world(self, anchor)
+        if pose is not None:
+            T_self_world = T_self_world @ np.array(xyzabc_to_T(pose))
         if in_frame is None:
-            # standard: root/world-relative
-            T_self_world = T_root_to(self)
-            if anchor is not None or pose is not None:
-                T_self_world = T_self_world @ np.array(xyzabc_to_T(local_pose))
             return T_to_xyzabc(T_self_world)
 
-        # compute direct relative transform between two nodes
-        chain_self = chain_to_root(self)
-        chain_frame = chain_to_root(in_frame)
-
-        # find common ancestor
-        common_ancestor = None
-        for n1, n2 in zip(chain_self, chain_frame):
-            if n1 is n2:
-                common_ancestor = n1
-            else:
-                break
-        if common_ancestor is None:
-            raise ValueError("No common ancestor found in pose graph")
-
-        # transform from common ancestor to self
-        idx_ca_self = chain_self.index(common_ancestor)
-        T_ca_self = np.eye(4)
-        for n in chain_self[idx_ca_self+1:]:
-            T_ca_self = T_ca_self @ np.array(xyzabc_to_T(n.local_pose))
-        if anchor is not None or pose is not None:
-            T_ca_self = T_ca_self @ np.array(xyzabc_to_T(local_pose))
-
-        # transform from common ancestor to in_frame
-        idx_ca_frame = chain_frame.index(common_ancestor)
-        T_ca_frame = np.eye(4)
-        for n in chain_frame[idx_ca_frame+1:]:
-            T_ca_frame = T_ca_frame @ np.array(xyzabc_to_T(n.local_pose))
-
-        # relative transform: in_frame → self
-        T_frame_self = np.linalg.inv(T_ca_frame) @ T_ca_self
+        # -----------------------
+        # relative to another frame
+        # -----------------------
+        T_frame_world = to_world(in_frame)
+        T_frame_self = np.linalg.inv(T_frame_world) @ T_self_world
         return T_to_xyzabc(T_frame_self)
-        
 
     def find(self, name):
         if self.name == name:
@@ -402,107 +367,53 @@ class Pose:
         parent_anchor,
         child_anchor,
         *,
-        align=('z','z'),
-        flip=False,
-        offset=[0,0,0,0,0,0],    # [dx,dy,dz, ax,ay,az] (mm, deg)
-        offset_frame='parent',   # 'parent' or 'child'
+        offset=[0, 0, 0, 0, 0, 0],
+        offset_frame='parent',
         preview=False
     ):
         """
-        Place THIS pose (child) onto 'parent' by mating anchors.
+        Attach this Pose to a parent by mating child_anchor to parent_anchor.
 
-        Default behavior (no offset, align=('z','z'), flip=False):
-        - Child's 'child_anchor' frame is made coincident with the parent's 'parent_anchor' frame
-          (same position & orientation).
+        Invariant:
+            parent.pose(anchor=parent_anchor) == child.pose(anchor=child_anchor)
 
         Options:
-        - align=(child_axis, parent_axis): 'x'|'y'|'z' to align a child axis to a parent axis.
-        - flip=True: align to the negative of the parent axis.
-        - offset=[dx,dy,dz, ax,ay,az]: applied AFTER mating, in 'offset_frame' coords.
-        - offset_frame: 'parent' (applied in parent anchor frame) or 'child' (applied in child anchor frame).
-        - preview=True: compute and return the would-be local pose without mutating the graph.
+            offset:       extra [x,y,z,a,b,c] transform
+            offset_frame: 'parent' (applied in parent anchor frame)
+                        'child'  (applied in child anchor frame)
+            preview:      if True, return local pose without mutating
         """
-        # --- lookups & build transforms ---
+        # --- parent and child anchors ---
         T_parent_world = np.array(xyzabc_to_T(parent.pose()))
-        T_pa = np.array(xyzabc_to_T(parent.get_local(parent_anchor)))  # parent anchor in parent frame
-        T_ca = np.array(xyzabc_to_T(self.get_local(child_anchor)))     # child anchor in child frame
+        T_pa_local     = np.array(xyzabc_to_T(parent.get_local(parent_anchor)))
+        T_pa_world     = T_parent_world @ T_pa_local
 
-        # --- alignment tweak: R_extra (world) ---
-        R_extra = np.eye(4)
-        if align is not None:
-            ax_map = {'x': np.array([1.,0.,0.]),
-                      'y': np.array([0.,1.,0.]),
-                      'z': np.array([0.,0.,1.])}
-            c_ax = ax_map[align[0].lower()]
-            p_ax = ax_map[align[1].lower()]
+        T_ca_local     = np.array(xyzabc_to_T(self.get_local(child_anchor)))
 
-            R_parent_anchor = (T_parent_world @ T_pa)[:3,:3]
-            R_child_anchor  = T_ca[:3,:3]
+        # --- base child world pose (anchors coincident) ---
+        T_child_world = T_pa_world @ np.linalg.inv(T_ca_local)
 
-            c_axis_w = R_child_anchor @ c_ax
-            p_axis_w = R_parent_anchor @ p_ax
-            if flip:
-                p_axis_w = -p_axis_w
-
-            # normalize
-            c_axis_w = c_axis_w / np.linalg.norm(c_axis_w)
-            p_axis_w = p_axis_w / np.linalg.norm(p_axis_w)
-
-            dot = float(np.clip(np.dot(c_axis_w, p_axis_w), -1.0, 1.0))
-            if dot >= 1.0 - 1e-12:
-                R_world = np.eye(3)
-            elif dot <= -1.0 + 1e-12:
-                # rotate 180° about any axis ⟂ c_axis_w
-                tmp = np.array([1.0, 0.0, 0.0])
-                if abs(np.dot(tmp, c_axis_w)) > 0.9:
-                    tmp = np.array([0.0, 1.0, 0.0])
-                k = np.cross(c_axis_w, tmp)
-                k = k / np.linalg.norm(k)
-                R_world = np.array(abc_to_rmat((k * 180.0).tolist()))
-            else:
-                k = np.cross(c_axis_w, p_axis_w)
-                k_norm = np.linalg.norm(k)
-                if k_norm < 1e-12:
-                    R_world = np.eye(3)
-                else:
-                    k /= k_norm
-                    ang = np.degrees(np.arccos(dot))
-                    R_world = np.array(abc_to_rmat((k * ang).tolist()))
-
-            R_extra[:3,:3] = R_world
-
-        # --- base child world pose (anchors coincident, aligned) ---
-        # T_child_world = T_parent_world * T_pa * R_extra * inv(T_ca)
-        T_child_world = T_parent_world @ T_pa @ R_extra @ np.linalg.inv(T_ca)
-
-        # --- apply offset AFTER mating ---
+        # --- apply offset ---
         if offset is not None:
-            dx,dy,dz, ax,ay,az = [float(v) for v in offset]
-            T_off = np.array(xyzabc_to_T([dx,dy,dz, ax,ay,az]))
-
+            T_off = np.array(xyzabc_to_T(offset))
             if offset_frame == 'parent':
-                # apply in parent-anchor frame: insert after T_parent_world@T_pa@R_extra
-                T_child_world = T_parent_world @ T_pa @ R_extra @ T_off @ np.linalg.inv(T_ca)
+                T_child_world = T_pa_world @ T_off @ np.linalg.inv(T_ca_local)
             elif offset_frame == 'child':
-                # apply in child frame after mating
                 T_child_world = T_child_world @ T_off
             else:
                 raise ValueError("offset_frame must be 'parent' or 'child'")
 
-        # --- convert to child's LOCAL pose w.r.t parent ---
-        # T_child_world = T_parent_world @ T_child_local  => T_child_local = inv(T_parent_world) @ T_child_world
+        # --- child local pose wrt parent ---
         T_child_local = np.linalg.inv(T_parent_world) @ T_child_world
         child_local_xyzabc = T_to_xyzabc(T_child_local)
 
         if preview:
             return child_local_xyzabc
 
-        # mutate graph
+        # --- mutate graph ---
         if self.parent is not None and self in self.parent.children:
             self.parent.children.remove(self)
         self.parent = parent
         parent.children.append(self)
         self.local_pose = child_local_xyzabc
         return child_local_xyzabc
-
-
