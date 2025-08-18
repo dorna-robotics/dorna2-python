@@ -4,14 +4,12 @@ import sys
 import fcl
 
 from dorna2 import Dorna
-from dorna2.pathGen import pathGen
+from dorna2.pathGen import pathGen, Path
 from dorna2.simulation import Simulation
 from dorna2.urdf import UrdfRobot
 import dorna2.node as node
 import dorna2.pose as dp
-#import pybullet as p
-
-
+import pybullet as p
 
 # ---- helpers from your kinematics object (names match your methods) ----
 # Ti_r_world(i, theta=...)  -> 4x4 world transform of joint frame i
@@ -19,10 +17,12 @@ import dorna2.pose as dp
 
 def _origin_and_axis_world(kin, i, joint):
     """Return origin o_i (3,) and z-axis z_i (3,) of joint i, both in world frame."""
-    Ti = kin.Ti_r_world(joint=joint, i=i)          # 4x4
+    Ti = kin.Ti_r_world(joint=joint, i=i-1)          # 4x4
     Ri = Ti[:3, :3]
-    oi = Ti[:3, 3]
+    oi = Ti[:3, 3] / 1000.0
+
     zi = Ri @ np.array([0.0, 0.0, 1.0])            # DH: joint axis = +Z_i
+
     return oi, zi
 
 def _vec3(x):
@@ -45,6 +45,7 @@ def jacobian_point(kin, link_idx, p_world, joint):
 
     # Only joints 1..link_idx affect the pose of link_idx in a serial chain
     # (Assuming your frames are indexed like your Ti_r_world: i=1..6 are actuated)
+    #print("p",p_world)
     for k in range(1, n+1):
         if k > link_idx:
             # joints after the link do not move this point (point is on link_idx)
@@ -56,10 +57,11 @@ def jacobian_point(kin, link_idx, p_world, joint):
         p = _vec3(p_world)
 
         deg2rad = np.pi / 180.0
-
+        #print(k-1, ok,zk)
         # revolute: angular = z_k ; linear = z_k × (p - o_k)
         Jw[:, k-1] = zk * deg2rad
         Jv[:, k-1] = np.cross(zk, (p - ok)) * deg2rad
+    #print("Jv",Jv)
 
     return {'linear': Jv, 'angular': Jw}
 
@@ -84,28 +86,30 @@ def link_name_to_num(s):
     return int(c) if c.isdigit() else 0
 
 def correct_pose_kinematic(
-    joint,
-    scene=[], load=[],
-    base_in_world=[0,0,0,0,0,0],
-    frame_in_world=[0,0,0,0,0,0],
-    keep_ee_rotation=False,
-    keep_rot_weight=1000.0,
-    lam=1e-3,
-    beta=0.9,
-    target_slop=1e-3,
-    max_iters=10,
-    max_step_norm=0.1,
-    line_search=False
-):
+        joint,
+        scene=[], load=[], tool=[0,0,0,0,0,0],
+        base_in_world=[0,0,0,0,0,0],
+        frame_in_world=[0,0,0,0,0,0],
+        keep_ee_rotation=False,
+        keep_rot_weight=1000.0,
+        lam=1e-3,
+        beta=0.9,
+        target_slop=1e-3,
+        max_iters=10,
+        max_step_norm=0.1,
+        jointdot = [1,0,0,0,0,0]
+    ):
     sim = Simulation("tmp_pose")   # your class
     n = 6
 
-    q_deg = np.array(joint, dtype=float)
+    q_deg = np.array(joint[:n], dtype=float)
 
     # ----- mount scene -----
     all_visuals = []
     all_objects = []
     dynamic_objects = []
+
+    sim.dorna.kinematic.set_tcp_xyzabc(tool)
 
     for obj in scene:
         sim.root_node.collisions.append(obj.fcl_object)
@@ -138,7 +142,7 @@ def correct_pose_kinematic(
         cdata = fcl.CollisionData(
                     request=fcl.CollisionRequest(
                         enable_contact=True,
-                        num_max_contacts=64,         # or higher if you want
+                        num_max_contacts=1,         # or higher if you want
                         enable_cost=False
                     )
                 )
@@ -189,21 +193,26 @@ def correct_pose_kinematic(
                 if prnt0 != linkA:
                     n = -n
 
+            print("link: ", linkA.name, " depth: ",depth , " o1,o2: ", id(o1), id(o2))
+
             contacts.append({
-                'p': p, 'n': n / max(1e-12, np.linalg.norm(n)),
-                'depth': depth,          # may be 0; we’ll treat as interpenetrating if distance < slop
-                'linkA': linkA, 'linkB': linkB
+                                'p': p, 'n': n / max(1e-12, np.linalg.norm(n)),
+                                'depth': depth,          # may be 0; we’ll treat as interpenetrating if distance < slop
+                                'linkA': linkA, 'linkB': linkB
             })
+            break
         return contacts
 
 
     # ----- solve loop -----
     q = np.array(joint, dtype=float).copy()
     set_pose(q)
-
+    print(q)
     debug = {'iters': []}
+    debug_path = []
 
     for it in range(max_iters):
+        print("\n iteration num: ",it)
         contacts = get_contacts()
 
         # Build stacked normal rows
@@ -212,6 +221,7 @@ def correct_pose_kinematic(
 
         # If FCL doesn’t give depth, approximate “penetration” as target_slop along normal
         # so we still separate by ~slop when in contact.
+        
         for ct in contacts:
             n = ct['n'].reshape(1,3)
             p = ct['p']
@@ -225,8 +235,9 @@ def correct_pose_kinematic(
             else:
                 JvB = jacobian_point(sim.dorna.kinematic, link_name_to_num(ct['linkB'].name), p, q_deg)['linear']      # (3,n)
 
-            Jn = n @ (JvA - (JvB if isinstance(JvB, np.ndarray) else 0))
 
+            Jn = n @ (JvA - (JvB if isinstance(JvB, np.ndarray) else 0))
+            #print(n,Jn)
             rows.append(Jn)  # (1,n)
 
             # desired displacement along n:
@@ -260,57 +271,95 @@ def correct_pose_kinematic(
 
         dq = dq.ravel()
 
-        # Clamp step size for stability
-        norm = np.linalg.norm(dq)
-        print(norm)
-        if norm > max_step_norm:
-            print("large norm")
-            dq = dq * (max_step_norm / max(norm, 1e-12))
-
-        # Optional line search to ensure improvement (reduce total “penetration” proxy)
 
         if q.size > dq.size:
             dq = np.pad(dq, (0, q.size - dq.size), mode='constant')
 
-        if line_search:
-            def score():
-                # Sum of positive depths; if none available, count number of contacts
-                s = 0.0
-                for ct in get_contacts():
-                    s += max(target_slop, ct['depth'] if ct['depth'] > 0 else target_slop)
-                return s
+        # dq should not be in the direction of the motion
+        jointdot = np.array(jointdot)
+        if dq.size > jointdot.size:
+            jointdot = np.pad(jointdot, (0, dq.size - jointdot.size), mode='constant')
 
-            cur_score = score()
-            alpha = 1.0
-            accepted = False
+        dq = dq - jointdot * np.dot(jointdot, dq) / np.linalg.norm(jointdot)**2
 
 
+        # Clamp step size for stability
+        norm = np.linalg.norm(dq)
+        if norm > max_step_norm:
+            dq = dq * (max_step_norm / max(norm, 1e-12))
+
+        # Optional line search to ensure improvement (reduce total “penetration” proxy)
 
 
-            for _ in range(6):
-                q_try = q + alpha * dq
-                set_pose(q_try)
-                new_score = score()
-                if new_score <= 0.95 * cur_score:
-                    q = q_try
-                    accepted = True
-                    break
-                alpha *= 0.5
-            if not accepted:
-                # take a tiny step anyway to avoid stalls
-                q = q + 0.2 * dq
-                set_pose(q)
-        else:
-            q = q + dq
-            set_pose(q)
+        q = q - dq*30.0
+        print(q)
+        set_pose(q)
 
         q_deg = q.copy()
 
 
         debug['iters'].append({'num_contacts': len(contacts), 'step_norm': float(np.linalg.norm(dq))})
+        debug_path.append(q)
 
-        # Early out if everything looks clear
-        if len(get_contacts()) == 0:
-            break
+    return q, {'sim': sim, 'visuals': all_visuals, 'iters': debug['iters'], 'debug_path':Path(debug_path)}
 
-    return q, {'sim': sim, 'visuals': all_visuals, 'iters': debug['iters']}
+"""
+def path_avoid_collision(
+        motion, start_joint, end_joint,
+        scene=[], load=[], tool=[0,0,0,0,0,0],
+        base_in_world=[0,0,0,0,0,0],
+        frame_in_world=[0,0,0,0,0,0], 
+        aux_dir=[[0, 0, 0], [0, 0, 0]],
+        keep_ee_rotation=False,
+        keep_rot_weight=1000.0,
+        lam=1e-3,
+        beta=0.9,
+        target_slop=1e-3,
+        max_iters=10,
+        max_step_norm=0.1,
+        jointdot = [1,0,0,0,0,0]
+    ):
+    sim = Simulation("tmp")
+
+    all_visuals = [] #for visualization
+    all_objects = [] #to create bvh
+    dynamic_objects = [] #to update bvh
+
+    #placing scene objects
+    for obj in scene:
+        sim.root_node.collisions.append(obj.fcl_object)
+        all_objects.append(obj.fcl_object)
+        all_visuals.append(obj)
+
+    #placing tool objects
+    for obj in load:
+        sim.robot.link_nodes["j6_link"].collisions.append(obj)
+        sim.robot.all_objs.append(obj)
+        sim.robot.prnt_map[id(obj.fcl_shape)] = sim.robot.link_nodes["j6_link"]
+
+    #registering robot ojbects
+    for obj in sim.robot.all_objs:
+        dynamic_objects.append(obj)
+        all_objects.append(obj.fcl_object)
+        all_visuals.append(obj)
+        
+    manager = fcl.DynamicAABBTreeCollisionManager()
+    manager.registerObjects(all_objects)  # list of all your CollisionObjects
+    manager.setup()  # Builds the BVH tree
+
+    path = pathGen(motion, start_joint, end_joint, steps, sim.dorna.kinematic, tool)
+
+    sample_points = steps
+    start_time = time.perf_counter()
+
+    col_res = []
+
+    base_in_world_mat = sim.dorna.kinematic.xyzabc_to_mat(base_in_world)
+    frame_in_world_inv = sim.dorna.kinematic.inv_dh(sim.dorna.kinematic.xyzabc_to_mat(frame_in_world))
+
+    aux_dir_1 = base_in_world_mat @ np.array([aux_dir[0][0], aux_dir[0][1], aux_dir[0][2],0])
+    aux_dir_2 = base_in_world_mat @ np.array([aux_dir[1][0], aux_dir[1][1], aux_dir[1][2],0])
+
+    for i in range(sample_points):
+
+"""

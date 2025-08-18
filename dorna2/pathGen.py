@@ -5,6 +5,29 @@ class Path:
 	def __init__(self, points):
 		self.num_steps = len(points)
 		self.points = points
+		
+		self.vel = self.velocities()
+
+	def velocities(self):
+		pts = np.asarray(self.points, dtype=float)
+		n = len(pts)
+		if n < 2:
+		    raise ValueError("Need at least two points")
+
+		v = [None] * n
+
+		# first point: v[0] = p[1] - p[0]
+		v[0] = pts[1] - pts[0]
+
+		# last point: v[-1] = p[-1] - p[-2]
+		v[-1] = pts[-1] - pts[-2]
+
+		# interior points: average of (p[i+1]-p[i]) and (p[i]-p[i-1])
+		for i in range(1, n-1):
+		    v[i] = 0.5 * (pts[i+1] - pts[i-1])
+
+		return [np.asarray(vi) for vi in v]
+
 
 	def get_point(self, t):
 		n = t * (self.num_steps - 1)
@@ -15,7 +38,7 @@ class Path:
 		n1 = int(np.floor(n))
 		n2 = n1 + 1
 
-		return self.mix_points(self.points[n1] , self.points[n2], n - n1)
+		return self.mix_points(self.points[n1] , self.points[n2], n - n1) #, self.mix_points(self.vel[n1] , self.vel[n2], n - n1)
 
 	def mix_points(self, p1, p2, t):
 		p1 = np.array(p1)

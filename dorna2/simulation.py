@@ -8,12 +8,14 @@ from dorna2.pathGen import pathGen
 from dorna2.urdf import UrdfRobot
 import dorna2.node as node
 import dorna2.pose as dp
-#import pybullet as p
+import pybullet as p
+
+
 
 def pybullet_test():
-    if 'p' in globals() and 'pybullet' in sys.modules and globals()['p'] is sys.modules['pybullet']:
-        return True
-    return False
+	if 'p' in globals() and 'pybullet' in sys.modules and globals()['p'] is sys.modules['pybullet']:
+		return True
+	return False
 
 class Simulation:
 
@@ -130,7 +132,7 @@ class Simulation:
 		for i in range(sample_points):
 
 			t = float(i) / float(sample_points - 1 ) 
-		    
+			
 			j = path.path.get_point(t%1.0)
 
 			j6 = 0 #check for rail
@@ -159,7 +161,7 @@ class Simulation:
 
 		t = 0
 		while True:
-			j = path.path.get_point(t%1.0)
+			j = path.get_point(t%1.0)
 
 			self.robot.set_joint_values([j[6],j[0],j[1],j[2],j[3],j[4],j[5]]) 
 
@@ -261,7 +263,7 @@ def check_path(motion, start_joint, end_joint, tool=[0,0,0,0,0,0], load=[], scen
 		tmp_res = None
 
 		for contact in cdata.result.contacts:
-		    # Extract collision geometries that are in contact
+			# Extract collision geometries that are in contact
 			coll_geom_0 = contact.o1
 			coll_geom_1 = contact.o2
 
@@ -381,7 +383,7 @@ def check_collision(joint, tool=[0,0,0,0,0,0], load=[], scene=[],
 	tmp_res = None
 
 	for contact in cdata.result.contacts:
-	    # Extract collision geometries that are in contact
+		# Extract collision geometries that are in contact
 		coll_geom_0 = contact.o1
 		coll_geom_1 = contact.o2
 
@@ -434,3 +436,239 @@ def create_mesh(mesh_path, pose, scale=[1,1,1]):
 	return node.create_mesh(mesh_path, pose, scale)
 
 
+def dedupe_events(events, tol=1e-4):
+	"""
+	Deduplicate a list of event dicts (with keys 't' and 'd').
+	- Sorts by t and distance.
+	- Merges events whose t differ by <= tol.
+	- Keeps the event with the smallest distance in each group.
+
+	Args:
+		events (list of dict): each dict must have 't' (float) and 'd' (float).
+		tol (float): tolerance on t for merging (default 1e-4).
+
+	Returns:
+		list of dict: deduplicated events.
+	"""
+	if not events:
+		return []
+
+	# sort first by t, then by distance
+	events = sorted(events, key=lambda e: (e['t'], e['d']))
+
+	deduped = []
+	i = 0
+	while i < len(events):
+		best = events[i]
+		j = i + 1
+		while j < len(events) and abs(events[j]['t'] - events[i]['t']) <= tol:
+			if events[j]['d'] < best['d']:
+				best = events[j]
+			j += 1
+		deduped.append(best)
+		i = j
+
+	return deduped
+
+def check_path_bisect_from_path(
+	path,								   # has .get_point(t) in [0,1]
+	tool=[0,0,0,0,0,0],
+	load=[],
+	scene=[],
+	dist_thresh=0.01,					   # meters; threshold for refinement
+	max_depth=3,							 # max recursive bisection depth
+	base_in_world=[0,0,0,0,0,0],
+	frame_in_world=[0,0,0,0,0,0],
+	aux_dir=[[0,0,0],[0,0,0]],			   # two optional aux axes in world (same as your check_path)
+	keep_near_count=3,					   # keep a few best minima per segment for debugging
+):
+	"""
+	Returns:
+	  {
+		'events': [ {'t':t, 'q':q, 'dmin':d, 'pair':(nameA,nameB), 'pA':pA, 'pB':pB, 'n':n} ... ],
+		'mins':   [ same as above, local minima sampled during refinement ],
+		'debug':  {'sim': sim, 'visuals': all_visuals},
+		'prf_time': ms
+	  }
+	"""
+	start_time = time.perf_counter()
+
+	# ---- 0) Build a one-off Simulation & BVH identical to your style ----
+	sim = Simulation("tmp")
+
+	all_visuals = [] #for visualization
+	all_objects = [] #to create bvh
+	all_obj = []
+	dynamic_objects = [] #to update bvh
+
+	#placing scene objects
+	for obj in scene:
+		sim.root_node.collisions.append(obj.fcl_object)
+		all_objects.append(obj.fcl_object)
+		all_obj.append(obj)
+		all_visuals.append(obj)
+
+	#placing tool objects
+	for obj in load:
+		sim.robot.link_nodes["j6_link"].collisions.append(obj)
+		sim.robot.all_objs.append(obj)
+		sim.robot.prnt_map[id(obj.fcl_shape)] = sim.robot.link_nodes["j6_link"]
+
+	#registering robot ojbects
+	for obj in sim.robot.all_objs:
+		dynamic_objects.append(obj)
+		all_objects.append(obj.fcl_object)
+		all_obj.append(obj)
+		all_visuals.append(obj)
+
+	manager = fcl.DynamicAABBTreeCollisionManager()
+	manager.registerObjects(all_objects)
+	manager.setup()
+
+	# transforms
+	kin = sim.dorna.kinematic
+	base_in_world_mat = kin.xyzabc_to_mat(base_in_world)
+	frame_in_world_inv = kin.inv_dh(kin.xyzabc_to_mat(frame_in_world))
+
+	aux_dir_1 = base_in_world_mat @ np.array([aux_dir[0][0], aux_dir[0][1], aux_dir[0][2], 0.0])
+	aux_dir_2 = base_in_world_mat @ np.array([aux_dir[1][0], aux_dir[1][1], aux_dir[1][2], 0.0])
+
+	# ---- 1) Pose setter for a given t in [0,1] ----
+	def _set_pose(t):
+		j = path.get_point(min(max(t, 0.0), 1.0))  # joint vector (degrees), possibly with aux components
+		base_mat = np.array(base_in_world_mat)
+		aux_offset = np.array([0,0,0,0.0])
+
+		if len(j) > 6:
+			aux_offset = aux_offset + j[6] * aux_dir_1
+		if len(j) > 7:
+			aux_offset = aux_offset + j[7] * aux_dir_2
+
+		base_mat[0, 3] += aux_offset[0]
+		base_mat[1, 3] += aux_offset[1]
+		base_mat[2, 3] += aux_offset[2]
+
+		# set robot pose (expects degrees for joints 1..6)
+		sim.robot.set_joint_values(
+			[0, j[0], j[1], j[2], j[3], j[4], j[5]],
+			frame_in_world_inv @ base_mat
+		)
+		for do in dynamic_objects:
+			manager.update(do.fcl_object)
+		return np.array(j, dtype=float)
+
+	# ---- 2) Distance oracle for current pose (worst pair & nearest points) ----
+	dreq = fcl.DistanceRequest(enable_nearest_points=True)
+
+	def _pair_ok(o1, o2):
+
+		prnt0 = sim.robot.prnt_map.get(id(o1.fcl_shape), None)
+		prnt1 = sim.robot.prnt_map.get(id(o2.fcl_shape), None)
+
+		if prnt0 is None and prnt1 is None:
+			return False
+		if (prnt0 is not None) and (prnt1 is not None):
+			if prnt0.parent == prnt1 or prnt1.parent == prnt0 or prnt0 == prnt1:
+				return False
+		return True
+
+	# iterate explicit pairs (reliable across py-fcl builds)
+	all_pairs = [(o1, o2) for (idx, o1) in enumerate(all_obj) for o2 in all_obj[idx+1:]]
+
+	def _worst_distance_now():
+		best = {'d': np.inf, 'pair': None, 'pA': None, 'pB': None, 'n': None}
+		for (o1, o2) in all_pairs:
+			if not _pair_ok(o1, o2):
+				continue
+			dres = fcl.DistanceResult()
+			fcl.distance(o1.fcl_object, o2.fcl_object, dreq, dres)
+			d = float(dres.min_distance)
+			if d < best['d']:
+				pA = np.asarray(dres.nearest_points[0], float)[:3]
+				pB = np.asarray(dres.nearest_points[1], float)[:3]
+				n = pB - pA
+				ln = np.linalg.norm(n)
+				n = n/ln if ln > 1e-12 else np.zeros(3)
+				A = sim.robot.prnt_map.get(id(o1.fcl_shape), None)
+				B = sim.robot.prnt_map.get(id(o2.fcl_shape), None)
+				best.update({
+					'd': d,
+					'pair': (A.name if A else 'scene', B.name if B else 'scene'),
+					'pA': pA, 'pB': pB, 'n': n
+				})
+		return best
+
+	# convenience
+	def eval_at_t(t):
+		q = _set_pose(t)
+		info = _worst_distance_now()  # {'d', 'pair', 'pA','pB','n'}
+		return q, info
+
+	# ---- 3) Initial uniform sampling: at least 3 bisections → 9 points ----
+	t_samples = [i/8.0 for i in range(9)]  # 0,1/8,...,1
+	samples = []
+	for t in t_samples:
+		q, info = eval_at_t(t)
+		samples.append({'t': t, 'q': q, **info})
+
+	# ---- 4) Recursive bisection over “hot” segments ----
+	events = []   # where d <= dist_thresh
+	mins = []	 # local minima seen
+
+	def _bisect(t0, s0, t1, s1, depth):
+		# s* are dicts like {'t','q','d','pair','pA','pB','n'}
+		if depth >= max_depth:
+			# At leaf: record the better endpoint if critical
+			best = s0 if s0['d'] <= s1['d'] else s1
+			if best['d'] <= dist_thresh:
+				events.append(best)
+			return
+
+		tm = 0.5*(t0 + t1)
+		q_m, info_m = eval_at_t(tm)
+		sm = {'t': tm, 'q': q_m, **info_m}
+
+		# track local min on this triple
+		best = min([s0, sm, s1], key=lambda s: s['d'])
+		mins.append(best)
+
+		# refine if near/under threshold or a clear dip at mid
+		refine = (s0['d'] <= dist_thresh or s1['d'] <= dist_thresh or sm['d'] <= dist_thresh
+				  or sm['d'] < min(s0['d'], s1['d']) - 1e-6)
+
+		if not refine:
+			return
+		_bisect(t0, s0, tm, sm, depth+1)
+		_bisect(tm, sm, t1, s1, depth+1)
+
+	# walk adjacent pairs of initial samples
+	for a, b in zip(samples[:-1], samples[1:]):
+		_bisect(a['t'], a, b['t'], b, depth=0)
+
+	# ---- 5) Deduplicate & thin events (optional tidy-up) ----
+	# sort by t and distance
+	#events.sort(key=lambda e: (round(e['t'], 4), e['d']))
+
+	deduped = []
+	i = 0
+	while i < len(events):
+		best = events[i]
+		j = i + 1
+		while j < len(events) and round(events[j]['t'], 4) == round(events[i]['t'], 4):
+			if events[j]['d'] < best['d']:
+				best = events[j]
+			j += 1
+		deduped.append(best)
+		i = j
+
+	events = deduped
+	# optionally keep only a few best minima per coarse segment (visualization-friendly)
+	mins.sort(key=lambda e: (e['t'], e['d']))
+	# (you can keep them all; trimming is optional)
+
+	return {
+		'events': events,
+		'mins': mins[:keep_near_count*len(t_samples)],  # light trim
+		'debug': {'sim': sim, 'visuals': all_visuals},
+		'prf_time': (time.perf_counter() - start_time) * 1000.0
+	}
