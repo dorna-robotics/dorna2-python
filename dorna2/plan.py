@@ -4,12 +4,12 @@ import sys
 import fcl
 
 from dorna2 import Dorna
-from dorna2.pathGen import pathGen, Path
-from dorna2.simulation import Simulation
-from dorna2.urdf import UrdfRobot
+from dorna2.path_gen import path_gen, path
+from dorna2.simulation import simulation
+from dorna2.urdf import urdf_robot
 import dorna2.node as node
 import dorna2.pose as dp
-import pybullet as p
+#import pybullet as p
 
 # ---- helpers from your kinematics object (names match your methods) ----
 # Ti_r_world(i, theta=...)  -> 4x4 world transform of joint frame i
@@ -86,19 +86,18 @@ def link_name_to_num(s):
     return int(c) if c.isdigit() else 0
 
 def correct_pose_kinematic(
-        joint,
-        scene=[], load=[], tool=[0,0,0,0,0,0],
-        base_in_world=[0,0,0,0,0,0],
-        frame_in_world=[0,0,0,0,0,0],
-        keep_ee_rotation=False,
-        keep_rot_weight=1000.0,
-        lam=1e-3,
-        beta=0.9,
-        target_slop=1e-3,
-        max_iters=10,
-        max_step_norm=0.1,
-        jointdot = [1,0,0,0,0,0]
-    ):
+    joint,
+    scene=[], load=[], tool=[0,0,0,0,0,0],
+    base_in_world=[0,0,0,0,0,0],
+    frame_in_world=[0,0,0,0,0,0],
+    keep_ee_rotation=False,
+    keep_rot_weight=1000.0,
+    lam=1e-3,
+    beta=0.9,
+    target_slop=1e-3,
+    max_iters=10,
+    max_step_norm=0.1,
+    jointdot = [1,0,0,0,0,0]):
     sim = Simulation("tmp_pose")   # your class
     n = 6
 
@@ -303,63 +302,3 @@ def correct_pose_kinematic(
 
     return q, {'sim': sim, 'visuals': all_visuals, 'iters': debug['iters'], 'debug_path':Path(debug_path)}
 
-"""
-def path_avoid_collision(
-        motion, start_joint, end_joint,
-        scene=[], load=[], tool=[0,0,0,0,0,0],
-        base_in_world=[0,0,0,0,0,0],
-        frame_in_world=[0,0,0,0,0,0], 
-        aux_dir=[[0, 0, 0], [0, 0, 0]],
-        keep_ee_rotation=False,
-        keep_rot_weight=1000.0,
-        lam=1e-3,
-        beta=0.9,
-        target_slop=1e-3,
-        max_iters=10,
-        max_step_norm=0.1,
-        jointdot = [1,0,0,0,0,0]
-    ):
-    sim = Simulation("tmp")
-
-    all_visuals = [] #for visualization
-    all_objects = [] #to create bvh
-    dynamic_objects = [] #to update bvh
-
-    #placing scene objects
-    for obj in scene:
-        sim.root_node.collisions.append(obj.fcl_object)
-        all_objects.append(obj.fcl_object)
-        all_visuals.append(obj)
-
-    #placing tool objects
-    for obj in load:
-        sim.robot.link_nodes["j6_link"].collisions.append(obj)
-        sim.robot.all_objs.append(obj)
-        sim.robot.prnt_map[id(obj.fcl_shape)] = sim.robot.link_nodes["j6_link"]
-
-    #registering robot ojbects
-    for obj in sim.robot.all_objs:
-        dynamic_objects.append(obj)
-        all_objects.append(obj.fcl_object)
-        all_visuals.append(obj)
-        
-    manager = fcl.DynamicAABBTreeCollisionManager()
-    manager.registerObjects(all_objects)  # list of all your CollisionObjects
-    manager.setup()  # Builds the BVH tree
-
-    path = pathGen(motion, start_joint, end_joint, steps, sim.dorna.kinematic, tool)
-
-    sample_points = steps
-    start_time = time.perf_counter()
-
-    col_res = []
-
-    base_in_world_mat = sim.dorna.kinematic.xyzabc_to_mat(base_in_world)
-    frame_in_world_inv = sim.dorna.kinematic.inv_dh(sim.dorna.kinematic.xyzabc_to_mat(frame_in_world))
-
-    aux_dir_1 = base_in_world_mat @ np.array([aux_dir[0][0], aux_dir[0][1], aux_dir[0][2],0])
-    aux_dir_2 = base_in_world_mat @ np.array([aux_dir[1][0], aux_dir[1][1], aux_dir[1][2],0])
-
-    for i in range(sample_points):
-
-"""

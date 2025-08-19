@@ -4,11 +4,11 @@ import sys
 import fcl
 
 from dorna2 import Dorna
-from dorna2.pathGen import pathGen
-from dorna2.urdf import UrdfRobot
+from dorna2.path_gen import path_gen
+from dorna2.urdf import urdf_robot
 import dorna2.node as node
 import dorna2.pose as dp
-import pybullet as p
+#import pybullet as p
 
 
 
@@ -17,7 +17,7 @@ def pybullet_test():
 		return True
 	return False
 
-class Simulation:
+class simulation:
 
 	def __init__(self, name):
 		self.root_node = node.Node("root")
@@ -27,7 +27,7 @@ class Simulation:
 
 	def init_robot(self):
 		urdf_path = 'C:/Users/jvd/Desktop/sphere-robot-collision/dextron-main/DornaTA/urdf/DornaTA_500mm_hd_rail.urdf'
-		self.robot = UrdfRobot(urdf_path, {}, self.root_node)
+		self.robot = urdf_robot(urdf_path, {}, self.root_node)
 
 
 	#checks if two nodes want to collide
@@ -184,7 +184,7 @@ class Simulation:
 
 def check_path(motion, start_joint, end_joint, tool=[0,0,0,0,0,0], load=[], scene=[], steps=50, early_exit=False,
  base_in_world=[0,0,0,0,0,0], frame_in_world=[0,0,0,0,0,0], aux_dir=[[0, 0, 0], [0, 0, 0]]):
-	sim = Simulation("tmp")
+	sim = simulation("tmp")
 
 	all_visuals = [] #for visualization
 	all_objects = [] #to create bvh
@@ -313,7 +313,7 @@ def check_path(motion, start_joint, end_joint, tool=[0,0,0,0,0,0], load=[], scen
 
 def check_collision(joint, tool=[0,0,0,0,0,0], load=[], scene=[],
  base_in_world=[0,0,0,0,0,0], frame_in_world=[0,0,0,0,0,0], aux_dir=[[0, 0, 0], [0, 0, 0]]):
-	sim = Simulation("tmp")
+	sim = simulation("tmp")
 
 	all_visuals = [] #for visualization
 	all_objects = [] #to create bvh
@@ -470,7 +470,7 @@ def dedupe_events(events, tol=1e-4):
 
 	return deduped
 
-def check_path_bisect_from_path(
+def bisect_path(
 	path,								   # has .get_point(t) in [0,1]
 	tool=[0,0,0,0,0,0],
 	load=[],
@@ -494,7 +494,7 @@ def check_path_bisect_from_path(
 	start_time = time.perf_counter()
 
 	# ---- 0) Build a one-off Simulation & BVH identical to your style ----
-	sim = Simulation("tmp")
+	sim = simulation("tmp")
 
 	all_visuals = [] #for visualization
 	all_objects = [] #to create bvh
@@ -558,7 +558,7 @@ def check_path_bisect_from_path(
 		return np.array(j, dtype=float)
 
 	# ---- 2) Distance oracle for current pose (worst pair & nearest points) ----
-	dreq = fcl.DistanceRequest(enable_nearest_points=True)
+	dreq = fcl.DistanceRequest(enable_nearest_points=True, enable_signed_distance=True)
 
 	def _pair_ok(o1, o2):
 

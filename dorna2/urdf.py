@@ -6,7 +6,7 @@ import time
 import dorna2.pose as dp
 import dorna2.node as nd 
 
-class UrdfRobot:
+class urdf_robot:
 
     def urdf_joint_transform(self, joint, value=0.0):
         """Get joint transform at a given joint value (for revolute or prismatic)."""

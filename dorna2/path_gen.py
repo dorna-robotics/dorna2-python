@@ -1,7 +1,7 @@
 import numpy as np
 from dorna2 import Dorna
 
-class Path:
+class path:
 	def __init__(self, points):
 		self.num_steps = len(points)
 		self.points = points
@@ -47,7 +47,7 @@ class Path:
 		return res.tolist()
 
 
-class pathGen:
+class path_gen:
 
 	def __init__(self, motion_, j1_, j2_, steps_, kinematic_, tcp_):
 		self.kin = kinematic_
