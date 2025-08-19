@@ -98,7 +98,7 @@ def correct_pose_kinematic(
     max_iters=10,
     max_step_norm=0.1,
     jointdot = [1,0,0,0,0,0]):
-    sim = Simulation("tmp_pose")   # your class
+    sim = simulation("tmp_pose")   # your class
     n = 6
 
     q_deg = np.array(joint[:n], dtype=float)
