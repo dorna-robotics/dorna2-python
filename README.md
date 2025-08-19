@@ -1,3 +1,85 @@
+# FCL
+#!/usr/bin/env bash
+set -e
+
+# ===========================
+# Install system dependencies
+# ===========================
+sudo apt update
+sudo apt install -y \
+  build-essential cmake git \
+  libeigen3-dev \
+  python3-dev python3-pip \
+  libboost-all-dev
+
+# ==================================
+# Build and install OctoMap from src
+# ==================================
+if [ ! -d "$HOME/octomap" ]; then
+  cd $HOME
+  git clone https://github.com/OctoMap/octomap.git
+fi
+
+cd $HOME/octomap
+rm -rf build
+mkdir build && cd build
+
+cmake .. \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=/usr/local \
+  -DBUILD_SHARED_LIBS=ON \
+  -DBUILD_OCTOVIS_SUBPROJECT=OFF \
+  -DBUILD_DYNAMICETD3D_SUBPROJECT=ON
+
+make -j$(nproc)
+sudo make install
+
+# ==================================
+# Build and install FCL from source
+# ==================================
+if [ ! -d "$HOME/fcl" ]; then
+  cd $HOME
+  git clone https://github.com/flexible-collision-library/fcl.git
+fi
+
+cd $HOME/fcl
+rm -rf build
+mkdir build && cd build
+
+cmake .. \
+  -DBUILD_TESTING=OFF \
+  -DFCL_WITH_OCTOMAP=ON \
+  -Doctomap_INCLUDE_DIR=/usr/local/include \
+  -Doctomap_LIBRARY=/usr/local/lib/liboctomap.so \
+  -Doctomath_LIBRARY=/usr/local/lib/liboctomath.so
+
+make -j$(nproc)
+sudo make install
+
+# ==================================
+# Install python-fcl bindings
+# ==================================
+if [ ! -d "$HOME/python-fcl" ]; then
+  cd $HOME
+  git clone https://github.com/BerkeleyAutomation/python-fcl.git
+fi
+
+cd $HOME/python-fcl
+pip3 install . --break-system-packages
+
+# ==================================
+# Test installation
+# ==================================
+python3 - <<EOF
+import fcl
+print("python-fcl successfully installed!")
+s1 = fcl.Sphere(1.0)
+t1 = fcl.Transform()
+obj1 = fcl.CollisionObject(s1, t1)
+print("Created a test collision object:", obj1)
+EOF
+
+
 # Dorna 2 Python API
 This is the Python API tutorial for [Dorna][dorna] robotic arm.
 
