@@ -1,3 +1,4 @@
+``` bash
 # FCL
 #!/usr/bin/env bash
 set -e
@@ -78,7 +79,7 @@ t1 = fcl.Transform()
 obj1 = fcl.CollisionObject(s1, t1)
 print("Created a test collision object:", obj1)
 EOF
-
+```
 
 # Dorna 2 Python API
 This is the Python API tutorial for [Dorna][dorna] robotic arm.
