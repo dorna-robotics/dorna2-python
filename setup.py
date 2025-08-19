@@ -18,7 +18,7 @@ setuptools.setup(
         'gitHub': 'https://github.com/dorna-robotics/dorna2-python',
     },
     package_data={
-        'dorna2': ['cfg/*'],
+        'dorna2': ['cfg/*','resources/**/*']
     },    
     packages=setuptools.find_packages(),
     classifiers=[

@@ -3,3 +3,4 @@ include setup.py
 include LICENSE
 
 include dorna2/*.py
+recursive-include dorna2/resources *

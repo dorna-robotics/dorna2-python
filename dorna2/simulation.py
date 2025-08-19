@@ -3,6 +3,9 @@ import time
 import sys
 import fcl
 
+import importlib.resources 
+
+
 from dorna2 import Dorna
 from dorna2.path_gen import path_gen
 from dorna2.urdf import urdf_robot
@@ -26,8 +29,9 @@ class simulation:
 
 
 	def init_robot(self):
-		urdf_path = 'C:/Users/jvd/Desktop/sphere-robot-collision/dextron-main/DornaTA/urdf/DornaTA_500mm_hd_rail.urdf'
-		self.robot = urdf_robot(urdf_path, {}, self.root_node)
+		#urdf_path = 'C:/Users/jvd/Desktop/sphere-robot-collision/dextron-main/DornaTA/urdf/DornaTA_500mm_hd_rail.urdf'
+		with importlib.resources.as_file(importlib.resources.files("dorna2.resources").joinpath("urdf", "DornaTA_500mm_hd_rail.urdf")) as urdf_path:
+			self.robot = urdf_robot(urdf_path, {}, self.root_node)
 
 
 	#checks if two nodes want to collide

@@ -1,0 +1,206 @@
+<robot name="DornaTA" version="1.0">
+  <joint name="j1_link_joint" type="revolute">
+    <limit lower="-3.14159" upper="2.79253" effort="0.00000" velocity="4.00000"/>
+    <origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 -0.00000 0.23000"/>
+    <parent link="j0_link"/>
+    <child link="j1_link"/>
+    <axis xyz="0.00000 0.00000 1.00000"/>
+  </joint>
+  <joint name="j2_link_joint" type="revolute">
+    <limit lower="-1.30900" upper="3.49066" effort="0.00000" velocity="4.00000"/>
+    <origin rpy="1.57080 0.00000 0.00000" xyz="0.08000 0.00000 -0.00000"/>
+    <parent link="j1_link"/>
+    <child link="j2_link"/>
+    <axis xyz="0.00000 0.00000 1.00000"/>
+  </joint>
+  <joint name="j3_link_joint" type="revolute">
+    <limit lower="-2.72271" upper="2.72271" effort="0.00000" velocity="4.00000"/>
+    <origin rpy="0.00000 0.00000 0.00000" xyz="0.21000 0.00000 -0.00000"/>
+    <parent link="j2_link"/>
+    <child link="j3_link"/>
+    <axis xyz="0.00000 0.00000 1.00000"/>
+  </joint>
+  <joint name="j4_link_joint" type="revolute">
+    <limit lower="-2.80998" upper="3.14159" effort="0.00000" velocity="4.00000"/>
+    <origin rpy="-1.57080 -0.00000 -1.57080" xyz="0.00000 0.00000 0.04180"/>
+    <parent link="j3_link"/>
+    <child link="j4_link"/>
+    <axis xyz="0.00000 0.00000 1.00000"/>
+  </joint>
+  <joint name="j5_link_joint" type="revolute">
+    <limit lower="-3.14159" upper="2.79253" effort="0.00000" velocity="4.00000"/>
+    <origin rpy="1.57080 -1.57080 0.00000" xyz="-0.00000 0.00000 0.17500"/>
+    <parent link="j4_link"/>
+    <child link="j5_link"/>
+    <axis xyz="0.00000 0.00000 1.00000"/>
+  </joint>
+  <joint name="j6_link_joint" type="revolute">
+    <limit lower="-3.05433" upper="3.05433" effort="0.00000" velocity="4.00000"/>
+    <origin rpy="1.57080 -0.00000 1.57080 " xyz="0.03500 -0.00000 -0.08900"/>
+    <parent link="j5_link"/>
+    <child link="j6_link"/>
+    <axis xyz="0.00000 0.00000 1.00000"/>
+  </joint>
+  <link name="j0_link">
+    <visual name="j0">
+      <origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
+      <material name="plastic_dark.004"/>
+      <geometry>
+        <mesh filename="../meshes/stl/pc.stl" scale="1.00000 1.00000 1.00000"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="-0.04000 0.00000 0.00411" rpy="0.00000 -0.00000 0.00000"/>
+      <geometry>
+        <box size="0.18200 0.11800 0.00800"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="-0.04000 0.00000 0.06767" rpy="0.00000 -0.00000 0.00000"/>
+      <geometry>
+        <box size="0.18200 0.08600 0.11800"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="j1_link">
+    <visual name="j1">
+      <origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 -0.00000"/>
+      <material name="motor_body_main.003"/>
+      <geometry>
+        <mesh filename="../meshes/stl/Cube.001.stl" scale="1.00000 1.00000 1.00000"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.03766 0.00000 -0.04219" rpy="0.00000 -0.79273 0.00000"/>
+      <geometry>
+        <box size="0.21600 0.06600 0.09200"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.07139 -0.07289 -0.00860" rpy="0.00000 -0.79273 0.00000"/>
+      <geometry>
+        <box size="0.06000 0.08800 0.06000"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="j2_link">
+    <visual name="j2">
+      <origin rpy="-1.57080 0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
+      <material name="aluminum-light"/>
+      <geometry>
+        <mesh filename="../meshes/stl/Cube.002.stl" scale="1.00000 1.00000 1.00000"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.08500 0.00000 -0.06105" rpy="0.00000 -0.00000 0.00000"/>
+      <geometry>
+        <box size="0.32800 0.07000 0.05200"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="-0.03800 -0.00000 -0.11461" rpy="0.00000 -0.00000 0.00000"/>
+      <geometry>
+        <box size="0.05800 0.05800 0.05800"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="j3_link">
+    <visual name="j3">
+      <origin rpy="-1.57080 0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
+      <material name="aluminum-light"/>
+      <geometry>
+        <mesh filename="../meshes/stl/Cube.003.stl" scale="1.00000 1.00000 1.00000"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.00000 0.00000 0.02043" rpy="1.57080 -0.00000 0.00000"/>
+      <geometry>
+        <box size="0.05200 0.10400 0.06600"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="-0.04843 0.00000 0.04129" rpy="1.57080 -0.00000 0.00000"/>
+      <geometry>
+        <box size="0.05000 0.04400 0.04400"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="j4_link">
+    <visual name="j4">
+      <origin rpy="0.00000 -1.57080 0.00000" xyz="-0.00000 0.00000 0.00000"/>
+      <material name="mat_0"/>
+      <geometry>
+        <mesh filename="../meshes/stl/Cube.004.stl" scale="1.00000 1.00000 1.00000"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.00000 0.00000 0.11137" rpy="3.14159 0.00000 -0.00000"/>
+      <geometry>
+        <box size="0.06200 0.05200 0.16600"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.00000 -0.03025 0.13389" rpy="3.14159 0.00000 -0.00000"/>
+      <geometry>
+        <box size="0.05000 0.01200 0.01400"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.00000 -0.04733 0.06515" rpy="3.14159 0.00000 -0.00000"/>
+      <geometry>
+        <box size="0.04400 0.05200 0.04400"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="j5_link">
+    <visual name="j5">
+      <origin rpy="-1.57080 0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
+      <material name="mat_7"/>
+      <geometry>
+        <mesh filename="../meshes/stl/Cube.005.stl" scale="1.00000 1.00000 1.00000"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.00000 0.00000 -0.07380" rpy="-3.14159 1.57080 0.00000"/>
+      <geometry>
+        <box size="0.09000 0.06000 0.05400"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="-0.04416 -0.00000 -0.08713" rpy="-3.14159 1.57080 0.00000"/>
+      <geometry>
+        <box size="0.04400 0.04400 0.04400"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="j6_link">
+    <visual name="j6">
+      <origin rpy="0.00000 -1.57080 0.00000" xyz="-0.00000 0.00000 0.00000"/>
+      <material name="aluminum-light"/>
+      <geometry>
+        <mesh filename="../meshes/stl/Cube.006.stl" scale="1.00000 1.00000 1.00000"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="-0.00286 -0.00000 0.00000" rpy="1.57080 0.00000 -0.00000"/>
+      <geometry>
+        <box size="0.04400 0.00800 0.04400"/>
+      </geometry>
+    </collision>
+  </link>
+  <material name="aluminum-light">
+    <color rgba="0.61176 0.61176 0.61176 1.00000"/>
+  </material>
+  <material name="mat_0">
+    <color rgba="0.90980 0.90980 0.92157 1.00000"/>
+  </material>
+  <material name="mat_7">
+    <color rgba="0.58824 0.63529 0.85490 1.00000"/>
+  </material>
+  <material name="motor_body_main.003">
+    <color rgba="0.00392 0.00392 0.00392 1.00000"/>
+  </material>
+  <material name="plastic_dark.004">
+    <color rgba="0.05098 0.05098 0.05098 1.00000"/>
+  </material>
+</robot>
