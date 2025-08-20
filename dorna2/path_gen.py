@@ -83,7 +83,7 @@ class path_gen:
 			t = float(i)/float(steps-1)
 			points.append((j1+(j2-j1)*t).tolist())
 
-		return Path(points)
+		return path(points)
 
 	def gen_lmove(self, j1, j2, steps, tcp):
 		self.kin.set_frame_tcp(frame=None, tcp=self.kin.xyzabc_to_mat(tcp))
@@ -111,4 +111,4 @@ class path_gen:
 			last_joint = new_joint
 			points.append(last_joint)
 
-		return Path(points)
+		return path(points)

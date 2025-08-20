@@ -23,7 +23,17 @@ def axis_angle_to_quaternion(axis_angle):
 
 def transform_to_matrix(xyz, rvec):
     quat = axis_angle_to_quaternion(rvec)
-    tf = fcl.Transform(quat, xyz)
+    
+    # compatibility across FCL builds
+    if hasattr(fcl, "Transform"):
+        tf = fcl.Transform(quat, xyz)
+    elif hasattr(fcl, "Transform3f"):
+        tf = fcl.Transform3f(quat, xyz)
+    elif hasattr(fcl, "Transformd"):
+        tf = fcl.Transformd(quat, xyz)
+    else:
+        raise ImportError("No suitable Transform class found in fcl module.")
+    
     return tf, quat
 
 
@@ -35,10 +45,31 @@ class unified_object:
         self.fcl_shape = fcl_shape
 
 #some good functions
+
 def fcl_transform_from_matrix(matrix4x4):
     rotation = matrix4x4[:3, :3]
     translation = matrix4x4[:3, 3]
-    return fcl.Transform(rotation, translation)
+
+    # ensure numpy vector is proper type
+    translation = np.array(translation, dtype=np.float32)
+
+    # try to use rotation matrix directly if supported
+    if hasattr(fcl, "Transform"):
+        return fcl.Transform(rotation, translation)
+    elif hasattr(fcl, "Transform3f"):
+        try:
+            return fcl.Transform3f(rotation, translation)
+        except TypeError:
+            # some builds want quaternion instead of rotation matrix
+            from scipy.spatial.transform import Rotation as R
+            quat = R.from_matrix(rotation).as_quat()  # [x, y, z, w]
+            return fcl.Transform3f(quat, translation)
+    elif hasattr(fcl, "Transformd"):
+        from scipy.spatial.transform import Rotation as R
+        quat = R.from_matrix(rotation).as_quat()
+        return fcl.Transformd(quat, translation)
+    else:
+        raise ImportError("No suitable Transform class found in fcl module.")
 
 def create_cube(xyz_rvec, scale=[1,1,1]):
     xyz = xyz_rvec[:3]

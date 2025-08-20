@@ -216,7 +216,7 @@ def check_path(motion, start_joint, end_joint, tool=[0,0,0,0,0,0], load=[], scen
 	manager.registerObjects(all_objects)  # list of all your CollisionObjects
 	manager.setup()  # Builds the BVH tree
 
-	path = pathGen(motion, start_joint, end_joint, steps, sim.dorna.kinematic, tool)
+	path = path_gen(motion, start_joint, end_joint, steps, sim.dorna.kinematic, tool)
 
 	sample_points = steps
 	start_time = time.perf_counter()

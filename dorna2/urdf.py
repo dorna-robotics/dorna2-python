@@ -1,4 +1,4 @@
-from urdfpy import URDF
+from urchin import URDF
 import numpy as np
 import fcl
 import time

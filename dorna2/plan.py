@@ -300,5 +300,5 @@ def correct_pose_kinematic(
         debug['iters'].append({'num_contacts': len(contacts), 'step_norm': float(np.linalg.norm(dq))})
         debug_path.append(q)
 
-    return q, {'sim': sim, 'visuals': all_visuals, 'iters': debug['iters'], 'debug_path':Path(debug_path)}
+    return q, {'sim': sim, 'visuals': all_visuals, 'iters': debug['iters'], 'debug_path':path(debug_path)}
 
