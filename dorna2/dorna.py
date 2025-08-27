@@ -1190,7 +1190,7 @@ class Dorna(WS):
                     self.kinematic.set_tcp_xyzabc(end["tool"])
                     end_joint = np.append(self.kinematic.inv(end_pose, last_joint[0:6], False, freedom=freedom)[0], end_aux)
                 
-            # ej
+            # end joint
             if end_joint is not None:
                 cmd_list +=[
                     {"cmd": motion, "rel": 0} | {"j"+str(i): float(end_joint[i]) for i in range(len(end_joint))}
