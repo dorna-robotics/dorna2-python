@@ -666,7 +666,7 @@ class Kinematic(Dof):
 
 		return J
 
-	def solve_dJ_with_last_fixed(self, joint, X1, X2):
+	def solve_dJ_with_last_fixed(self, joint, X1, X2, w=1):
 
 		X1 = np.array(X1)
 		X2 = np.array(X2)
@@ -684,6 +684,7 @@ class Kinematic(Dof):
 
 		X2[3:6] = X2rot
 		dX = X1 - X2
+		dX = np.concatenate([dX[0:3], w*np.radians(dX[3:6])])
 
 		damping=0.001
 		J = self.jacobian_fw(joint)
