@@ -373,7 +373,15 @@ class Dorna(WS):
 
     return -> the value of one out or all outs
     """
-    def output(self, index=None, val=None, **kwargs):
+    def output(self, index=None, val=None, config=None, **kwargs):
+        if config is not None:
+            cmd_list = []   
+            for c in config:
+                cmd_list.append({"cmd": "output", "out" + str(c[0]): c[1], "queue": 0})
+                if len(c) > 2 and c[2] > 0:
+                    cmd_list.append({"cmd": "sleep", "time": c[2], "queue": 0})
+            return self.play_list(cmd_list)
+
         key = None
         if index !=None:
             key = "out"+str(index)
@@ -383,6 +391,7 @@ class Dorna(WS):
         rtn_keys = ["out"+str(i) for i in range(16)]
 
         return self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
+
 
 
     def get_all_output(self, **kwargs):
