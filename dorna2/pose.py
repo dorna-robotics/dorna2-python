@@ -1,6 +1,22 @@
 import numpy as np
 import copy
 
+def inv_dh(T):
+    T = np.array(T, dtype=float)
+    R = np.matrix([
+        [T[0,0], T[1,0], T[2,0]],
+        [T[0,1], T[1,1], T[2,1]],
+        [T[0,2], T[1,2], T[2,2]]
+    ])
+    S = -np.matmul(R, [[T[0,3]], [T[1,3]], [T[2,3]]])
+
+    return np.matrix([
+        [R[0,0], R[0,1], R[0,2], S[0,0]],
+        [R[1,0], R[1,1], R[1,2], S[1,0]],
+        [R[2,0], R[2,1], R[2,2], S[2,0]],
+        [0, 0, 0, 1]    
+    ])
+        
 def rmat_to_quat(rmat):
     rmat = np.array(rmat, dtype=float)
     m00, m01, m02 = rmat[0,0], rmat[0,1], rmat[0,2]
