@@ -2,7 +2,7 @@ import numpy as np
 import fcl
 import sys
 import trimesh
-#import pybullet as p
+import pybullet as p
 import dorna2.pose as dp
 
 def pybullet_test():

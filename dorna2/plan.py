@@ -5,11 +5,11 @@ import fcl
 
 from dorna2 import Dorna
 from dorna2.path_gen import path_gen, path
-from dorna2.simulation import simulation
+from dorna2.simulation import simulation, bisect_path
 from dorna2.urdf import urdf_robot
 import dorna2.node as node
 import dorna2.pose as dp
-#import pybullet as p
+import pybullet as p
 
 # ---- helpers from your kinematics object (names match your methods) ----
 # Ti_r_world(i, theta=...)  -> 4x4 world transform of joint frame i
@@ -95,7 +95,7 @@ def correct_pose_kinematic(
     lam=1e-3,
     beta=0.9,
     target_slop=1e-3,
-    max_iters=10,
+    max_iters=200,
     max_step_norm=0.1,
     jointdot = [1,0,0,0,0,0]):
     sim = simulation("tmp_pose")   # your class
@@ -192,7 +192,7 @@ def correct_pose_kinematic(
                 if prnt0 != linkA:
                     n = -n
 
-            print("link: ", linkA.name, " depth: ",depth , " o1,o2: ", id(o1), id(o2))
+            #print("link: ", linkA.name, " depth: ",depth , " o1,o2: ", id(o1), id(o2))
 
             contacts.append({
                                 'p': p, 'n': n / max(1e-12, np.linalg.norm(n)),
@@ -206,12 +206,12 @@ def correct_pose_kinematic(
     # ----- solve loop -----
     q = np.array(joint, dtype=float).copy()
     set_pose(q)
-    print(q)
+    #print(q)
     debug = {'iters': []}
     debug_path = []
 
     for it in range(max_iters):
-        print("\n iteration num: ",it)
+        #print("\n iteration num: ",it)
         contacts = get_contacts()
 
         # Build stacked normal rows
@@ -284,14 +284,15 @@ def correct_pose_kinematic(
 
         # Clamp step size for stability
         norm = np.linalg.norm(dq)
+        dq = dq * max_step_norm / norm
         if norm > max_step_norm:
             dq = dq * (max_step_norm / max(norm, 1e-12))
 
         # Optional line search to ensure improvement (reduce total “penetration” proxy)
 
-
+        #print(dq)
         q = q - dq*30.0
-        print(q)
+        #print(q)
         set_pose(q)
 
         q_deg = q.copy()
@@ -300,5 +301,116 @@ def correct_pose_kinematic(
         debug['iters'].append({'num_contacts': len(contacts), 'step_norm': float(np.linalg.norm(dq))})
         debug_path.append(q)
 
-    return q, {'sim': sim, 'visuals': all_visuals, 'iters': debug['iters'], 'debug_path':path(debug_path)}
+    if len(debug_path)>2:
+        debug_path = path(debug_path)
+    return q, {'sim': sim, 'visuals': all_visuals, 'iters': debug['iters'], 'debug_path':debug_path}
 
+
+
+def clean_path(
+    motion,
+    start_joint,
+    end_joint,
+    load=None,
+    scene=None,
+    tool = [0,0,0,0,0,0],
+
+    *,
+    threshold=0.0,        # consider 'collision' when d < threshold (e.g., 0.0 for penetration)
+    min_sep=0.99,          # required separation in t between selected equal-min-d events
+    d_tol=1e-6,           # tolerance to treat d's as "equal" to the global minimum
+    max_iters=20,         # safety cap to avoid infinite loops
+    zero_offset_tol=1e-9  # ignore near-zero corrections
+):
+    """
+    Iteratively adds deviations to avoid collisions along the path.
+    Returns the updated path and a small log dict.
+    """
+
+    load = load or []
+    scene = scene or []
+
+    # --- You create the path here (replace this line with your own builder) ---
+    # Example placeholder:
+    p = path_gen(motion, start_joint, end_joint, 100, None, tool).path  # <-- implement this
+    added_offsets_log = []  # [(iter_idx, t_i, offset_vec, d_at_t), ...]
+    it = 0
+
+    last_debug = {}
+
+    while it < max_iters:
+        it += 1
+
+        # 1) query collisions along current deviated path
+        report = bisect_path(p, load=load, scene=scene, tool=tool)
+        events = list(report.get("events", []))
+
+        # only collisions (d < threshold)
+        bad = events#[e for e in events if e.get("d", np.inf) < threshold]
+        if not bad:
+            break  # done: no collisions under threshold
+
+        # 2) find global minimum distance among collisions
+        candidates = sorted(bad, key=lambda e: (e["d"], float(e["t"])))
+
+        # 2) greedy selection: always pick the smallest d that is min_sep away from all selected
+        selected = []
+        print("it: ",it)
+        for e in candidates:
+            t = float(e["t"])
+            # ensure spacing vs every already-selected event
+            if all(abs(t - float(s["t"])) >= min_sep for s in selected):
+                selected.append(e)
+                print("-",e["t"])
+
+
+        # If nothing selected (e.g., candidates empty due to tolerance), fall back to the single best
+        if not selected:
+            # pick the single best (lowest d), tie-break by |t - 0.5| to pick a middle-ish one
+            #best = min(bad, key=lambda e: (e["d"], abs(e["t"] - 0.5)))
+            #selected = [best]
+            break
+
+        # 4) for each selected t_i, compute correction and add as deviation
+        new_offsets_this_iter = 0
+        for e in selected:
+            t_i = float(e["t"])
+
+            # base point (without deviation) and current deviated point
+            base_point = np.asarray(p.get_point(t_i), dtype=float)
+            cur_point  = np.asarray(p.get_point_d(t_i), dtype=float)
+            cur_vel = np.asarray(p.get_vel(t_i), dtype=float)
+
+            # ask kinematics to correct current pose
+            corrected,last_debug = correct_pose_kinematic(joint=cur_point, scene=scene, load=load, tool=tool, jointdot=cur_vel)
+            print("cur_point:",cur_point,"corrected:",corrected)
+            corrected =  np.asarray(
+                corrected,
+                dtype=float
+            )
+
+            # deviation needed relative to base path
+            offset = corrected - base_point
+
+            # avoid adding nearly-zero or NaN offsets
+            if not np.any(np.isnan(offset)) and np.linalg.norm(offset) > zero_offset_tol:
+                # Clamp t to (0,1) but avoid exactly 0 or 1 (endpoints are forced to zero offset)
+                if t_i <= 0.0:
+                    t_i = np.nextafter(0.0, 1.0)
+                elif t_i >= 1.0:
+                    t_i = np.nextafter(1.0, 0.0)
+
+                p.add_offset(t_i, offset)
+                added_offsets_log.append((it, t_i, offset.copy(), e["d"]))
+                new_offsets_this_iter += 1
+
+        # if we failed to add any new offsets, stop to avoid infinite cycling
+        if new_offsets_this_iter == 0:
+            break
+
+    return p, {
+        "iterations": it,
+        "added_offsets": len(added_offsets_log),
+        "log": added_offsets_log,
+        "last_debug":last_debug
+    }

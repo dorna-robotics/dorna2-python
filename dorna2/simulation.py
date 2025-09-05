@@ -11,7 +11,7 @@ from dorna2.path_gen import path_gen
 from dorna2.urdf import urdf_robot
 import dorna2.node as node
 import dorna2.pose as dp
-#import pybullet as p
+import pybullet as p
 
 
 
@@ -130,33 +130,6 @@ class simulation:
 		return recruse(self.root_node)
 
 
-	def check_motion_collision(self, path):
-		sample_points = 100
-		collision_res = {"col":False,"col_time":0 , "internal":False, "external":False}
-		for i in range(sample_points):
-
-			t = float(i) / float(sample_points - 1 ) 
-			
-			j = path.path.get_point(t%1.0)
-
-			j6 = 0 #check for rail
-			if len(j)>6:
-				j6 = j[6]
-
-			self.robot.set_joint_values([j6,j[0],j[1],j[2],j[3],j[4],j[5]]) 
-
-			external_col = self.robot_external_collision() 
-			internal_col = self.robot_self_collision()
-
-			if external_col[0] or internal_col:
-				collision_res["col"] = True
-				collision_res["col_time"] = t
-				collision_res["internal"] = internal_col
-				collision_res["external"] = external_col
-
-				break
-
-		return collision_res
 
 
 	def preview_animation(self, path, all_visuals):
@@ -165,9 +138,13 @@ class simulation:
 
 		t = 0
 		while True:
-			j = path.get_point(t%1.0)
+			j = path.get_point_d(t%1.0)
 
-			self.robot.set_joint_values([j[6],j[0],j[1],j[2],j[3],j[4],j[5]]) 
+			rail = 0
+			if len(j)>6:
+				rail = j[6]
+
+			self.robot.set_joint_values([rail,j[0],j[1],j[2],j[3],j[4],j[5]]) 
 
 			for a in all_visuals:
 				prnt_mat = np.eye(4)
@@ -182,7 +159,7 @@ class simulation:
 				rotation = dp.rmat_to_quat(gmat[:3,:3])
 				p.resetBasePositionAndOrientation(a.pybullet_id, translation, rotation)
 
-			t = t + 0.01
+			t = t + 0.002
 			time.sleep(1./240.)
 
 
@@ -232,9 +209,9 @@ def check_path(motion, start_joint, end_joint, tool=[0,0,0,0,0,0], load=[], scen
 	for i in range(sample_points):
 
 		t = float(i) / float(sample_points - 1 ) 
-		j = path.path.get_point(t%1.0)
+		j = path.path.get_point_d(t%1.0)
 		if t == 1.0:
-			j = path.path.get_point(1.0)
+			j = path.path.get_point_d(1.0)
 
 
 		base_mat = np.array(base_in_world_mat)
@@ -358,7 +335,7 @@ def check_collision(joint, tool=[0,0,0,0,0,0], load=[], scene=[],
 
 
 	base_mat = np.array(base_in_world_mat)
-	aux_offset = np.array([0,0,0,0])
+	aux_offset = np.array([0,0,0])
 
 
 	if len(j)>6:
@@ -366,9 +343,9 @@ def check_collision(joint, tool=[0,0,0,0,0,0], load=[], scene=[],
 	if len(j)>7:
 		aux_offset = aux_offset + j[7] * aux_dir_2
 
-	base_mat[0, 3] += aux_offset[0, 0]
-	base_mat[1, 3] += aux_offset[0, 1]
-	base_mat[2, 3] += aux_offset[0, 2]
+	base_mat[0, 3] += aux_offset[ 0]
+	base_mat[1, 3] += aux_offset[ 1]
+	base_mat[2, 3] += aux_offset[ 2]
 
 	sim.robot.set_joint_values([0,j[0],j[1],j[2],j[3],j[4],j[5]], frame_in_world_inv @  base_mat) 
 
@@ -539,7 +516,7 @@ def bisect_path(
 
 	# ---- 1) Pose setter for a given t in [0,1] ----
 	def _set_pose(t):
-		j = path.get_point(min(max(t, 0.0), 1.0))  # joint vector (degrees), possibly with aux components
+		j = path.get_point_d(min(max(t, 0.0), 1.0))  # joint vector (degrees), possibly with aux components
 		base_mat = np.array(base_in_world_mat)
 		aux_offset = np.array([0,0,0,0.0])
 
