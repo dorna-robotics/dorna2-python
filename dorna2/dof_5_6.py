@@ -19,6 +19,10 @@ i | alpha[i-1]        | a[i-1] | d[i] | theta[i]
 
 """
 
+class Inverse_kinematic_error(Exception):
+    """Raised when inverse kinematics cannot find a valid solution."""
+    pass
+
 def clamp(num, min_value, max_value):
         #num = max(min(num, max_value), min_value)
         return num
@@ -243,7 +247,7 @@ class Dof(DH):
 		return np.matmul(T_flange_r_world, self.T_tcp_r_flange)
 
 
-	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom, thr=[np.pi, np.pi, np.pi, 3/4*np.pi, np.pi, 2*np.pi]):
+	def inv_base(self, T_tcp_r_world, theta_current, all_sol, freedom):
 		goal_matrix = T_tcp_r_world @ self.inv_T_tcp_r_flange
 		sol = []
 		retval = []
@@ -262,18 +266,10 @@ class Dof(DH):
 		elif theta_current is not None: # freedom is not None
 			# adjust freedom
 			if freedom is None:
-				freedom = {"num": 1, "range": [0, 0, 0], "early_exit": False}
-
-			# current
-			initial_xyzabc = self.mat_to_xyzabc( self.t_flange_r_world(theta = theta_current))
+				freedom = {"num": 1, "range": [0, 0, 0], "early_exit": False, "travel_thr":[np.pi, np.pi, np.pi, 3/4*np.pi, np.pi, 2*np.pi]}
+			if "travel_thr" not in freedom:
+				freedom["travel_thr"] = [np.pi, np.pi, np.pi, 3/4*np.pi, np.pi, 2*np.pi]
 			
-			# goal
-			goal_xyzabc = self.mat_to_xyzabc( goal_matrix)
-
-			# joint space distance
-			#joint_space_distance_treshold = np.linalg.norm(initial_xyzabc - goal_xyzabc) / 50
-			joint_space_distance_treshold = np.linalg.norm(initial_xyzabc - goal_xyzabc) / 25
-
 			# x, y, z axis
 			x_axis = self.get_X_axis(goal_matrix)
 			y_axis = self.get_Y_axis(goal_matrix)
@@ -309,8 +305,7 @@ class Dof(DH):
 							continue
 						
 						# distance threshold
-						#if angle_space_distance(np.array(s) , np.array(theta_current)) < joint_space_distance_treshold:
-						if all([abs(s[i]-theta_current[i]) < thr[i] for i in range(min(len(theta_current), len(s)))]):
+						if all([abs(s[i]-theta_current[i]) < freedom["travel_thr"][i] for i in range(min(len(theta_current), len(s)))]):
 							return [s]	
 
 				else:
@@ -339,8 +334,7 @@ class Dof(DH):
 						continue
 
 					# distance threshold
-					#if angle_space_distance(np.array(s) , np.array(theta_current)) < joint_space_distance_treshold:
-					if all([abs(s[i]-theta_current[i]) < thr[i] for i in range(min(len(theta_current), len(s)))]):
+					if all([abs(s[i]-theta_current[i]) < freedom["travel_thr"][i] for i in range(min(len(theta_current), len(s)))]):
 						return [s]
 		
 		return retval

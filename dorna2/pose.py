@@ -1,5 +1,7 @@
 import numpy as np
-import copy
+import requests
+import os
+import json
 
 def rmat_to_quat(rmat):
     rmat = np.array(rmat, dtype=float)
@@ -253,11 +255,14 @@ class Pose:
         self.name = name
         self.local_pose = list(pose or [0, 0, 0, 0, 0, 0])
         self.parent = parent
+        self.parent_connection = {"parent_anchor": None, "child_anchor": None, "offset": [0, 0, 0, 0, 0, 0]}
         self.children = []
+        self.children_connection = []
         self.anchors = {}
 
         if parent is not None:
             parent.children.append(self)
+            parent.children_connection.append({"parent_anchor": None, "child_anchor": None, "offset": [0, 0, 0, 0, 0, 0]})
 
         if anchors:
             self.add_anchors(anchors)
@@ -290,13 +295,16 @@ class Pose:
     def set_pose(self, pose):
         self.local_pose = list(pose)
 
-    def pose(self, anchor=None, in_frame=None, pose=None):
+    def pose(self, anchor=None, in_frame=None, pose=None, offset=[0, 0, 0, 0, 0, 0]):
         """
         Get this object's pose expressed in another frame.
 
         anchor:    if given, use this anchor's pose (local to this object)
         in_frame:  Pose object to express pose in (None = world, self = local)
         pose:      extra local transform applied after anchor
+        offset:    extra [x,y,z,a,b,c] transform, applied:
+                     - if anchor is given → wrt that anchor
+                     - if no anchor → wrt self frame
         """
 
         # build transform to world
@@ -318,16 +326,24 @@ class Pose:
                 T_local = np.array(xyzabc_to_T(self.get_local(anchor)))
             else:
                 T_local = np.eye(4)
+
             if pose is not None:
                 T_local = T_local @ np.array(xyzabc_to_T(pose))
+            if offset is not None:
+                T_local = T_local @ np.array(xyzabc_to_T(offset))
+
             return T_to_xyzabc(T_local)
 
         # -----------------------
         # in_frame == world (None)
         # -----------------------
         T_self_world = to_world(self, anchor)
+
         if pose is not None:
             T_self_world = T_self_world @ np.array(xyzabc_to_T(pose))
+        if offset is not None:
+            T_self_world = T_self_world @ np.array(xyzabc_to_T(offset))
+
         if in_frame is None:
             return T_to_xyzabc(T_self_world)
 
@@ -354,8 +370,11 @@ class Pose:
     def detach(self):
         """Remove from current parent (if any)."""
         if self.parent is not None and self in self.parent.children:
-            self.parent.children.remove(self)
+            idx = self.parent.children.index(self)
+            self.parent.children.pop(idx)
+            self.parent.children_connection.pop(idx)
         self.parent = None
+        self.parent_connection = {"parent_anchor": None, "child_anchor": None, "offset": [0, 0, 0, 0, 0, 0]}
 
     # ---------- attach (child-side) ----------
     def attach_to(
@@ -409,8 +428,72 @@ class Pose:
 
         # --- mutate graph ---
         if self.parent is not None and self in self.parent.children:
-            self.parent.children.remove(self)
+            #self.parent.children.remove(self)
+            idx = self.parent.children.index(self)
+            self.parent.children.pop(idx)
+            self.parent.children_connection.pop(idx)
+
+        # update parent
         self.parent = parent
+        self.parent_connection = {"parent_anchor": parent_anchor, "child_anchor": child_anchor, "offset": offset}
+
+        # update child
         parent.children.append(self)
+        parent.children_connection.append({"parent_anchor": parent_anchor, "child_anchor": child_anchor, "offset": offset})
+
         self.local_pose = child_local_xyzabc
         return child_local_xyzabc
+
+
+class Solid(Pose):
+    def __init__(self, name, state="", type=None, pose=None, parent=None, anchors=None, folder=None, **kwargs):
+        super().__init__(name, pose, parent, anchors)
+
+        # type
+        self.type = type
+
+        # state
+        self.state = state
+
+        # cad / skin / collision
+        self.cad = self.get_file(folder=folder, state=self.state)
+
+
+    def get_file(self, type, save=None, base_url="https://raw.githubusercontent.com/smhty/cad/main/", folder=None, state=""):
+        """
+        Get a CAD file.
+        - If folder is provided and files exist locally, read them.
+        - Otherwise, download from base_url.
+        Returns a dict with {"obj": bytes, "mtl": bytes, "col": dict}.
+        """
+        retval = {"obj": None, "mtl": None, "col": None}
+
+        for extension in retval:
+            if folder is not None:
+                local_file = os.path.join(folder, f"{type}_{state}.{extension}")
+                with open(local_file, "rb") as f:
+                    if extension == "col":
+                        retval[extension] = json.load(f)  # parsed JSON
+                    else:
+                        retval[extension] = f.read()
+                continue  # skip download if local file is found
+
+            # fallback to download
+            get_url = f"{base_url}{type}/{type}_{state}.{extension}"
+            r = requests.get(get_url, stream=True)
+            r.raise_for_status()
+
+            if extension == "col":
+                retval[extension] = json.loads(r.text)  # parsed JSON
+            else:
+                retval[extension] = r.content
+
+            if save is not None:
+                with open(f"{save}.{extension}", "wb") as f:
+                    if extension == "col":
+                        f.write(json.dumps(retval[extension], indent=2).encode("utf-8"))
+                    else:
+                        f.write(retval[extension])
+
+        return retval
+

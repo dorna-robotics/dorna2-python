@@ -10,6 +10,7 @@ import copy
 import numpy as np
 import dorna2.pose as dorna_pose
 
+
 class Dorna(WS):
     """docstring for Dorna"""
     def __init__(self, config=None, model="dorna_ta"):
