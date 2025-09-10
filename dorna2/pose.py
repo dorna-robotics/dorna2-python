@@ -261,7 +261,7 @@ def frame_to_robot(xyzabc, aux=[0, 0], aux_dir=[[1, 0, 0], [0, 0, 0]], base_in_w
 
 
 class Pose:
-    def __init__(self, name, pose=None, parent=None, anchors=None):
+    def __init__(self, name=None, pose=None, parent=None, anchors=None):
         """
         name:    unique identifier
         pose:    [x,y,z,a,b,c] local to parent (defaults to identity)
@@ -462,7 +462,7 @@ class Pose:
 
 
 class Solid(Pose):
-    def __init__(self, name, pose=None, parent=None, anchors=None, **kwargs):
+    def __init__(self, name=None, pose=None, parent=None, anchors=None, **kwargs):
         super().__init__(name, pose, parent, anchors)
 
         # make every kwarg an attribute
