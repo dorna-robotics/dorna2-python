@@ -462,54 +462,10 @@ class Pose:
 
 
 class Solid(Pose):
-    def __init__(self, name, state="", type=None, pose=None, parent=None, anchors=None, folder=None, **kwargs):
+    def __init__(self, name, pose=None, parent=None, anchors=None, **kwargs):
         super().__init__(name, pose, parent, anchors)
 
-        # type
-        self.type = type
-
-        # state
-        self.state = state
-
-        # cad / skin / collision
-        self.cad = self.get_file(folder=folder, state=self.state)
-
-
-    def get_file(self, type, save=None, base_url="https://raw.githubusercontent.com/smhty/cad/main/", folder=None, state=""):
-        """
-        Get a CAD file.
-        - If folder is provided and files exist locally, read them.
-        - Otherwise, download from base_url.
-        Returns a dict with {"obj": bytes, "mtl": bytes, "col": dict}.
-        """
-        retval = {"obj": None, "mtl": None, "col": None}
-
-        for extension in retval:
-            if folder is not None:
-                local_file = os.path.join(folder, f"{type}_{state}.{extension}")
-                with open(local_file, "rb") as f:
-                    if extension == "col":
-                        retval[extension] = json.load(f)  # parsed JSON
-                    else:
-                        retval[extension] = f.read()
-                continue  # skip download if local file is found
-
-            # fallback to download
-            get_url = f"{base_url}{type}/{type}_{state}.{extension}"
-            r = requests.get(get_url, stream=True)
-            r.raise_for_status()
-
-            if extension == "col":
-                retval[extension] = json.loads(r.text)  # parsed JSON
-            else:
-                retval[extension] = r.content
-
-            if save is not None:
-                with open(f"{save}.{extension}", "wb") as f:
-                    if extension == "col":
-                        f.write(json.dumps(retval[extension], indent=2).encode("utf-8"))
-                    else:
-                        f.write(retval[extension])
-
-        return retval
+        # make every kwarg an attribute
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
