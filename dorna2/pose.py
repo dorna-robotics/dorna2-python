@@ -269,7 +269,11 @@ class Pose:
         anchors: dict{name:[x,y,z,a,b,c]} OR list[(name, [x,y,z,a,b,c]), ...]
         """
         self.name = name
-        self.local_pose = list(pose or [0, 0, 0, 0, 0, 0])
+        #self.local_pose = list(pose or [0, 0, 0, 0, 0, 0])
+        self.local = {
+            "xyzabc": list(pose or [0, 0, 0, 0, 0, 0]),
+            "T": np.array(xyzabc_to_T(pose or [0, 0, 0, 0, 0, 0])),
+        }
         self.parent = parent
         self.parent_connection = {"parent_anchor": None, "child_anchor": None, "offset": [0, 0, 0, 0, 0, 0]}
         self.children = []
@@ -309,7 +313,11 @@ class Pose:
         return list(self.anchors[anchor])
 
     def set_pose(self, pose):
-        self.local_pose = list(pose)
+        #self.local_pose = list(pose)
+        self.local = {
+            "xyzabc": list(pose),
+            "T": np.array(xyzabc_to_T(pose)),
+        }
 
     def pose(self, anchor=None, in_frame=None, pose=None, offset=[0, 0, 0, 0, 0, 0]):
         """
@@ -380,7 +388,7 @@ class Pose:
         return None
 
     def __repr__(self):
-        return f"<Pose {self.name}: local_pose={self.local_pose}, anchors={list(self.anchors.keys())}>"
+        return f"<Pose {self.name}: local_pose={self.local["xyzabc"]}, anchors={list(self.anchors.keys())}>"
 
     # ---------- graph helpers ----------
     def detach(self):
@@ -400,64 +408,67 @@ class Pose:
         child_anchor,
         *,
         offset=[0, 0, 0, 0, 0, 0],
-        offset_frame='parent',
-        preview=False
+        offset_frame="parent",
     ):
         """
         Attach this Pose to a parent by mating child_anchor to parent_anchor.
 
         Invariant:
-            parent.pose(anchor=parent_anchor) == child.pose(anchor=child_anchor)
+            parent.pose(anchor=parent_anchor, in_frame=parent) == 
+            self.pose(anchor=child_anchor, in_frame=parent)
 
         Options:
             offset:       extra [x,y,z,a,b,c] transform
             offset_frame: 'parent' (applied in parent anchor frame)
                         'child'  (applied in child anchor frame)
-            preview:      if True, return local pose without mutating
         """
-        # --- parent and child anchors ---
-        T_parent_world = np.array(xyzabc_to_T(parent.pose()))
-        T_pa_local     = np.array(xyzabc_to_T(parent.get_local(parent_anchor)))
-        T_pa_world     = T_parent_world @ T_pa_local
 
-        T_ca_local     = np.array(xyzabc_to_T(self.get_local(child_anchor)))
+        # --- parent anchor in parent frame ---
+        T_pa_local = np.array(xyzabc_to_T(parent.get_local(parent_anchor)))
 
-        # --- base child world pose (anchors coincident) ---
-        T_child_world = T_pa_world @ np.linalg.inv(T_ca_local)
+        # --- child anchor in child frame ---
+        T_ca_local = np.array(xyzabc_to_T(self.get_local(child_anchor)))
+
+        # --- child pose relative to parent (anchors coincident) ---
+        T_child_local = T_pa_local @ np.linalg.inv(T_ca_local)
 
         # --- apply offset ---
         if offset is not None:
             T_off = np.array(xyzabc_to_T(offset))
-            if offset_frame == 'parent':
-                T_child_world = T_pa_world @ T_off @ np.linalg.inv(T_ca_local)
-            elif offset_frame == 'child':
-                T_child_world = T_child_world @ T_off
+            if offset_frame == "parent":
+                T_child_local = T_pa_local @ T_off @ np.linalg.inv(T_ca_local)
+            elif offset_frame == "child":
+                T_child_local = T_child_local @ T_off
             else:
                 raise ValueError("offset_frame must be 'parent' or 'child'")
 
-        # --- child local pose wrt parent ---
-        T_child_local = np.linalg.inv(T_parent_world) @ T_child_world
         child_local_xyzabc = T_to_xyzabc(T_child_local)
-
-        if preview:
-            return child_local_xyzabc
 
         # --- mutate graph ---
         if self.parent is not None and self in self.parent.children:
-            #self.parent.children.remove(self)
             idx = self.parent.children.index(self)
             self.parent.children.pop(idx)
             self.parent.children_connection.pop(idx)
 
         # update parent
         self.parent = parent
-        self.parent_connection = {"parent_anchor": parent_anchor, "child_anchor": child_anchor, "offset": offset}
+        self.parent_connection = {
+            "parent_anchor": parent_anchor,
+            "child_anchor": child_anchor,
+            "offset": offset,
+        }
 
         # update child
         parent.children.append(self)
-        parent.children_connection.append({"parent_anchor": parent_anchor, "child_anchor": child_anchor, "offset": offset})
+        parent.children_connection.append(
+            {"parent_anchor": parent_anchor, "child_anchor": child_anchor, "offset": offset}
+        )
 
-        self.local_pose = child_local_xyzabc
+        #self.local_pose = child_local_xyzabc
+        self.local = {
+            "xyzabc": child_local_xyzabc,
+            "T": np.array(T_child_local),
+        }
         return child_local_xyzabc
 
 
