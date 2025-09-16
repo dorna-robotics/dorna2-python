@@ -388,7 +388,7 @@ class Pose:
         return None
 
     def __repr__(self):
-        return f"<Pose {self.name}: local_pose={self.local["xyzabc"]}, anchors={list(self.anchors.keys())}>"
+        return f"<Pose {self.name}: local_pose={self.local['xyzabc']}, anchors={list(self.anchors.keys())}>"
 
     # ---------- graph helpers ----------
     def detach(self):
