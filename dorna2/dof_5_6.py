@@ -573,11 +573,12 @@ gamma: around mobile x
 
 class Kinematic(Dof):
 	"""docstring for Dorna_c_knmtc"""
-	def __init__(self, model="dorna_2"):
+	def __init__(self, model="dorna_2", limits = None):
 		super(Kinematic, self).__init__()
 		
 		# create the 6 degree of freedom robot
 		self.model = model
+		self.limits = limits
 
 		if self.model=="dorna_2s":
 			self.n_dof = 5 # number of degrees of freedom, choose between [5,6]

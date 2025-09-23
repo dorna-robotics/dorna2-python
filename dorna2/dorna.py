@@ -885,7 +885,7 @@ class Dorna(WS):
 
 
     def set_kinematic(self, model="dorna_ta", **kwargs):
-        self.kinematic = Kinematic(model)
+        self.kinematic = Kinematic(model, self.config["limit"][model])
 
 
     def go(self, pose=None, joint=None, ej=[0, 0, 0, 0, 0, 0, 0, 0], frame=[0, 0, 0, 0, 0, 0], tool=[0, 0, 0, 0, 0, 0], cmd_list=[], current_joint=None, motion="jmove", vaj=None, speed=0.2, freedom={"num":200, "range":[2, 2, 2], "early_exit":True}, cont=0, corner=50, timeout=-1, sim=0,  **kwargs):        
