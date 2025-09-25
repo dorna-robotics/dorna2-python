@@ -424,8 +424,8 @@ class Pose:
 
 
 class Solid(Pose):
-    def __init__(self, name=None, pose=None, parent=None, anchors={}, **kwargs):
-        super().__init__(name, pose, parent, anchors)
+    def __init__(self, name=None, pose=None, anchors={}, **kwargs):
+        super().__init__(name, pose, anchors)
 
         # make every kwarg an attribute
         for key, value in kwargs.items():
