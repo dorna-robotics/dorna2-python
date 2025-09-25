@@ -310,7 +310,9 @@ class Pose:
 
             cur = node
             while cur is not None:
+                print("cur: ", cur)
                 T = np.array(cur.local["T"]) @ T
+                print("cur_parent: ", cur.parent)
                 cur = cur.parent["parent_solid"]
             return T
 
