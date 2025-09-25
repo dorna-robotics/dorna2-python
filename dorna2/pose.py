@@ -304,14 +304,13 @@ class Pose:
 
         # build transform to world
         def to_world(node, anc=None):
-            #T = np.array(xyzabc_to_T(node.local_pose))
             T = np.array(node.local["T"])
             if anc is not None:
                 T = T @ np.array(xyzabc_to_T(node.get_local(anc)))
-            cur = node.parent
+            cur = node.parent["parent_solid"]
             while cur is not None:
                 T = np.array(cur.local["T"]) @ T
-                cur = cur.parent
+                cur = cur.parent["parent_solid"]
             return T
 
         # -----------------------
