@@ -149,9 +149,9 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 
 
 
-		f5abs = abs(eigenvectors[1,i])
-		f4abs = abs(eigenvectors[3,i])
-
+		f5abs = abs(eigenvectors[1,i]) + abs( eigenvectors[0, i] )
+		f4abs = abs(eigenvectors[3,i]) + abs(eigenvectors[ 0, i])
+		
 		kval5 = 0
 		kval4 = 0
 
