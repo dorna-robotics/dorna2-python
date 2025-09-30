@@ -261,7 +261,7 @@ def frame_to_robot(xyzabc, aux=[0, 0], aux_dir=[[1, 0, 0], [0, 0, 0]], base_in_w
 
 
 class Pose:
-    def __init__(self, name=None, pose=None, parent=None, anchors=None):
+    def __init__(self, name=None, pose=None, anchors={}):
         """
         name:    unique identifier
         pose:    [x,y,z,a,b,c] local to parent (defaults to identity)
@@ -269,55 +269,26 @@ class Pose:
         anchors: dict{name:[x,y,z,a,b,c]} OR list[(name, [x,y,z,a,b,c]), ...]
         """
         self.name = name
-        #self.local_pose = list(pose or [0, 0, 0, 0, 0, 0])
         self.local = {
             "xyzabc": list(pose or [0, 0, 0, 0, 0, 0]),
             "T": np.array(xyzabc_to_T(pose or [0, 0, 0, 0, 0, 0])),
         }
-        self.parent = parent
-        self.parent_connection = {"parent_anchor": None, "child_anchor": None, "offset": [0, 0, 0, 0, 0, 0]}
-        self.children = []
-        self.children_connection = []
-        self.anchors = {}
 
-        if parent is not None:
-            parent.children.append(self)
-            parent.children_connection.append({"parent_anchor": None, "child_anchor": None, "offset": [0, 0, 0, 0, 0, 0]})
+        self.parent = {
+            "parent_solid": None,
+            "parent_anchor": None,
+            "child_anchor": None,
+            "offset": None,
+        }
+        self.children = {anchor: [] for anchor in anchors.keys()}
+        self.anchors = dict(anchors)  # shallow copy
 
-        if anchors:
-            self.add_anchors(anchors)
-
-    # ---------- anchors ----------
-    def add_anchor(self, name, xyzabc_local):
-        """Register/overwrite an anchor in this node's local frame."""
-        self.anchors[name] = list(xyzabc_local)
-
-    def add_anchors(self, anchors):
-        """Accepts dict or list of (name, xyzabc)."""
-        if isinstance(anchors, dict):
-            for k, v in anchors.items():
-                self.add_anchor(k, v)
-        elif isinstance(anchors, (list, tuple)):
-            for item in anchors:
-                if not (isinstance(item, (list, tuple)) and len(item) == 2):
-                    raise ValueError("anchors list must contain (name, xyzabc) pairs")
-                name, xyzabc = item
-                self.add_anchor(name, xyzabc)
-        else:
-            raise TypeError("anchors must be dict or list of (name, xyzabc)")
 
     # ---------- basic pose ops ----------
     def get_local(self, anchor):
         if anchor not in self.anchors:
             raise KeyError(f"anchor '{anchor}' not found on {self.name}")
         return list(self.anchors[anchor])
-
-    def set_pose(self, pose):
-        #self.local_pose = list(pose)
-        self.local = {
-            "xyzabc": list(pose),
-            "T": np.array(xyzabc_to_T(pose)),
-        }
 
     def pose(self, anchor=None, in_frame=None, pose=None, offset=[0, 0, 0, 0, 0, 0]):
         """
@@ -333,13 +304,14 @@ class Pose:
 
         # build transform to world
         def to_world(node, anc=None):
-            T = np.array(xyzabc_to_T(node.local_pose))
+            T = np.eye(4)
             if anc is not None:
                 T = T @ np.array(xyzabc_to_T(node.get_local(anc)))
-            cur = node.parent
+
+            cur = node
             while cur is not None:
-                T = np.array(xyzabc_to_T(cur.local_pose)) @ T
-                cur = cur.parent
+                T = np.array(cur.local["T"]) @ T
+                cur = cur.parent["parent_solid"]
             return T
 
         # -----------------------
@@ -378,27 +350,6 @@ class Pose:
         T_frame_self = np.linalg.inv(T_frame_world) @ T_self_world
         return T_to_xyzabc(T_frame_self)
 
-    def find(self, name):
-        if self.name == name:
-            return self
-        for c in self.children:
-            hit = c.find(name)
-            if hit is not None:
-                return hit
-        return None
-
-    def __repr__(self):
-        return f"<Pose {self.name}: local_pose={self.local['xyzabc']}, anchors={list(self.anchors.keys())}>"
-
-    # ---------- graph helpers ----------
-    def detach(self):
-        """Remove from current parent (if any)."""
-        if self.parent is not None and self in self.parent.children:
-            idx = self.parent.children.index(self)
-            self.parent.children.pop(idx)
-            self.parent.children_connection.pop(idx)
-        self.parent = None
-        self.parent_connection = {"parent_anchor": None, "child_anchor": None, "offset": [0, 0, 0, 0, 0, 0]}
 
     # ---------- attach (child-side) ----------
     def attach_to(
@@ -444,37 +395,37 @@ class Pose:
 
         child_local_xyzabc = T_to_xyzabc(T_child_local)
 
-        # --- mutate graph ---
-        if self.parent is not None and self in self.parent.children:
-            idx = self.parent.children.index(self)
-            self.parent.children.pop(idx)
-            self.parent.children_connection.pop(idx)
+        # remove old parent
+        if self.parent["parent_solid"] is not None:
+            self.parent["parent_solid"].children[self.parent["parent_anchor"]] = [
+                conn for conn in self.parent["parent_solid"].children[self.parent["parent_anchor"]]
+                if conn["child_solid"] is not self
+            ]
 
-        # update parent
-        self.parent = parent
-        self.parent_connection = {
+        # add new parent
+        self.parent = {
+            "parent_solid": parent,
             "parent_anchor": parent_anchor,
             "child_anchor": child_anchor,
             "offset": offset,
         }
+        parent.children[parent_anchor].append({
+            "child_solid": self,
+            "child_anchor": child_anchor,
+            "offset": offset,
+        })
 
-        # update child
-        parent.children.append(self)
-        parent.children_connection.append(
-            {"parent_anchor": parent_anchor, "child_anchor": child_anchor, "offset": offset}
-        )
-
-        #self.local_pose = child_local_xyzabc
+        # update local
         self.local = {
-            "xyzabc": child_local_xyzabc,
+            "xyzabc": list(child_local_xyzabc),
             "T": np.array(T_child_local),
         }
         return child_local_xyzabc
 
 
 class Solid(Pose):
-    def __init__(self, name=None, pose=None, parent=None, anchors=None, **kwargs):
-        super().__init__(name, pose, parent, anchors)
+    def __init__(self, name=None, pose=None, anchors={}, **kwargs):
+        super().__init__(name, pose, anchors)
 
         # make every kwarg an attribute
         for key, value in kwargs.items():
