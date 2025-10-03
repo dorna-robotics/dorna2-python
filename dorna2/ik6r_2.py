@@ -88,6 +88,10 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 	f33 = mat[2,2]
 	f34 = mat[2,3] / 100.0
 
+	if abs(f33)>0.999:
+		return special_ik(a2,a3,d1,d4,d5,d6,d7,mat)
+
+
 	a2 = a2	/100.0 
 	a3 = a3	/100.0 
 	d1 = d1 /100.0 
@@ -243,6 +247,159 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 			}
 """
 
+
+def special_ik(a2,a3,d1,d4,d5,d6,d7,mat):
+	f11 = mat[0,0]
+	f12 = mat[0,1]
+	f13 = mat[0,2]
+	f14 = mat[0,3] / 100.0
+	f21 = mat[1,0]
+	f22 = mat[1,1]
+	f23 = mat[1,2]
+	f24 = mat[1,3] / 100.0
+	f31 = mat[2,0]
+	f32 = mat[2,1]
+	f33 = mat[2,2]
+	f34 = mat[2,3] / 100.0
+
+	a2 = a2	/ 100.0 
+	a3 = a3	/ 100.0 
+	d1 = d1 / 100.0 
+	d4 = d4 / 100.0 
+	d5 = d5	/ 100.0 
+	d6 = d6	/ 100.0 
+	d7 = d7	/ 100.0 
+
+	def cs5_to_sol(c1,s1,c2,s2,c3,s3,c4,s4,c5,s5):
+		den = (c1 * c1 * (f21 * f21 + f22 * f22) - 2 * c1 * (f11 * f21 + f12 * f22) * s1 + (f11 * f11 + f12 * f12) * s1 * s1)
+		c6 = (s1 * (c4 * f12 + c5 * f11 * s4) - c1 * (c4 * f22 + c5 * f21 * s4)) / den
+		s6 = ((-c1) * c4 * f21 + c4 * f11 * s1 + c1 * c5 * f22 * s4 - c5 * f12 * s1 * s4) / den
+
+
+		theta1 = np.arctan2(s1, c1)
+		theta2 = np.arctan2(s2, c2)
+		theta3 = np.arctan2(s3, c3)
+		theta4 = np.arctan2(s4, c4)
+		theta5 = np.arctan2(s5, c5)
+		theta6 = np.arctan2(s6, c6)
+
+		return [theta1, theta2, theta3, theta4, theta5, theta6]
+
+
+	res = []
+
+	for i in range(2):
+		theta4 = i*np.pi
+		c4 = np.cos(theta4)
+		s4 = np.sin(theta4)
+
+		for j in range(2):
+			mres = solve_cs_equation( -d4 + c4*d6,  f24, -f14,  j)
+
+			if not mres[0]:
+				continue
+
+			c1 = mres[1]
+			s1 = mres[2]
+
+			c3 = (a2*a2*f14 - 2*a2*(-d4*f24 + c4*d6*f24 + c1*(f14**2 + f24**2)) + f14*(-a3**2+d1**2-d4**2-d5**2+2*c4*d4*d6-d6**2+f14**2+f24**2+2*d1*d7*f33+d7**2*f33**2-2*d1*f34 - 2*d7*f33*f34+f34**2) ) / (2*a3*d5*f14)
+
+			if(abs(c3)>1):
+				continue
+
+			for k in range(2):
+				s3 = np.sqrt(1-c3*c3) * (1 - k*2)
+
+				for m in range(2):
+					mres2 = solve_cs_equation( -2*(d4-c4*d6)*f33*(d1+d7*f33-f34), -2*(a3*c3+d5)*(d4-c4*d6), 2*a3*(c4*d4-d6)*s3, m )
+
+					if not mres2[0]:
+						continue
+
+					c5 = mres2[1]
+					s5 = mres2[2]
+
+					c2 = (c5*s3 + c3*c4*s5)/f33
+					s2 = (c3*c5 - c4*s3*s5)/f33
+
+					res.append(cs5_to_sol(c1,s1,c2,s2,c3,s3,c4,s4,c5,s5))
+
+	for i in range(2):
+		theta5 = i*np.pi
+		c5 = np.cos(theta5)
+		s5 = np.sin(theta5)
+
+		c4 = d4/d6
+
+		if abs(c4)>1:
+			continue
+
+		for j in range(2):
+			s4 = np.sqrt(1-c4*c4) * (1 - j*2)
+
+			for k in range(2):
+				mres = solve_cs_equation(-d4+c4*d6, f24,-f14,k)
+				
+				if not mres[0]:
+					continue
+
+				c1 = mres[1]
+				s1 = mres[2]
+
+				for m in range(2):
+					mres2 = solve_cs_equation(a3, d5 + c5*(d1+d7*f33-f34)/f33 ,d6*s4 + c5*(a2-c1*f14-f24*s1)/f33, m)
+					
+					if not mres2[0]:
+						continue
+
+					c3 = mres2[1]
+					s3 = mres2[2]
+
+					s2 = c3*c5 / f33
+					c2 = c5*s3 / f33
+
+					res.append(cs5_to_sol(c1,s1,c2,s2,c3,s3,c4,s4,c5,s5))
+
+	for i in range(2):
+		theta5 = i*np.pi
+		c5 = np.cos(theta5)
+		s5 = np.sin(theta5)
+
+		c3 = (-c5*d5-d1*f33-d7*f33**2+f33*f34)/(a3*c5)
+
+		if abs(c3)>1:
+			continue
+
+		for j in range(2):
+			s3 = np.sqrt(1-c3*c3) * (1 - j*2)
+
+			s2 = c3*c5 / f33
+			c2 = c5*s3 / f33
+
+			for k in range(2):
+				aa =(-2*a2*(a3*f33+c3*(d5*f33+c5*(d1+d7*f33-f34)))-a2**2*c5*s3+c5*(-a3**2+d1**2-d4**2-2*a3*c3*d5-d5**2
+					-d6**2+f14**2+f24**2+2*d1*d7*f33+d7**2*f33**2-2*d1*f34-2*d7*f33*f34+f34**2)*s3)/(c5*s3)
+					 
+				mres = solve_cs_equation( aa, 2*d4*d6, (-2*a2*d6*f33*s3-2*a3*c5*d6*s3**2)/(c5*s3),k)
+
+				if not mres[0]:
+					continue
+
+				c4 = mres[1]
+				s4 = mres[2]
+
+				for m in range(2):
+					mres2 = solve_cs_equation(-d4+c4*d6, f24,-f14,m)
+
+					if not mres2[0]:
+						continue
+
+					c1 = mres2[1]
+					s1 = mres2[2]	
+
+					res.append(cs5_to_sol(c1,s1,c2,s2,c3,s3,c4,s4,c5,s5))
+
+	return res
 
 
 if __name__ == '__main__':

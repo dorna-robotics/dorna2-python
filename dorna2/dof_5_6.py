@@ -257,6 +257,7 @@ class Dof(DH):
 			for s in sol:
 				# mdist
 				mdist = np.linalg.norm(self.t_flange_r_world(theta = s) - goal_matrix)
+
 				if(mdist>0.01):
 					continue
 				retval.append(s)
@@ -731,23 +732,11 @@ class Kinematic(Dof):
 def main_dorna_c():
 	
 	knmtc = Kinematic("dorna_ta")
-	#knmtc.set_tcp_xyzabc([0, 0, 43, 0, 0, 90])
 
-	joint = [60,60,0,0,0,60]
-
-	fw = knmtc.fw(joint)
-
-	knmtc.set_tcp_xyzabc([0, 0, 77.25, 0, 0, 0])
-
-	print(knmtc.solve_dJ_with_last_fixed( joint=[-8.385708947260923, 23.369003388418818, -100.95891040844424, -9.953374353343008, -31.200352143109626, 0.9836717576757544]
-		, X1= np.array([264.0327325889274, 0.33311876809688146, 32.516760538885265, 174.7774732556439, 1.288391688765321, -29.610718149269807])
-		, X2= np.array([262.5, -2.5, 32.999999999999986, -180, 0, 30]) ))
-
-	#print(knmtc.xyzquat_to_xyzabc([0,0,0,1,0,0,0]))
-	#ik_result = knmtc.inv(xyzabc, joint, False,freedom)
+	ik_result = knmtc.inv(xyzabc=[-144.80904512078035, -212.5, 8.0, 180.0, 0.0, 0.0], all_sol=True)
 
 
-	#print("ik_result: ", ik_result)
+	print("ik_result: ", ik_result)
 	"""
 	above_pick_pose = np.array([ 316.69730436, -308.54856831,  250.7750391,   180.,            0.,0.        ])
 	above_place_pose = np.array([ 281.77910814,  -5.09010725,  330.87343997, -151.,           90.,-4.        ])
