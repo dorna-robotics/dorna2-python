@@ -630,7 +630,7 @@ class Kinematic(Dof):
 		#abc = [np.degrees(r) for r in abc]
 
 		#give different result: fw, fw can later be changed to pos + abg
-		return [fw[0,3], fw[1,3], fw[2,3]] + abc
+		return [float(fw[0,3]), float(fw[1,3]), float(fw[2,3])] + [float(x) for x in abc]
 
 	def jacobian_fw(self, joint):
 		mode="central"
