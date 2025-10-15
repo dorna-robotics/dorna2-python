@@ -729,30 +729,100 @@ class Kinematic(Dof):
 
 		return joint_all
 
+
+	def inv_dp(self, joint, d_delta, d_alpha, d_a, d_d): 
+		#calculates and return j+dj to get the desired pose when the parameteres have changed:
+		# delta -> delta + d_delta
+		# alpha -> alpha + d_alpha
+		# a -> a + d_a
+		# d -> d + d_d
+
+		eps=1e-6 
+		use_pinv=True
+		ravel_order='C'
+
+		orig_delta = self.delta.copy()
+		orig_alpha = self.alpha.copy()
+		orig_a = self.a.copy()
+		orig_d = self.d.copy()
+
+
+		d_delta = np.asarray(d_delta, dtype=float)
+		d_alpha = np.asarray(d_alpha, dtype=float)
+		d_a = np.asarray(d_a, dtype=float)
+		d_d = np.asarray(d_d, dtype=float)
+
+		j0 = np.asarray(joint, dtype=float)
+
+		def pose12(mat4):
+			M = np.asarray(mat4, dtype=float)
+			if M.shape != (4, 4):
+				raise ValueError(f"fw must return 4x4, got {M.shape}")
+			return M[:3, :4].ravel(order=ravel_order)  # 12-vector
+
+		# Base pose and directional change wrt parameters
+		X0 = pose12(self.fw_base(self.joint_to_theta(j0)))             # (12,)
+
+		self.delta = (np.array(self.delta)+np.array(d_delta)).tolist()
+		self.alpha = (np.array(self.alpha)+np.array(d_alpha)).tolist()
+		self.a = (np.array(self.a)+np.array(d_a)).tolist()
+		self.d = (np.array(self.d)+np.array(d_d)).tolist()
+
+		Xp = pose12(self.fw_base(self.joint_to_theta(j0)))        # (12,)
+
+		self.delta = orig_delta.copy()
+		self.alpha = orig_alpha.copy()
+		self.a = orig_a.copy()
+		self.d = orig_d.copy()
+
+		rhs = (Xp - X0)            # J_p @ dp, shape (12,)
+
+		m = j0.size
+		xdim = X0.size  # 12
+		Jj = np.empty((xdim, m), dtype=float)
+
+		# Central differences for Jacobian wrt joints, around j0
+		ej = np.zeros_like(j0)
+		for k in range(m):
+			ej.fill(0.0)
+			ej[k] = 1.0
+			X_plus  = pose12(self.fw_base(self.joint_to_theta(j0 + eps * ej)))
+			Jj[:, k] = (X_plus - X0) / (eps)
+
+		# Solve Jj * dj = -rhs
+		b = -rhs
+		if not use_pinv and Jj.shape[0] == Jj.shape[1]:
+			try:
+				dj = np.linalg.solve(Jj, b)
+			except np.linalg.LinAlgError:
+				dj = np.linalg.pinv(Jj) @ b
+		else:
+			dj = np.linalg.pinv(Jj) @ b
+
+		return j0 + dj
+
+
 def main_dorna_c():
 	
 	knmtc = Kinematic("dorna_ta")
 
-	ik_result = knmtc.inv(xyzabc=[-144.80904512078035, -212.5, 8.0, 180.0, 0.0, 0.0], all_sol=True)
+	#ik_result = knmtc.inv(xyzabc=[-144.80904512078035, -212.5, 8.0, 180.0, 0.0, 0.0], all_sol=True)
 
+	orig = [  66.30400662, -157.48143889 ,  15.00553604 ,   0.  ,
+	         52.47590286, 66.30400662]
 
-	print("ik_result: ", ik_result)
-	"""
-	above_pick_pose = np.array([ 316.69730436, -308.54856831,  250.7750391,   180.,            0.,0.        ])
-	above_place_pose = np.array([ 281.77910814,  -5.09010725,  330.87343997, -151.,           90.,-4.        ])
-	quaternion1 = knmtc.mat_to_quat(knmtc.xyzabc_to_mat(above_pick_pose ))
-	quaternion2 = knmtc.mat_to_quat(knmtc.xyzabc_to_mat(above_place_pose ))
+	res = knmtc.inv_dp(orig, [0.02,0,0,0,0,0,0], [0.02,0,0,0,0,0,0], [0.02,0,0,0,0,0,0], [0.02,0,0,0,0,0,0] )
 
+	print("ik_result: ", res)
 
-	middle_quaternion = knmtc.quat_slerp(quaternion1, quaternion2, 0.5)
-	middle_mat = np.eye(4)
-	middle_mat[:3,:3] = knmtc.quat_to_mat(middle_quaternion)
-	middle_xyzabc =  knmtc.mat_to_xyzabc(middle_mat)
+	#knmtc.delta = (np.array(knmtc.delta)+np.array([0.02,0,0,0,0,0,0])).tolist()
+	#knmtc.alpha = (np.array(knmtc.alpha)+np.array([0.02,0,0,0,0,0,0])).tolist()
+	#knmtc.a = (np.array(knmtc.a)+np.array([0.02,0,0,0,0,0,0])).tolist()
+	#knmtc.d = (np.array(knmtc.d)+np.array([0.02,0,0,0,0,0,0])).tolist()
 
-	middle_xyzabc[:3] = (above_pick_pose[:3]  + above_place_pose[:3])/2
+	print("bad fw_res: ",knmtc.fw(orig))
+	print("fw_res: ", knmtc.fw(res))
 
-	print(middle_xyzabc)
-	"""
 
 if __name__ == '__main__':
 	#main_random()
