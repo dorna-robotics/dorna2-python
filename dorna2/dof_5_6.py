@@ -806,22 +806,21 @@ def main_dorna_c():
 	
 	knmtc = Kinematic("dorna_ta")
 
-	#ik_result = knmtc.inv(xyzabc=[-144.80904512078035, -212.5, 8.0, 180.0, 0.0, 0.0], all_sol=True)
+	ik_result = knmtc.inv(xyzabc=[-144.80904512078035, -212.5, 8.0, 180.0, 0.0, 0.0], all_sol=True)
 
-	orig = [  66.30400662, -157.48143889 ,  15.00553604 ,   0.  ,
-	         52.47590286, 66.30400662]
+	orig_joint = ik_result[0]
 
-	res = knmtc.inv_dp(orig, [0.02,0,0,0,0,0,0], [0.02,0,0,0,0,0,0], [0.02,0,0,0,0,0,0], [0.02,0,0,0,0,0,0] )
+	res = knmtc.inv_dp(orig_joint, [0.02,0,0,0,0,0,0], [0.02,0,0,0,0,0,0], [0.02,0,0,0,0,0,0], [0.02,0,0,0,0,0,0] )
 
 	print("ik_result: ", res)
 
-	#knmtc.delta = (np.array(knmtc.delta)+np.array([0.02,0,0,0,0,0,0])).tolist()
-	#knmtc.alpha = (np.array(knmtc.alpha)+np.array([0.02,0,0,0,0,0,0])).tolist()
-	#knmtc.a = (np.array(knmtc.a)+np.array([0.02,0,0,0,0,0,0])).tolist()
-	#knmtc.d = (np.array(knmtc.d)+np.array([0.02,0,0,0,0,0,0])).tolist()
+	knmtc.delta = (np.array(knmtc.delta)+np.array([0.02,0,0,0,0,0,0])).tolist()
+	knmtc.alpha = (np.array(knmtc.alpha)+np.array([0.02,0,0,0,0,0,0])).tolist()
+	knmtc.a = (np.array(knmtc.a)+np.array([0.02,0,0,0,0,0,0])).tolist()
+	knmtc.d = (np.array(knmtc.d)+np.array([0.02,0,0,0,0,0,0])).tolist()
 
-	print("bad fw_res: ",knmtc.fw(orig))
-	print("fw_res: ", knmtc.fw(res))
+	print("bad fw_res: ",knmtc.fw(orig_joint))
+	print("good fw_res: ", knmtc.fw(res))
 
 
 if __name__ == '__main__':
