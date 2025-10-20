@@ -747,13 +747,8 @@ class Kinematic(Dof):
 		return joint_all
 
 
-	def inv_dp(self, joint, d_delta, d_alpha, d_a, d_d): 
-		#calculates and return j+dj to get the desired pose when the parameteres have changed:
-		# delta -> delta + d_delta
-		# alpha -> alpha + d_alpha
-		# a -> a + d_a
-		# d -> d + d_d
-
+	def inv_dp(self, joint, error): 
+		#calculates and return j+dj to get the desired pose when the error is applied
 		eps=1e-6 
 		use_pinv=True
 		ravel_order='C'
