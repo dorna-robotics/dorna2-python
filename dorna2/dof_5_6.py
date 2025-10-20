@@ -79,7 +79,7 @@ class DH(CF):
 			tcp[2,3] = xyzabc[2]
 			self.set_frame_tcp( frame = None, tcp = tcp)
 
-	def T(self, i, theta):
+	def T(self, i, theta, error=[0,0,0,0,0,0]):
 		ct = np.cos(theta+self.delta[i])
 		st = np.sin(theta+self.delta[i])
 		ca = np.cos(self.alpha[i])
@@ -88,11 +88,17 @@ class DH(CF):
 		sd = np.sin(self.delta[i])
 		ai = self.a[i]
 		di = self.d[i]
+
+		error_matrix = np.eye(4)
+
 		result =  np.matrix([
-			[ct,-st*ca,st*sa,ai*ct],
-			[st,ct*ca,-ct*sa,ai*st],
-			[0,sa,ca,di],
-			[0, 0, 0, 1]])
+			[ct,	-st*ca,		st*sa,		ai*ct],
+			[st,	ct*ca,		-ct*sa,		ai*st],
+			[0,		sa,			ca,			di],
+			[0, 	0, 			0, 			1]])
+
+		if(error):
+			result = np.matmul(np.matrix(self.xyzabc_to_mat(error)), result)
 
 		return result
 
@@ -134,7 +140,7 @@ class Dof(DH):
 		super(Dof, self).__init__()
 		self.thr = 0.0001
 
-	def t_flange_r_world(self, theta=None , joint = None):
+	def t_flange_r_world(self, theta=None , joint = None, error = None):
 
 		if joint is not None:
 			theta = list(joint)
@@ -157,14 +163,20 @@ class Dof(DH):
 			T[2,3] += rail_d_vec[2,0]
 
 		for i in range(0, self.n_dof+1):
-			if i==0:
-				T = np.matmul(T, self.T(i, 0))
+
+			if(error):
+				err = error[i]
 			else:
-				T = np.matmul(T, self.T(i, theta[i-1]))
+				err = None
+
+			if i==0:
+				T = np.matmul(T, self.T(i, 0, err))
+			else:
+				T = np.matmul(T, self.T(i, theta[i-1], err))
 
 		return T
 
-	def Ti_r_world(self, theta=None , joint = None , i = 0): #joint is in degrees, theta is in radians
+	def Ti_r_world(self, theta=None , joint = None , i = 0, error = None): #joint is in degrees, theta is in radians
 
 		if joint is not None:
 			theta = list(joint)
@@ -174,10 +186,15 @@ class Dof(DH):
 
 
 		for j in range(0, i+1):
-			if j==0:
-				T = np.matmul(T, self.T(j, 0))
+			if(error):
+				err = error[i]
 			else:
-				T = np.matmul(T, self.T(j, theta[j-1]))
+				err = None
+
+			if j==0:
+				T = np.matmul(T, self.T(j, 0, err))
+			else:
+				T = np.matmul(T, self.T(j, theta[j-1], err))
 
 		return T
 
@@ -241,8 +258,8 @@ class Dof(DH):
 		return J
 
 
-	def fw_base(self, theta):			
-		T_flange_r_world = self.t_flange_r_world(theta)
+	def fw_base(self, theta, error = None):			
+		T_flange_r_world = self.t_flange_r_world(theta=theta, error=error)
 
 		return np.matmul(T_flange_r_world, self.T_tcp_r_flange)
 
@@ -612,7 +629,7 @@ class Kinematic(Dof):
 		joint = [np.degrees(t) for t in theta]
 		return [self.adjust_degree(j) for j in joint]
 
-	def fw(self, joint):
+	def fw(self, joint, error=None):
 
 		# adjust theta to dof
 		_theta = self.joint_to_theta(joint)
@@ -620,7 +637,7 @@ class Kinematic(Dof):
 			_theta[5] = joint[5]
 
 		# fw result
-		fw = self.fw_base(_theta)
+		fw = self.fw_base(_theta, error)
 		
 		#fw = np.matmul(self.T_rail_r_world , fw)
 
@@ -730,7 +747,7 @@ class Kinematic(Dof):
 		return joint_all
 
 
-	def inv_dp(self, joint, d_alpha, d_delta, d_a, d_d): 
+	def inv_dp(self, joint, d_delta, d_alpha, d_a, d_d): 
 		#calculates and return j+dj to get the desired pose when the parameteres have changed:
 		# delta -> delta + d_delta
 		# alpha -> alpha + d_alpha
@@ -741,16 +758,6 @@ class Kinematic(Dof):
 		use_pinv=True
 		ravel_order='C'
 
-		orig_delta = self.delta.copy()
-		orig_alpha = self.alpha.copy()
-		orig_a = self.a.copy()
-		orig_d = self.d.copy()
-
-
-		d_delta = np.asarray(d_delta, dtype=float)
-		d_alpha = np.asarray(d_alpha, dtype=float)
-		d_a = np.asarray(d_a, dtype=float)
-		d_d = np.asarray(d_d, dtype=float)
 
 		j0 = np.asarray(joint, dtype=float)
 
@@ -762,18 +769,8 @@ class Kinematic(Dof):
 
 		# Base pose and directional change wrt parameters
 		X0 = pose12(self.fw_base(self.joint_to_theta(j0)))             # (12,)
+		Xp = pose12(self.fw_base(self.joint_to_theta(j0),error))        # (12,)
 
-		self.delta = (np.array(self.delta)+np.array(d_delta)).tolist()
-		self.alpha = (np.array(self.alpha)+np.array(d_alpha)).tolist()
-		self.a = (np.array(self.a)+np.array(d_a)).tolist()
-		self.d = (np.array(self.d)+np.array(d_d)).tolist()
-
-		Xp = pose12(self.fw_base(self.joint_to_theta(j0)))        # (12,)
-
-		self.delta = orig_delta.copy()
-		self.alpha = orig_alpha.copy()
-		self.a = orig_a.copy()
-		self.d = orig_d.copy()
 
 		rhs = (Xp - X0)            # J_p @ dp, shape (12,)
 
@@ -801,7 +798,6 @@ class Kinematic(Dof):
 
 		return j0 + dj
 
-
 def main_dorna_c():
 	
 	knmtc = Kinematic("dorna_ta")
@@ -810,17 +806,20 @@ def main_dorna_c():
 
 	orig_joint = ik_result[0]
 
-	res = knmtc.inv_dp(orig_joint, [0.02,0,0,0,0,0,0], [0.02,0,0,0,0,0,0], [0.02,0,0,0,0,0,0], [0.02,0,0,0,0,0,0] )
+	error = [[0,0.1,0,0.1,0.,-0.1],
+	[0,0.1,0,0.1,0.,-0.1],
+	[0,-0.1,0,0.1,0.,0.1],
+	[0,0.1,0,0.1,0.,0.1],
+	[0,-0.1,0,0.1,0.,0.1],
+	[0,0.1,0,0.1,0.,0.1],
+	[0,0.1,0,-0.1,0.,0.1]]
 
-	print("ik_result: ", res)
+	res = knmtc.inv_dp(orig_joint, error)
 
-	knmtc.delta = (np.array(knmtc.delta)+np.array([0.02,0,0,0,0,0,0])).tolist()
-	knmtc.alpha = (np.array(knmtc.alpha)+np.array([0.02,0,0,0,0,0,0])).tolist()
-	knmtc.a = (np.array(knmtc.a)+np.array([0.02,0,0,0,0,0,0])).tolist()
-	knmtc.d = (np.array(knmtc.d)+np.array([0.02,0,0,0,0,0,0])).tolist()
+	print("ik_result: ", res) 
 
-	print("bad fw_res: ",knmtc.fw(orig_joint))
-	print("good fw_res: ", knmtc.fw(res))
+	print("bad fw_res: ",knmtc.fw(orig_joint,error))
+	print("good fw_res: ", knmtc.fw(res,error))
 
 
 if __name__ == '__main__':
