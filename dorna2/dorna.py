@@ -882,6 +882,13 @@ class Dorna(WS):
         rtn_keys = None
         self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
         return self._track_cmd_stat()
+    
+    def pid_enable(self, **kwargs):
+        return self.set_pid_enable(enable=True, **kwargs)
+
+
+    def pid_disable(self, **kwargs):
+        return self.set_pid_enable(enable=False, **kwargs)
 
 
     def set_kinematic(self, model="dorna_ta", **kwargs):
