@@ -88,7 +88,7 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 	f33 = mat[2,2]
 	f34 = mat[2,3] / 100.0
 
-	if abs(f33)>0.999:
+	if np.sqrt(f13*f13+f23*f23)<0.001:
 		return special_ik(a2,a3,d1,d4,d5,d6,d7,mat)
 
 
@@ -99,7 +99,6 @@ def ik(a2,a3,d1,d4,d5,d6,d7,mat):
 	d5 = d5	/100.0 
 	d6 = d6	/100.0 
 	d7 = d7	/100.0 
-	
 	try:
 		mat  = sigma_matrix(a2,a3,d1,d4,d5,d6,d7,f13,f23,f33,f14,f24,f34)
 	except:
