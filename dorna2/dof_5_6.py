@@ -306,7 +306,7 @@ class Dof(DH):
 					tmp_matrix = tmp_matrix @ random_rotation_matrix
 					
 				new_sol = ik(self.a[1],self.a[2],self.d[0],-self.d[3],self.d[4],self.d[5],self.d[6], tmp_matrix)
-				print("ali0: ", new_sol)
+
 				# early exit
 				if "early_exit" in freedom and freedom["early_exit"]:
 					# sort
@@ -348,7 +348,6 @@ class Dof(DH):
 				for s, tmp_matrix in zip(sorted_sol, tmp_matrix_list):
 					# mdist
 					mdist = np.linalg.norm(self.t_flange_r_world(theta = s) - tmp_matrix)
-					print("ali1: ", mdist)
 					if(mdist>0.01):
 						continue
 
