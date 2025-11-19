@@ -747,7 +747,7 @@ class Kinematic(Dof):
 		return joint_all
 
 
-	def inv_dp(self, joint, error): 
+	def inv_dp_old(self, joint, error): 
 		#calculates and return j+dj to get the desired pose when the error is applied
 		eps=1e-6 
 		use_pinv=True
@@ -792,6 +792,81 @@ class Kinematic(Dof):
 			dj = np.linalg.pinv(Jj) @ b
 
 		return j0 + dj
+
+
+	def inv_dp(self, joint, error, iters=5, w_rot=0.1):
+		"""
+		Compute compensated joint angles so that:
+
+			fw_base(joint_comp, error) ≈ fw_base(joint, no_error)
+
+		joint : nominal joints (deg) from perfect model IK
+		error : per-link error list (same format you pass to fw_base / T)
+
+		iters : Gauss–Newton iterations
+		w_rot : weight for orientation residual vs translation
+
+		Returns:
+			joint_comp (deg) as a 1D numpy array
+		"""
+		# work in degrees here (same as other public APIs)
+		j = np.asarray(joint, dtype=float).copy()
+		n = j.size
+
+		# --- 6D pose: [x, y, z, ax, ay, az] from 4x4 matrix ----------------------
+		def pose6(M):
+			M = np.asarray(M, float)
+			t = M[:3, 3]
+			# mat_to_axis_angle already used elsewhere with 4x4, so we follow that
+			aa = np.asarray(self.mat_to_axis_angle(M), dtype=float)  # 3-vector
+			return np.concatenate([t, aa])  # shape (6,)
+
+		# --- fixed target pose from nominal joints *without* error ---------------
+		T_target = self.fw_base(self.joint_to_theta(joint))   # no error
+		X_target = pose6(T_target)
+
+		eps = 1e-4  # small step in *degrees* for numeric Jacobian
+
+		for _ in range(iters):
+			# current pose with error
+			T_curr = self.fw_base(self.joint_to_theta(j), error)
+			X_curr = pose6(T_curr)
+
+			# residual: current - target
+			res = X_curr - X_target            # shape (6,)
+			# weighted residual: position as-is, orientation scaled
+			r = res.copy()
+			r[3:6] *= w_rot
+
+			# if already tiny, stop early
+			if np.linalg.norm(r[:3]) < 1e-4 and np.linalg.norm(r[3:6]) < 1e-4:
+				break
+
+			# --- numeric Jacobian wrt joints: J[i,k] = d pose6_i / d joint_k -----
+			J = np.zeros((6, n), dtype=float)
+			ej = np.zeros_like(j)
+
+			for k in range(n):
+				ej[:] = 0.0
+				ej[k] = eps
+
+				T_plus  = self.fw_base(self.joint_to_theta(j + ej), error)
+				T_minus = self.fw_base(self.joint_to_theta(j - ej), error)
+
+				Xp = pose6(T_plus)
+				Xm = pose6(T_minus)
+				col = (Xp - Xm) / (2.0 * eps)
+
+				# apply same orientation weighting to Jacobian rows
+				col[3:6] *= w_rot
+				J[:, k] = col
+
+			# solve J * dj = -r  (least-squares / damped via pinv)
+			dj = -np.linalg.pinv(J) @ r
+			j += dj
+
+		return j
+
 
 def main_dorna_c():
 	
