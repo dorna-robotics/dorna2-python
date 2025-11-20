@@ -794,7 +794,7 @@ class Kinematic(Dof):
 		return j0 + dj
 
 
-	def inv_dp(self, joint, error, iters=5, w_rot=0.1):
+	def inv_dp(self, joint, error, iters=5, w_rot=0.1, thr=10):
 		"""
 		Compute compensated joint angles so that:
 
@@ -865,6 +865,8 @@ class Kinematic(Dof):
 			dj = -np.linalg.pinv(J) @ r
 			j += dj
 
+		if np.linalg.norm(np.array(j[0:6])-np.array(joint[0:6])) > thr:
+			return None
 		return j
 
 
