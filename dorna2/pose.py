@@ -87,6 +87,45 @@ def quat_mul(quat1, quat2):
     z = w1*z2 + x1*y2 - y1*x2 + z1*w2
     return [x, y, z, w]
 
+
+def abc_to_rmat(abc):
+    # abc is axis-angle in degrees: axis * angle_deg
+    ax, ay, az = abc
+    angle_deg = np.linalg.norm([ax, ay, az])
+    if angle_deg < 1e-9:
+        return np.eye(3)
+    ux, uy, uz = np.array([ax, ay, az]) / angle_deg
+    theta = np.radians(angle_deg)
+
+    ct = np.cos(theta)
+    st = np.sin(theta)
+    vt = 1 - ct
+
+    return np.array([
+        [ct + ux*ux*vt,     ux*uy*vt - uz*st, ux*uz*vt + uy*st],
+        [uy*ux*vt + uz*st,  ct + uy*uy*vt,    uy*uz*vt - ux*st],
+        [uz*ux*vt - uy*st,  uz*uy*vt + ux*st, ct + uz*uz*vt]
+    ])
+
+
+def rmat_to_abc(R):
+    R = np.array(R)
+    theta = np.arccos(np.clip((np.trace(R) - 1)/2, -1, 1))
+
+    if theta < 1e-9:
+        return [0, 0, 0]
+
+    rx = (R[2,1] - R[1,2]) / (2*np.sin(theta))
+    ry = (R[0,2] - R[2,0]) / (2*np.sin(theta))
+    rz = (R[1,0] - R[0,1]) / (2*np.sin(theta))
+
+    axis = np.array([rx, ry, rz])
+    axis = axis / np.linalg.norm(axis)
+
+    angle_deg = np.degrees(theta)
+    return (axis * angle_deg).tolist()
+
+"""
 def abc_to_rmat(abc):
     ax, ay, az = abc
     mag = np.linalg.norm([ax, ay, az])
@@ -123,7 +162,7 @@ def rmat_to_abc(rmat):
         if rmat[1,0]<0: y = -y
         if rmat[2,0]<0: z = -z
     return [float(a * np.degrees(theta)) for a in [x, y, z]]
-
+"""
 def T_to_xyzabc(T):
     T = np.array(T, dtype=float)
     abc = rmat_to_abc(T[:3,:3])

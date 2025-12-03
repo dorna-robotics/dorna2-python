@@ -79,6 +79,9 @@ class DH(CF):
 			tcp[2,3] = xyzabc[2]
 			self.set_frame_tcp( frame = None, tcp = tcp)
 
+	def set_tool_xyzabc(self, xyzabc):
+		self.set_tcp_xyzabc(xyzabc)
+
 	def T(self, i, theta, error=[0,0,0,0,0,0]):
 		ct = np.cos(theta+self.delta[i])
 		st = np.sin(theta+self.delta[i])
