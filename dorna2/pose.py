@@ -89,58 +89,105 @@ def quat_mul(quat1, quat2):
 
 
 def abc_to_rmat(abc):
-    # abc = axis * angle_deg
-    ax, ay, az = abc
-    # convert angle (deg) → vector in radians
-    a = np.radians(ax)
-    b = np.radians(ay)
-    c = np.radians(az)
+    """
+    abc: [a,b,c] = axis * angle_deg
+    Returns: 3x3 numpy.ndarray of dtype float
+    """
+    v = np.asarray(abc, dtype=float)
+    angle_deg = np.linalg.norm(v)
 
-    angle = np.sqrt(a*a + b*b + c*c)
+    # 0° → identity
+    if angle_deg < 1e-12:
+        return np.eye(3, dtype=float)
 
-    # Compute axis u
-    if angle < 1e-9:
-        return np.eye(3)
+    axis = v / angle_deg
+    ux, uy, uz = axis.tolist()
 
-    u = np.array([a/angle, b/angle, c/angle])
+    theta = np.radians(angle_deg)
+    ct = float(np.cos(theta))
+    st = float(np.sin(theta))
+    vt = 1.0 - ct
 
-    # Rodrigues
-    ct = np.cos(angle)
-    st = np.sin(angle)
-    ux, uy, uz = u
-    vt = 1 - ct
-
-    return np.array([
+    R = np.array([
         [ct + ux*ux*vt,     ux*uy*vt - uz*st, ux*uz*vt + uy*st],
         [uy*ux*vt + uz*st,  ct + uy*uy*vt,    uy*uz*vt - ux*st],
         [uz*ux*vt - uy*st,  uz*uy*vt + ux*st, ct + uz*uz*vt]
-    ])
+    ], dtype=float)
 
+    return R
 
 def rmat_to_abc(R):
-    R = np.array(R, dtype=float)
+    """
+    R: 3x3 matrix (list or ndarray)
+    Returns: [a,b,c] as Python floats
+    Our convention: abc = axis * angle_deg
+    """
+    R = np.asarray(R, dtype=float)
 
-    # trace → angle
-    trace = np.trace(R)
-    cos_theta = (trace - 1) / 2
-    cos_theta = np.clip(cos_theta, -1, 1)
-    angle = np.arccos(cos_theta)
+    # --- 0) re-orthogonalize ---
+    U, _, Vt = np.linalg.svd(R)
+    R = U @ Vt
+    if np.linalg.det(R) < 0:
+        U[:, -1] *= -1
+        R = U @ Vt
 
-    if angle < 1e-9:
+    # --- 1) angle from trace ---
+    trace = float(np.trace(R))
+    cos_theta = (trace - 1.0) / 2.0
+    cos_theta = float(np.clip(cos_theta, -1.0, 1.0))
+    theta = float(np.arccos(cos_theta))   # radians
+
+    # --- 2) 0° → abc = [0,0,0] ---
+    if theta < 1e-12:
         return [0.0, 0.0, 0.0]
 
-    # extract axis
-    ux = (R[2,1] - R[1,2]) / (2*np.sin(angle))
-    uy = (R[0,2] - R[2,0]) / (2*np.sin(angle))
-    uz = (R[1,0] - R[0,1]) / (2*np.sin(angle))
+    eps = 1e-8
 
-    u = np.array([ux, uy, uz])
-    u /= np.linalg.norm(u)
+    # --- 3) 180° case ---
+    if abs(theta - np.pi) < 1e-6:
+        xx = (R[0, 0] + 1.0) / 2.0
+        yy = (R[1, 1] + 1.0) / 2.0
+        zz = (R[2, 2] + 1.0) / 2.0
 
-    # return axis * angle(deg)
-    angle_deg = np.degrees(angle)
-    ax, ay, az = u * angle_deg
-    return [ax, ay, az]
+        if xx >= yy and xx >= zz:
+            x = np.sqrt(max(xx, 0.0))
+            y = (R[0, 1] + R[1, 0]) / (4.0 * x) if x > eps else 0.0
+            z = (R[0, 2] + R[2, 0]) / (4.0 * x) if x > eps else 0.0
+        elif yy >= zz:
+            y = np.sqrt(max(yy, 0.0))
+            x = (R[0, 1] + R[1, 0]) / (4.0 * y) if y > eps else 0.0
+            z = (R[1, 2] + R[2, 1]) / (4.0 * y) if y > eps else 0.0
+        else:
+            z = np.sqrt(max(zz, 0.0))
+            x = (R[0, 2] + R[2, 0]) / (4.0 * z) if z > eps else 0.0
+            y = (R[1, 2] + R[2, 1]) / (4.0 * z) if z > eps else 0.0
+
+        axis = np.array([x, y, z], dtype=float)
+        n = np.linalg.norm(axis)
+        if n < eps:
+            return [0.0, 0.0, 0.0]
+        axis = axis / n
+    else:
+        # --- 4) general case ---
+        denom = 2.0 * np.sin(theta)
+        if abs(denom) < 1e-12:
+            return [0.0, 0.0, 0.0]
+
+        ux = (R[2, 1] - R[1, 2]) / denom
+        uy = (R[0, 2] - R[2, 0]) / denom
+        uz = (R[1, 0] - R[0, 1]) / denom
+        axis = np.array([ux, uy, uz], dtype=float)
+
+        n = np.linalg.norm(axis)
+        if n < 1e-12:
+            return [0.0, 0.0, 0.0]
+        axis = axis / n
+
+    angle_deg = float(np.degrees(theta))
+    abc = (axis * angle_deg).tolist()
+
+    # ensure python floats
+    return [float(abc[0]), float(abc[1]), float(abc[2])]
 
 """
 def abc_to_rmat(abc):
