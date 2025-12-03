@@ -89,16 +89,25 @@ def quat_mul(quat1, quat2):
 
 
 def abc_to_rmat(abc):
-    # abc is axis-angle in degrees: axis * angle_deg
+    # abc = axis * angle_deg
     ax, ay, az = abc
-    angle_deg = np.linalg.norm([ax, ay, az])
-    if angle_deg < 1e-9:
-        return np.eye(3)
-    ux, uy, uz = np.array([ax, ay, az]) / angle_deg
-    theta = np.radians(angle_deg)
+    # convert angle (deg) → vector in radians
+    a = np.radians(ax)
+    b = np.radians(ay)
+    c = np.radians(az)
 
-    ct = np.cos(theta)
-    st = np.sin(theta)
+    angle = np.sqrt(a*a + b*b + c*c)
+
+    # Compute axis u
+    if angle < 1e-9:
+        return np.eye(3)
+
+    u = np.array([a/angle, b/angle, c/angle])
+
+    # Rodrigues
+    ct = np.cos(angle)
+    st = np.sin(angle)
+    ux, uy, uz = u
     vt = 1 - ct
 
     return np.array([
@@ -109,21 +118,29 @@ def abc_to_rmat(abc):
 
 
 def rmat_to_abc(R):
-    R = np.array(R)
-    theta = np.arccos(np.clip((np.trace(R) - 1)/2, -1, 1))
+    R = np.array(R, dtype=float)
 
-    if theta < 1e-9:
-        return [0, 0, 0]
+    # trace → angle
+    trace = np.trace(R)
+    cos_theta = (trace - 1) / 2
+    cos_theta = np.clip(cos_theta, -1, 1)
+    angle = np.arccos(cos_theta)
 
-    rx = (R[2,1] - R[1,2]) / (2*np.sin(theta))
-    ry = (R[0,2] - R[2,0]) / (2*np.sin(theta))
-    rz = (R[1,0] - R[0,1]) / (2*np.sin(theta))
+    if angle < 1e-9:
+        return [0.0, 0.0, 0.0]
 
-    axis = np.array([rx, ry, rz])
-    axis = axis / np.linalg.norm(axis)
+    # extract axis
+    ux = (R[2,1] - R[1,2]) / (2*np.sin(angle))
+    uy = (R[0,2] - R[2,0]) / (2*np.sin(angle))
+    uz = (R[1,0] - R[0,1]) / (2*np.sin(angle))
 
-    angle_deg = np.degrees(theta)
-    return (axis * angle_deg).tolist()
+    u = np.array([ux, uy, uz])
+    u /= np.linalg.norm(u)
+
+    # return axis * angle(deg)
+    angle_deg = np.degrees(angle)
+    ax, ay, az = u * angle_deg
+    return [ax, ay, az]
 
 """
 def abc_to_rmat(abc):
