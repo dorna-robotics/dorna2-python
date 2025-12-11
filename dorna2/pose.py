@@ -369,7 +369,7 @@ class Pose:
         name:    unique identifier
         pose:    [x,y,z,a,b,c] local to parent (defaults to identity)
         parent:  Pose or None
-        anchors: dict{name:[x,y,z,a,b,c]} OR list[(name, [x,y,z,a,b,c]), ...]
+        anchors: dict{name:[x,y,z,a,b,c]}
         """
         self.name = name
         self.local = {
@@ -383,8 +383,23 @@ class Pose:
             "child_anchor": None,
             "offset": None,
         }
+
+        # children grouped by parent anchor
         self.children = {anchor: [] for anchor in anchors.keys()}
         self.anchors = dict(anchors)  # shallow copy
+
+
+    # -----------------------------------------------------------
+    # NEW: Mark this solid and entire subtree as dirty
+    # -----------------------------------------------------------
+    def mark_subtree_dirty(self):
+        stack = [self]
+        while stack:
+            node = stack.pop()
+            node._pose_flag = True
+            for child_list in node.children.values():
+                for entry in child_list:
+                    stack.append(entry["child_solid"])
 
 
     # ---------- basic pose ops ----------
@@ -396,15 +411,7 @@ class Pose:
     def pose(self, anchor=None, in_frame=None, pose=None, offset=[0, 0, 0, 0, 0, 0]):
         """
         Get this object's pose expressed in another frame.
-
-        anchor:    if given, use this anchor's pose (local to this object)
-        in_frame:  Pose object to express pose in (None = world, self = local)
-        pose:      extra local transform applied after anchor
-        offset:    extra [x,y,z,a,b,c] transform, applied:
-                     - if anchor is given → wrt that anchor
-                     - if no anchor → wrt self frame
         """
-
         # build transform to world
         def to_world(node, anc=None):
             T = np.eye(4)
@@ -417,9 +424,7 @@ class Pose:
                 cur = cur.parent["parent_solid"]
             return T
 
-        # -----------------------
-        # in_frame == self
-        # -----------------------
+        # in_frame == self (local)
         if in_frame is self:
             if anchor is not None:
                 T_local = np.array(xyzabc_to_T(self.get_local(anchor)))
@@ -433,11 +438,8 @@ class Pose:
 
             return T_to_xyzabc(T_local)
 
-        # -----------------------
-        # in_frame == world (None)
-        # -----------------------
+        # in_frame == world
         T_self_world = to_world(self, anchor)
-
         if pose is not None:
             T_self_world = T_self_world @ np.array(xyzabc_to_T(pose))
         if offset is not None:
@@ -446,9 +448,7 @@ class Pose:
         if in_frame is None:
             return T_to_xyzabc(T_self_world)
 
-        # -----------------------
-        # relative to another frame
-        # -----------------------
+        # express in another object's frame
         T_frame_world = to_world(in_frame)
         T_frame_self = np.linalg.inv(T_frame_world) @ T_self_world
         return T_to_xyzabc(T_frame_self)
@@ -465,28 +465,19 @@ class Pose:
         offset_frame="parent",
     ):
         """
-        Attach this Pose to a parent by mating child_anchor to parent_anchor.
-
-        Invariant:
-            parent.pose(anchor=parent_anchor, in_frame=parent) == 
-            self.pose(anchor=child_anchor, in_frame=parent)
-
-        Options:
-            offset:       extra [x,y,z,a,b,c] transform
-            offset_frame: 'parent' (applied in parent anchor frame)
-                        'child'  (applied in child anchor frame)
+        Attach this Pose to a parent solid by mating anchors.
         """
 
-        # --- parent anchor in parent frame ---
+        # parent anchor in parent frame
         T_pa_local = np.array(xyzabc_to_T(parent.get_local(parent_anchor)))
 
-        # --- child anchor in child frame ---
+        # child anchor in child frame
         T_ca_local = np.array(xyzabc_to_T(self.get_local(child_anchor)))
 
-        # --- child pose relative to parent (anchors coincident) ---
+        # child pose relative to parent (anchors aligned)
         T_child_local = T_pa_local @ np.linalg.inv(T_ca_local)
 
-        # --- apply offset ---
+        # apply offset
         if offset is not None:
             T_off = np.array(xyzabc_to_T(offset))
             if offset_frame == "parent":
@@ -498,20 +489,22 @@ class Pose:
 
         child_local_xyzabc = T_to_xyzabc(T_child_local)
 
-        # remove old parent
+        # remove from old parent
         if self.parent["parent_solid"] is not None:
-            self.parent["parent_solid"].children[self.parent["parent_anchor"]] = [
-                conn for conn in self.parent["parent_solid"].children[self.parent["parent_anchor"]]
+            old = self.parent["parent_solid"]
+            old.children[self.parent["parent_anchor"]] = [
+                conn for conn in old.children[self.parent["parent_anchor"]]
                 if conn["child_solid"] is not self
             ]
 
-        # add new parent
+        # set new parent
         self.parent = {
             "parent_solid": parent,
             "parent_anchor": parent_anchor,
             "child_anchor": child_anchor,
             "offset": offset,
         }
+
         parent.children[parent_anchor].append({
             "child_solid": self,
             "child_anchor": child_anchor,
@@ -523,14 +516,25 @@ class Pose:
             "xyzabc": list(child_local_xyzabc),
             "T": np.array(T_child_local),
         }
+
+        # -----------------------------------------------------------
+        # NEW: mark this solid and entire subtree dirty
+        # -----------------------------------------------------------
+        self._pose_flag = True
+        self.mark_subtree_dirty()
+
         return child_local_xyzabc
+
 
 
 class Solid(Pose):
     def __init__(self, name=None, pose=None, anchors={}, **kwargs):
         super().__init__(name, pose, anchors)
 
-        # make every kwarg an attribute
+        # NEW: initialize dirty flag
+        self._pose_flag = False
+
+        # make each kwarg an attribute
         for key, value in kwargs.items():
             setattr(self, key, value)
 
