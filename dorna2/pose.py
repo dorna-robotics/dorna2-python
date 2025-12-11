@@ -367,9 +367,9 @@ class Pose:
     def __init__(self, name=None, pose=None, anchors={}):
         """
         name:    unique identifier
-        pose:    [x,y,z,a,b,c] local to parent (defaults to identity)
-        parent:  Pose or None
-        anchors: dict{name:[x,y,z,a,b,c]}
+        pose:    [x,y,z,a,b,c] local transform relative to parent
+        parent:  who we are attached to
+        anchors: anchor-name -> [x,y,z,a,b,c]
         """
         self.name = name
         self.local = {
@@ -384,19 +384,22 @@ class Pose:
             "offset": None,
         }
 
-        # children grouped by parent anchor
+        # children grouped by parent anchor name
         self.children = {anchor: [] for anchor in anchors.keys()}
-        self.anchors = dict(anchors)  # shallow copy
+        self.anchors = dict(anchors)
 
 
     # -----------------------------------------------------------
-    # NEW: Mark this solid and entire subtree as dirty
+    # NEW: Mark this solid and entire subtree dirty + clear cache
     # -----------------------------------------------------------
     def mark_subtree_dirty(self):
         stack = [self]
         while stack:
             node = stack.pop()
             node._pose_flag = True
+            node._world_T = None        # invalidate cached world transform
+
+            # propagate to children
             for child_list in node.children.values():
                 for entry in child_list:
                     stack.append(entry["child_solid"])
@@ -408,10 +411,12 @@ class Pose:
             raise KeyError(f"anchor '{anchor}' not found on {self.name}")
         return list(self.anchors[anchor])
 
+
     def pose(self, anchor=None, in_frame=None, pose=None, offset=[0, 0, 0, 0, 0, 0]):
         """
         Get this object's pose expressed in another frame.
         """
+
         # build transform to world
         def to_world(node, anc=None):
             T = np.eye(4)
@@ -424,7 +429,7 @@ class Pose:
                 cur = cur.parent["parent_solid"]
             return T
 
-        # in_frame == self (local)
+        # in_frame == self
         if in_frame is self:
             if anchor is not None:
                 T_local = np.array(xyzabc_to_T(self.get_local(anchor)))
@@ -435,11 +440,11 @@ class Pose:
                 T_local = T_local @ np.array(xyzabc_to_T(pose))
             if offset is not None:
                 T_local = T_local @ np.array(xyzabc_to_T(offset))
-
             return T_to_xyzabc(T_local)
 
-        # in_frame == world
+        # world transform of this solid
         T_self_world = to_world(self, anchor)
+
         if pose is not None:
             T_self_world = T_self_world @ np.array(xyzabc_to_T(pose))
         if offset is not None:
@@ -448,7 +453,7 @@ class Pose:
         if in_frame is None:
             return T_to_xyzabc(T_self_world)
 
-        # express in another object's frame
+        # express in another solid's frame
         T_frame_world = to_world(in_frame)
         T_frame_self = np.linalg.inv(T_frame_world) @ T_self_world
         return T_to_xyzabc(T_frame_self)
@@ -468,10 +473,10 @@ class Pose:
         Attach this Pose to a parent solid by mating anchors.
         """
 
-        # parent anchor in parent frame
+        # parent anchor transform in parent frame
         T_pa_local = np.array(xyzabc_to_T(parent.get_local(parent_anchor)))
 
-        # child anchor in child frame
+        # child anchor transform in child frame
         T_ca_local = np.array(xyzabc_to_T(self.get_local(child_anchor)))
 
         # child pose relative to parent (anchors aligned)
@@ -492,9 +497,9 @@ class Pose:
         # remove from old parent
         if self.parent["parent_solid"] is not None:
             old = self.parent["parent_solid"]
-            old.children[self.parent["parent_anchor"]] = [
-                conn for conn in old.children[self.parent["parent_anchor"]]
-                if conn["child_solid"] is not self
+            anchor = self.parent["parent_anchor"]
+            old.children[anchor] = [
+                c for c in old.children[anchor] if c["child_solid"] is not self
             ]
 
         # set new parent
@@ -504,24 +509,28 @@ class Pose:
             "child_anchor": child_anchor,
             "offset": offset,
         }
-
         parent.children[parent_anchor].append({
             "child_solid": self,
             "child_anchor": child_anchor,
             "offset": offset,
         })
 
-        # update local
+        # update local transform
         self.local = {
             "xyzabc": list(child_local_xyzabc),
             "T": np.array(T_child_local),
         }
 
         # -----------------------------------------------------------
-        # NEW: mark this solid and entire subtree dirty
+        # CRITICAL: mark this solid + subtree AND parent chain dirty
         # -----------------------------------------------------------
         self._pose_flag = True
+        self._world_T = None
         self.mark_subtree_dirty()
+
+        # parent must also be marked dirty, or DFS may skip recomputation
+        parent._pose_flag = True
+        parent._world_T = None
 
         return child_local_xyzabc
 
@@ -531,10 +540,12 @@ class Solid(Pose):
     def __init__(self, name=None, pose=None, anchors={}, **kwargs):
         super().__init__(name, pose, anchors)
 
-        # NEW: initialize dirty flag
-        self._pose_flag = False
+        # initialize runtime fields for Workspace optimized DFS
+        self._pose_flag = False      # whether this solid changed this pass
+        self._world_T = None         # cached world transform
 
-        # make each kwarg an attribute
+        # attach any extra attributes
         for key, value in kwargs.items():
             setattr(self, key, value)
+
 
