@@ -248,8 +248,8 @@ def abc_to_rvec(abc):
     return np.radians(abc).tolist()
 
 
-def transform_pose(xyzabc, from_frame=[0,0,0,0,0,0], to_frame=[0,0,0,0,0,0]):
-    T_pose = np.array(xyzabc_to_T(xyzabc))
+def transform_pose(offset=[0, 0, 0, 0, 0, 0], from_frame=[0,0,0,0,0,0], to_frame=[0,0,0,0,0,0]):
+    T_pose = np.array(xyzabc_to_T(offset))
     T_from = np.array(xyzabc_to_T(from_frame))
     T_to   = np.array(xyzabc_to_T(to_frame))
     R_to, t_to = T_to[:3,:3], T_to[:3,3]
