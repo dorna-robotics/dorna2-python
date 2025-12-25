@@ -320,8 +320,8 @@ class Dorna(WS):
     send jmove, rmove, lmove, cmove command
     """
     def jmove(self, joint=[], rel=0, **kwargs):
-        joint_dict = {f"j{i}": joint[i] for i in range(len(joint))}
-        kwargs = {**joint_dict,"rel": rel, **kwargs}
+        position = {f"j{i}": joint[i] for i in range(len(joint))}
+        kwargs = {**position,"rel": rel, **kwargs}
         return self._motion("jmove", **kwargs)
 
 
@@ -329,9 +329,13 @@ class Dorna(WS):
         return self._motion("rmove", **kwargs)        
 
 
-    def lmove(self, pose=[], rel=0, **kwargs):
-        pose_dict = {["x", "y", "z", "a", "b", "c", "d", "e"][i]: pose[i] for i in range(len(pose))}
-        kwargs = {**pose_dict,"rel": rel, **kwargs}
+    def lmove(self, pose=[], joint=[], rel=0, **kwargs):
+        if joint:
+            position = {f"j{i}": joint[i] for i in range(len(joint))}
+        elif pose:
+            position = {["x", "y", "z", "a", "b", "c", "d", "e"][i]: pose[i] for i in range(len(pose))}
+
+        kwargs = {**position,"rel": rel, **kwargs}
         return self._motion("lmove", **kwargs)
 
 
