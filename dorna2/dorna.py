@@ -329,7 +329,11 @@ class Dorna(WS):
         return self._motion("rmove", **kwargs)        
 
 
-    def lmove(self, pose=[], joint=[], rel=0, **kwargs):
+    def lmove(self, pose=[], joint=[], rel=0, tool_pose=[0, 0, 0, 0, 0, 0], **kwargs):
+        # set tool pose
+        self.tool(tool=tool_pose)
+
+        # set position
         if joint:
             position = {f"j{i}": joint[i] for i in range(len(joint))}
         elif pose:
@@ -735,7 +739,7 @@ class Dorna(WS):
 
     def tool(self,tool=[0, 0, 0, 0, 0, 0], mtrx=None, **kwargs):
         if tool is not None and mtrx is None:
-            mtrx = self.kinematic.xyzabc_to_mat(tool)
+            mtrx = dorna_pose.xyzabc_to_T(tool)
         cmd = {"cmd": "tool", "r00": mtrx[0,0], "r01": mtrx[0,1], "r02": mtrx[0,2], "r10": mtrx[1,0], "r11": mtrx[1,1], "r12": mtrx[1,2], "r20": mtrx[2,0], "r21": mtrx[2,1], "r22": mtrx[2,2],
                 "lx": mtrx[0,3], "ly": mtrx[1,3], "lz": mtrx[2,3]}
         return self.play(**cmd)
