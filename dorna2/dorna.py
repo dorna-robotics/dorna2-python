@@ -1238,22 +1238,20 @@ class Dorna(WS):
     home the robot with the encoder index
     index: joint index 0-7
     val: value assigned to the joint after homing
-    probe_val: value to trigger the index pulse
+    trigger_signal: value to trigger the index pulse
     dir: -1=negative, 1=positive
     travel: travel for homing
-    vel: velocity for homing
-    accel: acceleration for homing
-    jerk: jerk for homing
+    vaj: velocity, acceleration and jerk for homing
     timeout: -1=infinite, >0 timeout in seconds
     return: status
     """
-    def home_with_encoder_index(self, index=7, val=0, probe_val=1, dir=1, travel=1000, vel=100, accel=1000,jerk=5000, timeout=60, **kwargs):
+    def home_with_encoder_index(self, index=7, val=0, dir=1, travel=1000, trigger_signal=1, vaj=[100, 1000, 5000], timeout=60, **kwargs):
         # jmove
-        cmd_jmove = {"j"+str(index): travel*dir, "rel": 1, "vel": vel, "accel": accel, "jerk": jerk, "cont":0}
+        cmd_jmove = {"j"+str(index): travel*dir, "rel": 1, "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont":0}
         self.jmove(**cmd_jmove, timeout=0)
 
         # run iprobe
-        result = self.iprobe(index=index, val=probe_val, timeout=timeout)
+        result = self.iprobe(index=index, val=trigger_signal, timeout=timeout)
 
         # halt
         self.halt()
@@ -1270,6 +1268,35 @@ class Dorna(WS):
             return self.set_joint(index=index, val=val + offset)
         
         return None
+
+
+    def home_with_stop(self, index=7, val=0, dir=1, travel=1000, trigger_signal=1, vaj_forward=[5, 1000, 5000], vaj_backward=[10, 1000, 5000], pid=[0, 0, 0, 20, 20], timeout=100, **kwargs):
+        # initial pid
+        pid_init = self.get_pid(index=index)
+
+        # set pid
+        self.set_pid(index=index, p=pid[0], i=pid[1], d=pid[2], threshold=pid[3], duration=pid[4])
+
+        # jmove
+        cmd_jmove = {"j"+str(index): travel*dir, "rel": 1, "vel": vaj_forward[0], "accel": vaj_forward[1], "jerk": vaj_forward[2], "cont":0}
+        self.jmove(**cmd_jmove)
+        time.sleep(0.5)
+
+        # alarm happens
+        self.set_alarm(enable=False)
+        time.sleep(0.5)
+
+        # bring pid back to initial
+        self.set_pid(index=index, p=pid_init[0], i=pid_init[1], d=pid_init[2], threshold=pid_init[3], duration=pid_init[4])
+
+        # backward motion and set joint value
+        self.home_with_encoder_index(index=index, val=val, dir=-dir, travel=travel, trigger_signal=trigger_signal, vaj=vaj_backward, timeout=timeout, **kwargs)
+
+        # jmove
+        cmd_jmove = {"j"+str(index): -20*dir, "rel": 1}
+        return self.jmove(**cmd_jmove)
+
+
 
 
 
