@@ -1245,7 +1245,7 @@ class Dorna(WS):
     timeout: -1=infinite, >0 timeout in seconds
     return: status
     """
-    def home_with_encoder_index(self, index=7, val=0, dir=1, travel=1000, trigger_signal=1, vaj=[100, 1000, 5000], timeout=60, **kwargs):
+    def home_with_encoder_index(self, index=6, val=0, dir=-1, travel=1000, trigger_signal=1, vaj=[100, 1000, 5000], timeout=60, **kwargs):
         # jmove
         cmd_jmove = {"j"+str(index): travel*dir, "rel": 1, "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont":0}
         self.jmove(**cmd_jmove, timeout=0)
