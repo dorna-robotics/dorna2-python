@@ -18,7 +18,34 @@ def inv_dh(T):
         [R[2,0], R[2,1], R[2,2], S[2,0]],
         [0, 0, 0, 1]    
     ])
-        
+
+def inv_T(T):
+    """
+    Fast inverse of a rigid 4x4 transform.
+    Assumes T is a proper SE(3) matrix:
+        T = [ R  t ]
+            [ 0  1 ]
+
+    Returns:
+        T_inv = [ R^T  -R^T t ]
+                [  0      1  ]
+    """
+    Tinv = np.empty((4, 4), dtype=T.dtype)
+
+    R = T[:3, :3]
+    t = T[:3, 3]
+
+    Rt = R.T
+    Tinv[:3, :3] = Rt
+    Tinv[:3, 3] = -Rt @ t
+
+    Tinv[3, 0] = 0.0
+    Tinv[3, 1] = 0.0
+    Tinv[3, 2] = 0.0
+    Tinv[3, 3] = 1.0
+
+    return Tinv
+
 def rmat_to_quat(rmat):
     rmat = np.array(rmat, dtype=float)
     m00, m01, m02 = rmat[0,0], rmat[0,1], rmat[0,2]
@@ -455,7 +482,7 @@ class Pose:
 
         # express in another solid's frame
         T_frame_world = to_world(in_frame)
-        T_frame_self = np.linalg.inv(T_frame_world) @ T_self_world
+        T_frame_self = inv_T(T_frame_world) @ T_self_world
         return T_to_xyzabc(T_frame_self)
 
 
@@ -480,13 +507,13 @@ class Pose:
         T_ca_local = np.array(xyzabc_to_T(self.get_local(child_anchor)))
 
         # child pose relative to parent (anchors aligned)
-        T_child_local = T_pa_local @ np.linalg.inv(T_ca_local)
+        T_child_local = T_pa_local @ inv_T(T_ca_local)
 
         # apply offset
         if offset is not None:
             T_off = np.array(xyzabc_to_T(offset))
             if offset_frame == "parent":
-                T_child_local = T_pa_local @ T_off @ np.linalg.inv(T_ca_local)
+                T_child_local = T_pa_local @ T_off @ inv_T(T_ca_local)
             elif offset_frame == "child":
                 T_child_local = T_child_local @ T_off
             else:
