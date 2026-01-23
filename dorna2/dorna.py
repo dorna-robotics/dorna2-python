@@ -386,10 +386,10 @@ class Dorna(WS):
         if config is not None:
             cmd_list = []   
             for c in config:
-                if len(c) >= 2 and c[0] in range(16) and c[1] in range(2):
+                if len(c) > 1 and c[0] in range(16) and c[1] in range(2):
                     cmd_list.append({"cmd": "output", "out" + str(c[0]): c[1], "queue": 0})
-                    if len(c) > 2 and c[2] > 0:
-                        cmd_list.append({"cmd": "sleep", "time": c[2], "queue": 0})
+                if len(c) > 2 and c[2] > 0:
+                    cmd_list.append({"cmd": "sleep", "time": c[2], "queue": 0})
             return self.play_list(cmd_list)
 
         key = None
