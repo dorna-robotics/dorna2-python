@@ -334,6 +334,7 @@ class Dorna(WS):
         self.tool(tool=tool_pose)
 
         # set position
+        position ={}
         if joint:
             position = {f"j{i}": joint[i] for i in range(len(joint))}
         elif pose:
