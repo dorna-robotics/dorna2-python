@@ -1271,12 +1271,12 @@ class Dorna(WS):
         return None
 
 
-    def home_with_stop(self, index=7, val=0, dir=1, travel=1000, trigger_signal=1, vaj_forward=[5, 1000, 5000], vaj_backward=[10, 1000, 5000], timeout=100, **kwargs):
+    def home_with_stop(self, index=7, val=0, dir=1, travel=1000, trigger_signal=1, pid=[0, 0, 0, 20, 20], vaj_forward=[5, 1000, 5000], vaj_backward=[10, 1000, 5000], timeout=100, **kwargs):
         # initial pid
-        #pid_init = self.get_pid(index=index)
+        pid_init = self.get_pid(index=index)
 
         # set pid
-        #self.set_pid(index=index, p=pid[0], i=pid[1], d=pid[2], threshold=pid[3], duration=pid[4])
+        self.set_pid(index=index, p=pid[0], i=pid[1], d=pid[2], threshold=pid[3], duration=pid[4])
 
         # jmove
         cmd_jmove = {"j"+str(index): travel*dir, "rel": 1, "vel": vaj_forward[0], "accel": vaj_forward[1], "jerk": vaj_forward[2], "cont":0}
@@ -1288,7 +1288,7 @@ class Dorna(WS):
         time.sleep(0.5)
 
         # bring pid back to initial
-        #self.set_pid(index=index, p=pid_init[0], i=pid_init[1], d=pid_init[2], threshold=pid_init[3], duration=pid_init[4])
+        self.set_pid(index=index, p=pid_init[0], i=pid_init[1], d=pid_init[2], threshold=pid_init[3], duration=pid_init[4])
 
         # backward motion and set joint value
         self.home_with_encoder_index(index=index, val=val, dir=-dir, travel=travel, trigger_signal=trigger_signal, vaj=vaj_backward, timeout=timeout, **kwargs)
