@@ -1274,7 +1274,7 @@ class Dorna(WS):
         return False
 
 
-    def home_with_stop(self, index=7, val=0, dir=1, travel=4000, trigger_signal=1, pid=[0, 0, 0, 20, 20], vaj_forward=[5, 1000, 5000], vaj_backward=[10, 1000, 5000], timeout=100, **kwargs):
+    def home_with_stop(self, index=7, val=0, dir=-1, travel=4000, trigger_signal=1, pid=[0, 0, 0, 20, 20], vaj_forward=[5, 1000, 5000], vaj_backward=[10, 1000, 5000], timeout=100, **kwargs):
         # home flag
         home_done = False
 
