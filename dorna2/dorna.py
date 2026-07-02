@@ -1249,7 +1249,8 @@ class Dorna(WS):
     def home_with_encoder_index(self, index=6, val=0, dir=-1, travel=1000, trigger_signal=1, vaj=[100, 1000, 5000], timeout=60, **kwargs):
         # jmove
         cmd_jmove = {"j"+str(index): travel*dir, "rel": 1, "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont":0}
-        self.jmove(**cmd_jmove, timeout=0)
+        if self.jmove(**cmd_jmove, timeout=0) < 0:
+            return False
 
         # run iprobe
         result = self.iprobe(index=index, val=trigger_signal, timeout=timeout)
@@ -1266,38 +1267,58 @@ class Dorna(WS):
             offset = self.get_joint(index=index) - result[index]
 
             # set joint
-            return self.set_joint(index=index, val=val + offset)
+            if self.set_joint(index=index, val=val + offset) == 2:
+                self.set_output(index=index+8, val=1)
+                return True
         
-        return None
+        return False
 
 
-    def home_with_stop(self, index=7, val=0, dir=1, travel=1000, trigger_signal=1, pid=[0, 0, 0, 20, 20], vaj_forward=[5, 1000, 5000], vaj_backward=[10, 1000, 5000], timeout=100, **kwargs):
+    def home_with_stop(self, index=7, val=0, dir=1, travel=4000, trigger_signal=1, pid=[0, 0, 0, 20, 20], vaj_forward=[5, 1000, 5000], vaj_backward=[10, 1000, 5000], timeout=100, **kwargs):
+        # home flag
+        home_done = False
+
         # initial pid
         pid_init = self.get_pid(index=index)
 
-        # set pid
-        self.set_pid(index=index, p=pid[0], i=pid[1], d=pid[2], threshold=pid[3], duration=pid[4])
+        # run once 
+        for _ in range(1):
+            # set pid
+            if self.set_pid(index=index, p=pid[0], i=pid[1], d=pid[2], threshold=pid[3], duration=pid[4]) < 0:
+                break
 
-        # jmove
-        cmd_jmove = {"j"+str(index): travel*dir, "rel": 1, "vel": vaj_forward[0], "accel": vaj_forward[1], "jerk": vaj_forward[2], "cont":0}
-        self.jmove(**cmd_jmove)
-        time.sleep(0.5)
+            # jmove
+            cmd_jmove = {"j"+str(index): travel*dir, "rel": 1, "vel": vaj_forward[0], "accel": vaj_forward[1], "jerk": vaj_forward[2], "cont":0}
+            if self.jmove(**cmd_jmove) < 0:
+                break
 
-        # alarm happens
-        self.set_alarm(enable=False)
-        time.sleep(0.5)
+            # sleep
+            time.sleep(0.5)
+
+            # alarm happens
+            self.set_alarm(enable=False)
+            time.sleep(0.5)
+
+            # home flag
+            home_done = True
 
         # bring pid back to initial
         self.set_pid(index=index, p=pid_init[0], i=pid_init[1], d=pid_init[2], threshold=pid_init[3], duration=pid_init[4])
 
-        # backward motion and set joint value
-        self.home_with_encoder_index(index=index, val=val, dir=-dir, travel=travel, trigger_signal=trigger_signal, vaj=vaj_backward, timeout=timeout, **kwargs)
+        if home_done:
+            # backward motion and set joint value
+            if self.home_with_encoder_index(index=index, val=val, dir=-dir, travel=travel, trigger_signal=trigger_signal, vaj=vaj_backward, timeout=timeout, **kwargs):
+                
+                # jmove
+                cmd_jmove = {"j"+str(index): -20*dir, "rel": 1}
+                self.jmove(**cmd_jmove)
 
-        # jmove
-        cmd_jmove = {"j"+str(index): -20*dir, "rel": 1}
-        return self.jmove(**cmd_jmove)
+                return True
+
+        return False
 
 
-
+    def is_homed(self, index=6):
+        return self.get_output(index=index+8) == 1
 
 
