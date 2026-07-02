@@ -1289,7 +1289,7 @@ class Dorna(WS):
 
             # jmove
             cmd_jmove = {"j"+str(index): travel*dir, "rel": 1, "vel": vaj_forward[0], "accel": vaj_forward[1], "jerk": vaj_forward[2], "cont":0}
-            if self.jmove(**cmd_jmove) < 0:
+            if self.jmove(**cmd_jmove) >= 0 or self.get_alarm() == 0:
                 break
 
             # sleep
