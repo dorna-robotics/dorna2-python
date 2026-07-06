@@ -347,6 +347,21 @@ class Dorna(WS):
     def cmove(self, **kwargs):
         return self._motion("cmove", **kwargs)
 
+    def smove(self, points, **kwargs):
+        """
+        Move along a cubic spline path defined by a list of joint vectors.
+        The first point should equal the current joint position.
+        Returns:
+            -1 : error
+            2 : success
+        """
+
+        if len(points) < 1:
+            print("given points: ", points)
+            return 2   # nothing to do
+        
+        kwargs = {"points": points, **kwargs}
+        return self._motion("smove", **kwargs)
 
     def _key_val_cmd(self, key, val, cmd, rtn_key, rtn_keys, **kwargs):
         # adjust key and kwargs
