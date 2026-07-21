@@ -360,7 +360,6 @@ class Dorna(WS):
             return None
         if len(vajs) != len(joints) or len(corners) != len(joints):
             raise ValueError("cjmove: joints, vajs and corners must have the same length")
-        timeout = kwargs.pop("timeout", -1)
         for k, (p, vaj) in enumerate(zip(joints, vajs)):
             last = k == len(joints) - 1
             self.jmove(
@@ -371,7 +370,7 @@ class Dorna(WS):
                 timeout=0,
                 **kwargs,
             )
-        return self.sleep(0, timeout=timeout)
+        return self.sleep(0, timeout=-1)
 
 
     def clmove(self, joints, vajs, corners, tool_pose=[0, 0, 0, 0, 0, 0], **kwargs):
@@ -382,7 +381,6 @@ class Dorna(WS):
             return None
         if len(vajs) != len(joints) or len(corners) != len(joints):
             raise ValueError("clmove: joints, vajs and corners must have the same length")
-        timeout = kwargs.pop("timeout", -1)
         self.tool(tool=tool_pose)
         for k, (p, vaj) in enumerate(zip(joints, vajs)):
             last = k == len(joints) - 1
@@ -396,7 +394,7 @@ class Dorna(WS):
                    "timeout": 0,
                    **kwargs},
             )
-        return self.sleep(0, timeout=timeout)
+        return self.sleep(0, timeout=-1)
 
 
     def cmove(self, **kwargs):
