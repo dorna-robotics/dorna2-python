@@ -362,12 +362,12 @@ class Dorna(WS):
             raise ValueError("cjmove: joints, vajs and corners must have the same length")
         for k, (p, vaj) in enumerate(zip(joints, vajs)):
             last = k == len(joints) - 1
+            extra = {"cont": 0} if last else {"cont": 1, "corner": corners[k]}
             self.jmove(
                 joint=list(p),
                 vel=vaj[0], accel=vaj[1], jerk=vaj[2],
-                cont=0 if last else 1,
-                corner=corners[k],
                 timeout=0,
+                **extra,
                 **kwargs,
             )
         return self.sleep(0, timeout=-1)
@@ -384,14 +384,14 @@ class Dorna(WS):
         self.tool(tool=tool_pose)
         for k, (p, vaj) in enumerate(zip(joints, vajs)):
             last = k == len(joints) - 1
+            extra = {"cont": 0} if last else {"cont": 1, "corner": corners[k]}
             position = {f"j{i}": p[i] for i in range(len(p))}
             self._motion(
                 "lmove",
                 **{**position, "rel": 0,
                    "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2],
-                   "cont": 0 if last else 1,
-                   "corner": corners[k],
                    "timeout": 0,
+                   **extra,
                    **kwargs},
             )
         return self.sleep(0, timeout=-1)
