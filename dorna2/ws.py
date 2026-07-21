@@ -83,6 +83,15 @@ class WS(object):
         return self._connected        
 
     def write(self, msg = "", mode="cmd"):
+        # TX log — every frame exactly as sent to the controller, one
+        # per line, for manual replay when the controller misbehaves
+        # (e.g. alarm on an oversized command). /tmp is tmpfs on the
+        # Pi: cleared on reboot, zero SD wear.
+        try:
+            with open("/tmp/dorna_tx.log", "a") as f:
+                f.write(msg + "\n")
+        except Exception:
+            pass
         #asyncio.create_task(self.write_coro(msg, mode))
         future = asyncio.run_coroutine_threadsafe(self.write_coro(msg, mode), self.loop)
 
