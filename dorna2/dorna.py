@@ -344,6 +344,59 @@ class Dorna(WS):
         return self._motion("lmove", **kwargs)
 
 
+    """
+    continuous chains: drive through a list of waypoints as queued
+    cont=1 motions, each section with its own vaj and corner radius.
+    The chain starts FROM THE CURRENT POSITION to points[0] — the
+    current position is NOT included in points. The last section sends
+    cont=0 (decelerate to stop). Returns after the whole chain
+    completes (sleep barrier, timeout semantics like play).
+    """
+    def cjmove(self, points, vajs, corners, timeout=-1, **kwargs):
+        """points: list of joint vectors, each exactly [j0..j7].
+        vajs: one [vel, accel, jerk] per section (len == len(points)).
+        corners: one corner radius per section (len == len(points))."""
+        if not points:
+            return None
+        if len(vajs) != len(points) or len(corners) != len(points):
+            raise ValueError("cjmove: points, vajs and corners must have the same length")
+        for k, (p, vaj) in enumerate(zip(points, vajs)):
+            last = k == len(points) - 1
+            self.jmove(
+                joint=list(p),
+                vel=vaj[0], accel=vaj[1], jerk=vaj[2],
+                cont=0 if last else 1,
+                corner=corners[k],
+                timeout=0,
+                **kwargs,
+            )
+        return self.sleep(0, timeout=timeout)
+
+
+    def clmove(self, points, vajs, corners, tool_pose=[0, 0, 0, 0, 0, 0], timeout=-1, **kwargs):
+        """Same chain as cjmove but each section is an lmove (straight
+        TCP line to the section's joint target). ONE tool_pose for the
+        entire path — set once up front, not per section."""
+        if not points:
+            return None
+        if len(vajs) != len(points) or len(corners) != len(points):
+            raise ValueError("clmove: points, vajs and corners must have the same length")
+        self.tool(tool=tool_pose)
+        for k, (p, vaj) in enumerate(zip(points, vajs)):
+            last = k == len(points) - 1
+            position = {f"j{i}": p[i] for i in range(len(p))}
+            self._motion(
+                "lmove",
+                **{**position, "rel": 0,
+                   "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2],
+                   "cont": 0 if last else 1,
+                   "corner": corners[k],
+                   "timeout": 0,
+                   **kwargs},
+            )
+        return self.sleep(0, timeout=timeout)
+
+
     def cmove(self, **kwargs):
         return self._motion("cmove", **kwargs)
 
