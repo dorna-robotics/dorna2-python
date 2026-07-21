@@ -352,7 +352,7 @@ class Dorna(WS):
     cont=0 (decelerate to stop). Returns after the whole chain
     completes (sleep barrier, timeout semantics like play).
     """
-    def cjmove(self, joints, vajs, corners, timeout=-1, **kwargs):
+    def cjmove(self, joints, vajs, corners, **kwargs):
         """joints: list of joint vectors, each exactly [j0..j7].
         vajs: one [vel, accel, jerk] per section (len == len(joints)).
         corners: one corner radius per section (len == len(joints))."""
@@ -360,6 +360,7 @@ class Dorna(WS):
             return None
         if len(vajs) != len(joints) or len(corners) != len(joints):
             raise ValueError("cjmove: joints, vajs and corners must have the same length")
+        timeout = kwargs.pop("timeout", -1)
         for k, (p, vaj) in enumerate(zip(joints, vajs)):
             last = k == len(joints) - 1
             self.jmove(
@@ -373,7 +374,7 @@ class Dorna(WS):
         return self.sleep(0, timeout=timeout)
 
 
-    def clmove(self, joints, vajs, corners, tool_pose=[0, 0, 0, 0, 0, 0], timeout=-1, **kwargs):
+    def clmove(self, joints, vajs, corners, tool_pose=[0, 0, 0, 0, 0, 0], **kwargs):
         """Same chain as cjmove but each section is an lmove (straight
         TCP line to the section's joint target). ONE tool_pose for the
         entire path — set once up front, not per section."""
@@ -381,6 +382,7 @@ class Dorna(WS):
             return None
         if len(vajs) != len(joints) or len(corners) != len(joints):
             raise ValueError("clmove: joints, vajs and corners must have the same length")
+        timeout = kwargs.pop("timeout", -1)
         self.tool(tool=tool_pose)
         for k, (p, vaj) in enumerate(zip(joints, vajs)):
             last = k == len(joints) - 1
