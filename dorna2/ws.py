@@ -84,11 +84,21 @@ class WS(object):
 
     def write(self, msg = "", mode="cmd"):
         # TX log — every frame exactly as sent to the controller, one
-        # per line, for manual replay when the controller misbehaves
-        # (e.g. alarm on an oversized command). /tmp is tmpfs on the
-        # Pi: cleared on reboot, zero SD wear.
+        # JSON command per line, for manual replay when the controller
+        # misbehaves (e.g. alarm on an oversized command). Uses the
+        # platform temp dir (Windows %TEMP%, Linux /tmp — tmpfs on the
+        # Pi: cleared on reboot, zero SD wear) and rotates at 20 MB
+        # (current file becomes .old). Fully fenced: logging can never
+        # crash or block the send path on any platform.
         try:
-            with open("/tmp/dorna_tx.log", "a") as f:
+            import os, tempfile
+            path = os.path.join(tempfile.gettempdir(), "dorna_tx.log")
+            try:
+                if os.path.getsize(path) > 20 * 1024 * 1024:
+                    os.replace(path, path + ".old")
+            except OSError:
+                pass  # no file yet / race — fine
+            with open(path, "a") as f:
                 f.write(msg + "\n")
         except Exception:
             pass
