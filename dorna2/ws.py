@@ -8,6 +8,80 @@ import random
 import base64
 import os
 
+
+class _WireLog:
+    """Wire log of the controller link — one background writer thread,
+    ZERO I/O on the send/receive paths.
+
+    Every command SENT and every message RECEIVED — except the
+    ``cmd: "motion"`` live joint stream, which would flood the file —
+    is queued with its timestamp and written by a daemon thread as:
+
+        # 2026-07-24 17:03:12.345 send
+        {"cmd":"jmove",...}
+        # 2026-07-24 17:03:12.361 recv
+        {"id":12,"stat":2}
+
+    Comment lines start with ``#`` so a replay can strip them with
+    ``grep -v '^#'``. The hot paths only do a non-blocking queue put
+    (~1 us); when the queue is full the frame is DROPPED rather than
+    ever delaying the robot link — dorna2 is the bench's bottleneck,
+    logging must never add to it. The file lives in the platform temp
+    dir (Windows %TEMP%, Linux /tmp — tmpfs on the Pi: cleared on
+    reboot, zero SD wear) and rotates at 20 MB (current file becomes
+    .old). Fully fenced: logging can never crash the link on any
+    platform; any unexpected failure disables it permanently instead
+    of raising.
+    """
+
+    def __init__(self, name="dorna_wire.log"):
+        self._q = queue.Queue(10000)
+        self._name = name
+        self._lock = threading.Lock()
+        self._started = False
+        self._dead = False
+
+    def log(self, direction, text):
+        if self._dead:
+            return
+        try:
+            if not self._started:
+                self._start()
+            self._q.put_nowait((time.time(), direction, text))
+        except queue.Full:
+            pass          # drop the frame — never block the link
+        except Exception:
+            self._dead = True  # never try again, never raise
+
+    def _start(self):
+        with self._lock:
+            if self._started:
+                return
+            threading.Thread(target=self._run, daemon=True).start()
+            self._started = True
+
+    def _run(self):
+        import tempfile
+        path = os.path.join(tempfile.gettempdir(), self._name)
+        while True:
+            try:
+                stamp, direction, text = self._q.get()
+                try:
+                    if os.path.getsize(path) > 20 * 1024 * 1024:
+                        os.replace(path, path + ".old")
+                except OSError:
+                    pass  # no file yet / race — fine
+                head = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(stamp))
+                ms = int((stamp % 1) * 1000)
+                with open(path, "a") as f:
+                    f.write(f"# {head}.{ms:03d} {direction}\n{text}\n")
+            except Exception:
+                time.sleep(1)  # keep the drain alive, whatever happened
+
+
+_wire_log = _WireLog()
+
+
 class WS(object):
     """docstring for comm"""
     def __init__(self, channel="websocket"):
@@ -83,25 +157,11 @@ class WS(object):
         return self._connected        
 
     def write(self, msg = "", mode="cmd"):
-        # TX log — every frame exactly as sent to the controller, one
-        # JSON command per line, for manual replay when the controller
-        # misbehaves (e.g. alarm on an oversized command). Uses the
-        # platform temp dir (Windows %TEMP%, Linux /tmp — tmpfs on the
-        # Pi: cleared on reboot, zero SD wear) and rotates at 20 MB
-        # (current file becomes .old). Fully fenced: logging can never
-        # crash or block the send path on any platform.
-        try:
-            import os, tempfile
-            path = os.path.join(tempfile.gettempdir(), "dorna_tx.log")
-            try:
-                if os.path.getsize(path) > 20 * 1024 * 1024:
-                    os.replace(path, path + ".old")
-            except OSError:
-                pass  # no file yet / race — fine
-            with open(path, "a") as f:
-                f.write(msg + "\n")
-        except Exception:
-            pass
+        # Wire log — queue put only, the writer thread does all I/O
+        # (see _WireLog). The send path must never touch the disk: the
+        # old inline file write was a synchronous open/append on every
+        # command, on the very link that bottlenecks the robot.
+        _wire_log.log("send", msg)
         #asyncio.create_task(self.write_coro(msg, mode))
         future = asyncio.run_coroutine_threadsafe(self.write_coro(msg, mode), self.loop)
 
@@ -193,8 +253,9 @@ class WS(object):
                         continue
 
                     # get the message
-                    msg = json.loads(data_str[index_start:-1])
-                    
+                    raw = data_str[index_start:-1]
+                    msg = json.loads(raw)
+
                 else:
                     try:
                         # read header
@@ -204,10 +265,20 @@ class WS(object):
                         data_byte = await self.reader.readexactly(int.from_bytes(data_length_byte, byteorder='big'))
                     except:
                         break
-                       
+
                     # get the message
-                    msg = json.loads(data_byte.decode("utf-8"))                    
-                
+                    raw = data_byte.decode("utf-8")
+                    msg = json.loads(raw)
+
+                # wire log — everything received EXCEPT the "motion"
+                # live joint stream (it would flood the file). Queue
+                # put only; no I/O on this path (see _WireLog).
+                try:
+                    if msg.get("cmd") != "motion":
+                        _wire_log.log("recv", raw)
+                except Exception:
+                    pass
+
                 # message queue
                 if not self.msg.full():
                     self.msg.put(msg)
