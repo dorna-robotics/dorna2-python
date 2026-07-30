@@ -287,14 +287,14 @@ class WS(object):
                     self.msg.put(msg)
 
                 # update _msg
-                self._recv = copy.deepcopy(msg)
+                self._recv = msg
 
                 # update sys
                 sys.update(msg)
 
                 # callback
                 if self.callback:
-                    asyncio.create_task(self.callback(copy.deepcopy(msg), copy.deepcopy(sys)))
+                    asyncio.create_task(self.callback(msg, sys))
 
                 # emergency
                 if self._emergency["enable"] and self._emergency["key"] in ["in"+str(i) for i in range(16)] and self._emergency["value"] in [i for i in range(2)]:
@@ -344,8 +344,8 @@ class WS(object):
                 except:
                     pass 
 
-                # update sys           
-                self._sys = copy.deepcopy(sys)
+                # update sys
+                self._sys = sys
 
 
             except Exception as ex:
