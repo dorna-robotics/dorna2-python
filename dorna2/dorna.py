@@ -398,9 +398,10 @@ class Dorna(WS):
 
 
     def cmove(self, pose=[], joint=[], rel=0, tool_pose=[0, 0, 0, 0, 0, 0], space=0, **kwargs):
-        """Circular arc from the current pose THROUGH a midpoint TO a target.
-        joint = [joint_end, joint_mid], each [j0..j7]; or
-        pose  = [pose_end,  pose_mid],  each [x, y, z, a, b, c, d, e].
+        """Circular arc from the current pose THROUGH a midpoint TO a target,
+        the two points in the order the arc visits them:
+        joint = [joint_mid, joint_end], each [j0..j7]; or
+        pose  = [pose_mid,  pose_end],  each [x, y, z, a, b, c, d, e].
         A shorter vector names only its leading components. joint wins
         over pose. space 0 = the circle in joint space, 1 = in Cartesian
         x, y, z (the firmware's default for an absent field is 1, so it
@@ -410,17 +411,17 @@ class Dorna(WS):
         if pose or space:
             self.tool(tool=tool_pose)
 
-        # positions: end -> j0.. / x.., middle -> mj0.. / mx..
+        # positions: middle -> mj0.. / mx.., end -> j0.. / x..
         position = {}
         if joint:
-            end, mid = (list(joint) + [[]])[:2]
-            position.update({f"j{i}": end[i] for i in range(len(end))})
+            mid, end = (list(joint) + [[]])[:2]
             position.update({f"mj{i}": mid[i] for i in range(len(mid))})
+            position.update({f"j{i}": end[i] for i in range(len(end))})
         elif pose:
             keys = ["x", "y", "z", "a", "b", "c", "d", "e"]
-            end, mid = (list(pose) + [[]])[:2]
-            position.update({keys[i]: end[i] for i in range(len(end))})
+            mid, end = (list(pose) + [[]])[:2]
             position.update({"m" + keys[i]: mid[i] for i in range(len(mid))})
+            position.update({keys[i]: end[i] for i in range(len(end))})
 
         kwargs = {**position, "rel": rel, "space": space, **kwargs}
         return self._motion("cmove", **kwargs)
