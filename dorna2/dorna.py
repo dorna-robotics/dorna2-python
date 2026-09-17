@@ -397,8 +397,34 @@ class Dorna(WS):
         return self.sleep(0, timeout=-1)
 
 
-    def cmove(self, **kwargs):
+    def cmove(self, pose=[], joint=[], rel=0, tool_pose=[0, 0, 0, 0, 0, 0], space=0, **kwargs):
+        """Circular arc from the current pose THROUGH a midpoint TO a target.
+        joint = [joint_end, joint_mid], each [j0..j7]; or
+        pose  = [pose_end,  pose_mid],  each [x, y, z, a, b, c, d, e].
+        A shorter vector names only its leading components. joint wins
+        over pose. space 0 = the circle in joint space, 1 = in Cartesian
+        x, y, z (the firmware's default for an absent field is 1, so it
+        is always sent). Extra kwargs (dim, turn, vel, accel, jerk) go
+        through as they are."""
+        # the tool matters only when a pose is solved or the circle is Cartesian
+        if pose or space:
+            self.tool(tool=tool_pose)
+
+        # positions: end -> j0.. / x.., middle -> mj0.. / mx..
+        position = {}
+        if joint:
+            end, mid = (list(joint) + [[]])[:2]
+            position.update({f"j{i}": end[i] for i in range(len(end))})
+            position.update({f"mj{i}": mid[i] for i in range(len(mid))})
+        elif pose:
+            keys = ["x", "y", "z", "a", "b", "c", "d", "e"]
+            end, mid = (list(pose) + [[]])[:2]
+            position.update({keys[i]: end[i] for i in range(len(end))})
+            position.update({"m" + keys[i]: mid[i] for i in range(len(mid))})
+
+        kwargs = {**position, "rel": rel, "space": space, **kwargs}
         return self._motion("cmove", **kwargs)
+
 
     def smove(self, points, **kwargs):
         """
