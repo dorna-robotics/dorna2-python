@@ -1,5 +1,50 @@
 # Changelog
 
+## 2.1.7
+
+Follow-up to 2.1.6: remove every remaining shared-state path to a
+command's stat. There is now **one** way to read a stat — the value
+returned by `play()` (or the `set_*` / `_motion` wrappers around it).
+No hidden per-thread stash, no best-effort shim, no cross-caller state.
+
+### Removed
+- `_track_cmd_stat()` — every `set_*` wrapper now returns
+  `self._stat_cmd(cmd, **kwargs)` directly.
+- `track_cmd()` — external consumers of the old shim should use
+  `play()`'s return value.
+- `WS._track` (single-slot shim), `WS._local` (threading.local rtn
+  stash). Both existed only to feed the two methods above.
+
+### Added
+- `_stat_cmd(cmd, **kwargs)` — sends a command via `play()` and
+  returns `rtn["union"]["stat"]` (or `False` if the reply had no
+  stat). Every `set_*` method now uses it.
+- `play()`'s `_tracks` registration now also purges any entries whose
+  `Event` fired but whose owner never popped them (e.g. a caller using
+  `timeout=0` fire-and-forget). Never touches an entry with a live
+  waiter. The 256 cap now truly means "live waiters"; hitting it is
+  the signal that something is piling up.
+- `tests/acceptance_two_threads_wire.py` — real-hardware acceptance
+  test that runs against an actual controller. Two threads
+  (shaker-style `output(config=...)` + jmove wiggle) plus a
+  `get_all_output()` poller, asserting on the wire that every motion
+  play() blocks for at least its motion time, every output row
+  returns stat 2, and `get_all_output()` never returns a non-list —
+  the exact three invariants the 2026-09-21 incident violated.
+
+### Preserved (called out for reviewers)
+- `set_freq` / `set_duty` keep the pre-existing (buggy) wire shape:
+  `freq` was sent as a bare `"freq"` key rather than `"freq{index}"`,
+  and `set_duty` sends `"duty": index` (a copy-paste). The refactor
+  does not silently repair these — they are noted in the source so a
+  proper fix can be made in scope of its own change.
+
+### Compatibility
+- `play()`'s return shape is unchanged: `{"msgs":[...], "cmd":{...},
+  "union":{...}}`. Anything that consumes it (including `_motion`,
+  `_key_val_cmd`, and now `_stat_cmd`) still sees the same structure.
+- `set_*` return types are unchanged. Only the path is different.
+
 ## 2.1.6
 
 ### Thread-safety

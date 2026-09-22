@@ -6,4 +6,4 @@ from . import pose
 from .pose import Pose
 from .pose import Solid
 
-__version__ = "2.1.6"
+__version__ = "2.1.7"

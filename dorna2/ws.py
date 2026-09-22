@@ -94,8 +94,7 @@ class WS(object):
         self._connected = False
 
         # wait — lock serialises wait() so two callers don't collide on
-        # the shared _ptrn slot. wait() is not called concurrently by
-        # dorna2's public API today; the lock is defence-in-depth.
+        # the shared _ptrn slot.
         self._ptrn = {"wait": None, "sys": None}
         self._wait_lock = threading.Lock()
 
@@ -104,21 +103,12 @@ class WS(object):
         # up msg["id"] and appends the reply / sets the event on
         # terminal stat. _tracks_lock guards dict membership only —
         # entries themselves are one-writer (read_loop) / one-waiter
-        # (the play() call that owns the id).
+        # (the play() call that owns the id). Every stat consumer reads
+        # play()'s own return value; there is no shared shim to race on.
         self._tracks = {}
         self._tracks_lock = threading.Lock()
         self._tracks_cap = 256
         self._tracks_over_cap = False
-
-        # thread-local last-completed play rtn. _track_cmd_stat() reads
-        # this so a set_output() / set_joint() caller sees its own stat
-        # instead of whichever thread happened to finish most recently.
-        self._local = threading.local()
-
-        # Backward-compat shim: _track / track_cmd() / last_cmd() report
-        # the most recently completed play. Not meaningful across
-        # threads; the thread-safe path is play()'s return value.
-        self._track = {"id": None, "msgs": [], "cmd": {}}
 
         # Last {"cmd":"alarm",...} broadcast (with wall-clock stamp) and
         # any registered callbacks. Cleared only via clear_last_alarm().

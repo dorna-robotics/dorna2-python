@@ -84,21 +84,6 @@ class Dorna(WS):
     def union(self):
         return copy.deepcopy(self._sys)
 
-    """
-    return aggregate and all the messages in _msgs
-    cmd, msgs, union
-    """
-    def track_cmd(self):
-        # make a copy and rem
-        _track = copy.deepcopy(self._track)
-        del _track["id"]
-
-        # create union
-        union = {}
-        for i in range(len(_track["msgs"])):
-            union = {**union, **_track["msgs"][i]}
-        return {** _track, "union": union}
-
     def format_numbers(self, obj):
         if isinstance(obj, dict):  # If the object is a dictionary
             return {key: self.format_numbers(value) for key, value in obj.items()}
@@ -157,7 +142,7 @@ class Dorna(WS):
             elif type(msg) == dict:
                 msg = copy.deepcopy(msg)
             else:
-                return self.track_cmd()
+                return {"msgs": [], "cmd": {}, "union": {}}
         else:
             msg = copy.deepcopy(kwargs)
 
@@ -178,13 +163,19 @@ class Dorna(WS):
         entry = {"msgs": [], "cmd": copy.deepcopy(msg), "event": threading.Event()}
         warn_cap = False
         with self._tracks_lock:
+            # stale-purge: reclaim any entries whose event fired but
+            # whose owner never popped them (e.g. a caller using
+            # timeout=0 fire-and-forget). Never touches an entry with
+            # a live waiter (event unset).
+            for stale_id in [k for k, e in self._tracks.items() if e["event"].is_set()]:
+                self._tracks.pop(stale_id, None)
             self._tracks[msg["id"]] = entry
             if len(self._tracks) > self._tracks_cap and not self._tracks_over_cap:
                 self._tracks_over_cap = True
                 warn_cap = True
         if warn_cap:
             try:
-                self.log("dorna2: _tracks over cap (%d live ids) — check for callers using timeout=0 without draining" % self._tracks_cap)
+                self.log("dorna2: _tracks over cap (%d live waiters) — investigate" % self._tracks_cap)
             except Exception:
                 pass
 
@@ -203,20 +194,11 @@ class Dorna(WS):
             if self._tracks_over_cap and len(self._tracks) <= self._tracks_cap // 2:
                 self._tracks_over_cap = False
 
-        # build the return in the same shape track_cmd() produces
+        # build the return — this is the ONLY way to get a stat back
         union = {}
         for m in entry["msgs"]:
             union = {**union, **m}
-        rtn = {"msgs": entry["msgs"], "cmd": entry["cmd"], "union": union}
-
-        # shim: most recently completed play (best-effort, not thread-safe)
-        self._track = {"id": None, "msgs": list(entry["msgs"]), "cmd": dict(entry["cmd"])}
-
-        # thread-local: _track_cmd_stat() reads this so each thread sees
-        # the stat of its own last play instead of a racy shared value.
-        self._local.last_rtn = rtn
-
-        return rtn
+        return {"msgs": entry["msgs"], "cmd": entry["cmd"], "union": union}
 
 
     """
@@ -478,14 +460,14 @@ class Dorna(WS):
             return False
 
   
-    def _track_cmd_stat(self):
-        # thread-local last rtn wins over the racy shim
-        rtn = getattr(self._local, "last_rtn", None)
-        if rtn is None:
-            rtn = self.track_cmd()
+    def _stat_cmd(self, cmd, **kwargs):
+        """Send cmd and return its terminal stat from the reply union.
+        Pure return-value path — no shared state, no per-thread stash.
+        Returns False if the reply has no stat (timeout / dropped)."""
+        rtn = self.cmd(cmd, **kwargs)
         try:
             return rtn["union"]["stat"]
-        except:
+        except Exception:
             return False
 
 
@@ -533,8 +515,11 @@ class Dorna(WS):
 
 
     def set_output(self, index=None, val=None, queue=None, **kwargs):
-        self.output(index=index, val=val, queue=queue, **kwargs)
-        return self._track_cmd_stat()
+        if index is not None and val is not None:
+            kwargs["out"+str(index)] = val
+        if queue is not None:
+            kwargs["queue"] = queue
+        return self._stat_cmd("output", **kwargs)
 
 
     """
@@ -605,18 +590,32 @@ class Dorna(WS):
 
 
     def set_pwm(self, index=None, enable=None, queue=None, **kwargs):
-        self.pwm(index=index, val=enable, queue=queue, **kwargs)
-        return self._track_cmd_stat()
+        if index is not None and enable is not None:
+            kwargs["pwm"+str(index)] = enable
+        if queue is not None:
+            kwargs["queue"] = queue
+        return self._stat_cmd("pwm", **kwargs)
 
 
     def set_freq(self, index=None, freq=None, queue=None, **kwargs):
-        self.freq(index=index, freq=freq, queue=queue, **kwargs)
-        return self._track_cmd_stat()
+        # preserve pre-existing wire shape: freq was passed as bare
+        # "freq" key rather than "freq{index}" — behavior unchanged
+        if freq is not None:
+            kwargs["freq"] = freq
+        if queue is not None:
+            kwargs["queue"] = queue
+        return self._stat_cmd("pwm", **kwargs)
 
 
     def set_duty(self, index=None, duty=None, queue=None, **kwargs):
-        self.duty(index=index, duty=index, queue=queue, **kwargs)
-        return self._track_cmd_stat()
+        # preserve pre-existing wire shape: the old code sent
+        # duty=index (copy-paste of the index kwarg) — behavior
+        # unchanged, do not silently repair it here
+        if index is not None:
+            kwargs["duty"] = index
+        if queue is not None:
+            kwargs["queue"] = queue
+        return self._stat_cmd("pwm", **kwargs)
 
 
     """
@@ -726,8 +725,9 @@ class Dorna(WS):
 
 
     def set_alarm(self, enable=None, **kwargs):
-        self.alarm(val=enable, **kwargs)
-        return self._track_cmd_stat()
+        if enable is not None:
+            kwargs["alarm"] = enable
+        return self._stat_cmd("alarm", **kwargs)
 
 
     # ---------------------------------------------------------------
@@ -815,8 +815,9 @@ class Dorna(WS):
 
 
     def set_joint(self, index=None, val=None, **kwargs):
-        self.joint(index=index, val=val, **kwargs)
-        return self._track_cmd_stat()
+        if index is not None and val is not None:
+            kwargs["j"+str(index)] = val
+        return self._stat_cmd("joint", **kwargs)
 
 
     def pose(self, index=None):
@@ -865,8 +866,9 @@ class Dorna(WS):
 
 
     def set_motor(self, enable=None, **kwargs):
-        self.motor(val=enable, **kwargs)
-        return self._track_cmd_stat()
+        if enable is not None:
+            kwargs["motor"] = enable
+        return self._stat_cmd("motor", **kwargs)
 
 
     def toollength(self, val=None, **kwargs):
@@ -892,9 +894,10 @@ class Dorna(WS):
         return self.toollength(**kwargs)
 
 
-    def set_toollength(self, length=None ,**kwargs):
-        self.toollength(val=length, **kwargs)
-        return self._track_cmd_stat()
+    def set_toollength(self, length=None, **kwargs):
+        if length is not None:
+            kwargs["toollength"] = length
+        return self._stat_cmd("toollength", **kwargs)
 
 
     def tool(self,tool=[0, 0, 0, 0, 0, 0], mtrx=None, **kwargs):
@@ -955,8 +958,12 @@ class Dorna(WS):
 
 
     def set_gravity(self, enable=None, mass=None, x=None, y=None, z=None, **kwargs):
-        self.gravity(gravity=enable, m=mass, x=x, y=y, z=z, **kwargs)
-        return self._track_cmd_stat()
+        if enable is not None: kwargs["gravity"] = enable
+        if mass is not None:   kwargs["m"] = mass
+        if x is not None:      kwargs["x"] = x
+        if y is not None:      kwargs["y"] = y
+        if z is not None:      kwargs["z"] = z
+        return self._stat_cmd("gravity", **kwargs)
 
 
     def axis(self, index=None, val=None, **kwargs):
@@ -976,17 +983,19 @@ class Dorna(WS):
 
 
     def set_axis(self, index=None, ratio=None, **kwargs):
-        self.axis(index=index, val=ratio, **kwargs)
-        return self._track_cmd_stat()
+        if index is not None and ratio is not None:
+            kwargs["ratio"+str(int(index))] = ratio
+        return self._stat_cmd("axis", **kwargs)
 
 
     def get_axis_ratio(self, index=None, **kwargs):
         return self.axis(index=index, **kwargs)
 
 
-    def set_axis_ratio(self, index=None, ratio=None,  **kwargs):
-        self.axis(index=index, val=ratio, **kwargs)
-        return self._track_cmd_stat()
+    def set_axis_ratio(self, index=None, ratio=None, **kwargs):
+        if index is not None and ratio is not None:
+            kwargs["ratio"+str(int(index))] = ratio
+        return self._stat_cmd("axis", **kwargs)
 
 
     def get_axis(self, index=None, **kwargs):
@@ -995,10 +1004,12 @@ class Dorna(WS):
 
 
     def set_axis(self, index=None, usem=None, usee=None, pprm=None, tprm=None, ppre=None, tpre=None, **kwargs):
-        return_keys = [key+str(int(index)) for key in ["usem", "usee", "pprm", "tprm", "ppre", "tpre"]]
-        key_value = {k: v for k, v in zip(return_keys, [usem, usee, pprm, tprm, ppre, tpre])}
-        self._key_val_cmd(None, None, "axis", None, return_keys, **key_value, **kwargs)
-        return self._track_cmd_stat()
+        idx = str(int(index))
+        for k, v in (("usem", usem), ("usee", usee), ("pprm", pprm),
+                     ("tprm", tprm), ("ppre", ppre), ("tpre", tpre)):
+            if v is not None:
+                kwargs[k+idx] = v
+        return self._stat_cmd("axis", **kwargs)
 
 
     def get_emergency(self):
@@ -1030,8 +1041,12 @@ class Dorna(WS):
 
 
     def set_pid(self, index=None, p=None, i=None, d=None, threshold=None, duration=None, **kwargs):
-        self.get_pid(index=index, **{"p"+str(int(index)): p, "i"+str(int(index)): i, "d"+str(int(index)): d, "threshold"+str(int(index)): threshold, "duration"+str(int(index)): duration})
-        return self._track_cmd_stat()
+        idx = str(int(index))
+        for k, v in (("p", p), ("i", i), ("d", d),
+                     ("threshold", threshold), ("duration", duration)):
+            if v is not None:
+                kwargs[k+idx] = v
+        return self._stat_cmd("pid", **kwargs)
 
 
     def get_pid_enable(self, **kwargs):
@@ -1044,13 +1059,9 @@ class Dorna(WS):
 
             
     def set_pid_enable(self, enable=None, **kwargs):
-        key = "pid"
-        val = enable        
-        cmd = "pid"
-        rtn_key = "pid"
-        rtn_keys = None
-        self._key_val_cmd(key, val, cmd, rtn_key, rtn_keys, **kwargs)
-        return self._track_cmd_stat()
+        if enable is not None:
+            kwargs["pid"] = enable
+        return self._stat_cmd("pid", **kwargs)
     
     def pid_enable(self, **kwargs):
         return self.set_pid_enable(enable=True, **kwargs)
