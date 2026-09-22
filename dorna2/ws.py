@@ -90,15 +90,43 @@ class WS(object):
         self.msg = queue.Queue(100)
         self._sys = {}
         self.deregister_callback()
-        self._event_list = [] # event list [{"target":fn0, "kwargs":kwargs0},...,{"target":fnn, "kwargs":kwargs0}]
+        self._event_list = []
         self._connected = False
-        
-        # wait
-        self._ptrn = {"wait": None, "sys": None} # wait for a given pattern
-        self._track = {"id": None, "msgs": [], "cmd": {}} # track a given id until it is done 
-        self._recv = {} # last message recived
 
-        # last message sent
+        # wait — lock serialises wait() so two callers don't collide on
+        # the shared _ptrn slot. wait() is not called concurrently by
+        # dorna2's public API today; the lock is defence-in-depth.
+        self._ptrn = {"wait": None, "sys": None}
+        self._wait_lock = threading.Lock()
+
+        # per-id command tracking. play() registers {id: entry}, writes,
+        # waits on entry["event"], and pops on return. read_loop looks
+        # up msg["id"] and appends the reply / sets the event on
+        # terminal stat. _tracks_lock guards dict membership only —
+        # entries themselves are one-writer (read_loop) / one-waiter
+        # (the play() call that owns the id).
+        self._tracks = {}
+        self._tracks_lock = threading.Lock()
+        self._tracks_cap = 256
+        self._tracks_over_cap = False
+
+        # thread-local last-completed play rtn. _track_cmd_stat() reads
+        # this so a set_output() / set_joint() caller sees its own stat
+        # instead of whichever thread happened to finish most recently.
+        self._local = threading.local()
+
+        # Backward-compat shim: _track / track_cmd() / last_cmd() report
+        # the most recently completed play. Not meaningful across
+        # threads; the thread-safe path is play()'s return value.
+        self._track = {"id": None, "msgs": [], "cmd": {}}
+
+        # Last {"cmd":"alarm",...} broadcast (with wall-clock stamp) and
+        # any registered callbacks. Cleared only via clear_last_alarm().
+        self._last_alarm = None
+        self._alarm_lock = threading.Lock()
+        self._alarm_callbacks = []
+
+        self._recv = {}
         self._send = {}
 
         # loop and socket
@@ -309,18 +337,37 @@ class WS(object):
                         asyncio.create_task(self.write_coro(json.dumps(msg)))
                         self._emergency_flag = False                    
 
-                # track a given id
-                if self._track["id"]:
-                    try:
-                        # message contains an id
-                        if "id" in msg and self._track["id"] == msg["id"]:
-                            # update the resp_id
-                            self._track["msgs"].append(copy.deepcopy(msg))
+                # per-id tracking: look up the entry the owning play()
+                # call registered, append the reply, wake the waiter on
+                # terminal stat. No shared slot to overwrite, so a reply
+                # for id A never terminates a play() waiting on id B.
+                if "id" in msg:
+                    with self._tracks_lock:
+                        entry = self._tracks.get(msg["id"])
+                    if entry is not None:
+                        try:
+                            entry["msgs"].append(copy.deepcopy(msg))
+                            if "stat" in msg and (msg["stat"] < 0 or msg["stat"] >= 2):
+                                entry["event"].set()
+                        except Exception:
+                            pass
 
-                            # end the track
-                            if "stat" in msg and any([msg["stat"] < 0, msg["stat"] >= 2]):
-                                self._track["id"] = None                              
-                    except:
+                # capture alarm broadcasts so the platform can attach
+                # err0..err7 detail to a subsequent negative stat. Fires
+                # registered callbacks non-blockingly; a raising callback
+                # is dropped, never the loop.
+                if msg.get("cmd") == "alarm":
+                    try:
+                        stamped = {"time": time.time(), "msg": copy.deepcopy(msg)}
+                        with self._alarm_lock:
+                            self._last_alarm = stamped
+                            callbacks = list(self._alarm_callbacks)
+                        for fn in callbacks:
+                            try:
+                                fn(stamped)
+                            except Exception:
+                                pass
+                    except Exception:
                         pass
 
                 # events

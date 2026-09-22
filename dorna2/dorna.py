@@ -1,6 +1,7 @@
-import importlib.resources 
+import importlib.resources
 import json
 import random
+import threading
 import time
 from dorna2.ws import WS
 from dorna2.dof_5_6 import Kinematic
@@ -149,19 +150,14 @@ class Dorna(WS):
     return a dictionary formed by the union of the messages associated to this command 
     """
     def play(self, timeout=-1, msg=None, **kwargs):
-        self._track = {"id": None, "msgs": [], "cmd": {}} # init track 
-
         # find msg
         if msg:
-            # text
             if type(msg) == str:
                 msg = json.loads(msg)
-
             elif type(msg) == dict:
                 msg = copy.deepcopy(msg)
             else:
                 return self.track_cmd()
-
         else:
             msg = copy.deepcopy(kwargs)
 
@@ -171,36 +167,56 @@ class Dorna(WS):
         else:
             msg["id"] = self.rand_id(100, 1000000)
 
-
         # remove all the None keys
         _msg = copy.deepcopy(msg)
         for key in _msg:
-            if _msg[key] == None:
+            if _msg[key] is None:
                 del msg[key]
 
-        # format
-        #msg = self.format_numbers(msg)
+        # register per-id track entry before writing — the reply may
+        # arrive on the read loop before write() returns.
+        entry = {"msgs": [], "cmd": copy.deepcopy(msg), "event": threading.Event()}
+        warn_cap = False
+        with self._tracks_lock:
+            self._tracks[msg["id"]] = entry
+            if len(self._tracks) > self._tracks_cap and not self._tracks_over_cap:
+                self._tracks_over_cap = True
+                warn_cap = True
+        if warn_cap:
+            try:
+                self.log("dorna2: _tracks over cap (%d live ids) — check for callers using timeout=0 without draining" % self._tracks_cap)
+            except Exception:
+                pass
 
-        # set the tracking id
-        self._track["cmd"] = copy.deepcopy(msg) 
-        self._track["id"] =  msg["id"]
-        
-        # take a copy
+        # take a copy of the outbound
         self._send = copy.deepcopy(msg)
-        
-        # write the message
+
+        # write and wait on this id's own event
         self.write(json.dumps(msg))
+        wait_timeout = None if timeout < 0 else max(0.0, float(timeout))
+        entry["event"].wait(timeout=wait_timeout)
 
-        start = time.time()
-        while self._track["id"] == msg["id"]:            
-            # positive timeout
-            if timeout >=0 and time.time() >= start + timeout:
-                break
-            time.sleep(0.001)
+        # pop the entry; release the cap warning once we're back under
+        # half so we don't spam on steady-state churn near the cap.
+        with self._tracks_lock:
+            self._tracks.pop(msg["id"], None)
+            if self._tracks_over_cap and len(self._tracks) <= self._tracks_cap // 2:
+                self._tracks_over_cap = False
 
-        # finish tracking
-        self._track["id"] = None
-        return self.track_cmd()
+        # build the return in the same shape track_cmd() produces
+        union = {}
+        for m in entry["msgs"]:
+            union = {**union, **m}
+        rtn = {"msgs": entry["msgs"], "cmd": entry["cmd"], "union": union}
+
+        # shim: most recently completed play (best-effort, not thread-safe)
+        self._track = {"id": None, "msgs": list(entry["msgs"]), "cmd": dict(entry["cmd"])}
+
+        # thread-local: _track_cmd_stat() reads this so each thread sees
+        # the stat of its own last play instead of a racy shared value.
+        self._local.last_rtn = rtn
+
+        return rtn
 
 
     """
@@ -258,19 +274,20 @@ class Dorna(WS):
     wait for a given patter in received signal
     """
     def wait(self, timeout=-1, **kwargs):
-        # set wait dict
-        self._ptrn["wait"] = copy.deepcopy(kwargs)
-        # track
-        if timeout >= 0:
-            start = time.time()
-            while time.time() <= start + timeout and self._ptrn["wait"]:
-                time.sleep(0.001)
-            self._ptrn["wait"] = None
-        else:
-            while self.ptrn:
-                time.sleep(0.001)
+        # lock serialises concurrent waiters on the shared _ptrn slot
+        with self._wait_lock:
+            self._ptrn["wait"] = copy.deepcopy(kwargs)
+            if timeout >= 0:
+                start = time.time()
+                while time.time() <= start + timeout and self._ptrn["wait"]:
+                    time.sleep(0.001)
+                self._ptrn["wait"] = None
+            else:
+                while self._ptrn["wait"]:
+                    time.sleep(0.001)
 
-        return copy.deepcopy(set( kwargs.items()) & set( self._ptrn["sys"].items()))
+            sys_snapshot = self._ptrn["sys"] or {}
+            return copy.deepcopy(set(kwargs.items()) & set(sys_snapshot.items()))
 
    
     """
@@ -462,7 +479,10 @@ class Dorna(WS):
 
   
     def _track_cmd_stat(self):
-        rtn = self.track_cmd()
+        # thread-local last rtn wins over the racy shim
+        rtn = getattr(self._local, "last_rtn", None)
+        if rtn is None:
+            rtn = self.track_cmd()
         try:
             return rtn["union"]["stat"]
         except:
@@ -480,13 +500,17 @@ class Dorna(WS):
     """
     def output(self, index=None, val=None, config=None, **kwargs):
         if config is not None:
-            cmd_list = []   
+            # Send each toggle high-priority (queue=1) so it doesn't
+            # wait behind motions in the normal queue, and sleep in
+            # Python so timing follows the hardware not the controller
+            # backlog. Each row blocks on its own ack via play().
+            rtn = None
             for c in config:
                 if len(c) > 1 and c[0] in range(16) and c[1] in range(2):
-                    cmd_list.append({"cmd": "output", "out" + str(c[0]): c[1], "queue": 0})
+                    rtn = self.play(cmd="output", **{"out"+str(c[0]): c[1]}, queue=1)
                 if len(c) > 2 and c[2] > 0:
-                    cmd_list.append({"cmd": "sleep", "time": c[2], "queue": 0})
-            return self.play_list(cmd_list)
+                    time.sleep(c[2])
+            return rtn
 
         key = None
         if index !=None:
@@ -704,6 +728,46 @@ class Dorna(WS):
     def set_alarm(self, enable=None, **kwargs):
         self.alarm(val=enable, **kwargs)
         return self._track_cmd_stat()
+
+
+    # ---------------------------------------------------------------
+    # alarm surface — the controller broadcasts
+    #   {"cmd":"alarm","alarm":1,"err0":...,"err7":...}
+    # when it trips. read_loop captures the most recent one with a
+    # wall-clock stamp; callers attach it to a subsequent negative
+    # stat to find out which motor tripped. Cleared only via
+    # clear_last_alarm().
+    # ---------------------------------------------------------------
+    def get_last_alarm(self):
+        """Return the last alarm broadcast as {"time": ts, "msg": {...}}
+        or None if no alarm has been seen since the last clear."""
+        with self._alarm_lock:
+            if self._last_alarm is None:
+                return None
+            return copy.deepcopy(self._last_alarm)
+
+
+    def clear_last_alarm(self):
+        with self._alarm_lock:
+            self._last_alarm = None
+
+
+    def register_alarm_callback(self, fn):
+        """Register fn(alarm_dict) — called from the read loop when an
+        alarm broadcast arrives. The callback must not block: it runs
+        on the asyncio read thread. A raising callback is dropped, not
+        the loop."""
+        with self._alarm_lock:
+            if fn not in self._alarm_callbacks:
+                self._alarm_callbacks.append(fn)
+
+
+    def deregister_alarm_callback(self, fn):
+        with self._alarm_lock:
+            try:
+                self._alarm_callbacks.remove(fn)
+            except ValueError:
+                pass
 
 
     """
@@ -1169,11 +1233,12 @@ class Dorna(WS):
                         {"cmd": motion, "rel": 0, "vel": vaj[0], "accel": vaj[1], "jerk": vaj[2], "cont": 0} | {"j"+str(i): float(joint[i]) for i in range(len(joint))}
                     )
 
-            # cmd pick output
+            # cmd pick output — high-priority so IO does not wait behind
+            # motions (matches output(config=...) semantics)
             for output_config in pick["output"]:
-                cmd_list.append({"cmd": "output", "out" + str(output_config[0]): output_config[1], "queue": 0})
+                cmd_list.append({"cmd": "output", "out" + str(output_config[0]): output_config[1], "queue": 1})
                 if len(output_config) > 2 and output_config[2] > 0:
-                    cmd_list.append({"cmd": "sleep", "time": output_config[2], "queue": 0})
+                    cmd_list.append({"cmd": "sleep", "time": output_config[2], "queue": 1})
 
             # cmd pick_sleep
             cmd_list.append({"cmd": "sleep", "time": sleep})
@@ -1277,9 +1342,9 @@ class Dorna(WS):
                 )
 
                 for output_config in place["output"]:
-                    cmd_list.append({"cmd": "output", "out" + str(output_config[0]): output_config[1], "queue": 0})
+                    cmd_list.append({"cmd": "output", "out" + str(output_config[0]): output_config[1], "queue": 1})
                     if len(output_config) > 2 and output_config[2] > 0:
-                        cmd_list.append({"cmd": "sleep", "time": output_config[2], "queue": 0})
+                        cmd_list.append({"cmd": "sleep", "time": output_config[2], "queue": 1})
 
 
 
@@ -1373,10 +1438,18 @@ class Dorna(WS):
         # home flag
         home_done = False
 
-        # initial pid
+        # initial pid — get_pid() returns False under alarm; abort
+        # cleanly so a launch with the alarm still set fails as "not
+        # homed" instead of crashing on pid_init[0] subscription.
         pid_init = self.get_pid(index=index)
+        if not isinstance(pid_init, (list, tuple)) or len(pid_init) < 5:
+            try:
+                self.log("home_with_stop: get_pid(index=%s) returned %r (alarm active?); aborting" % (index, pid_init))
+            except Exception:
+                pass
+            return False
 
-        # run once 
+        # run once
         for _ in range(1):
             # set pid
             if self.set_pid(index=index, p=pid[0], i=pid[1], d=pid[2], threshold=pid[3], duration=pid[4]) < 0:
