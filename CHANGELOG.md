@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.1.9
+
+### Fixed
+- `set_freq(index=i, freq=f)` now sends `freq{i}: f` on the wire
+  instead of a bare `freq: f` key the controller ignored.
+- `set_duty(index=i, duty=d)` now sends `duty{i}: d` on the wire
+  instead of the copy-paste `duty: {index}`.
+
+Neither method actually worked before this. If you were carrying a
+workaround (setting the raw keys via `**kwargs`), it stays working.
+
 ## 2.1.8
 
 Review follow-up before the platform pins the version. Two gating

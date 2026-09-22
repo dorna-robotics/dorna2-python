@@ -609,21 +609,16 @@ class Dorna(WS):
 
 
     def set_freq(self, index=None, freq=None, queue=None, **kwargs):
-        # preserve pre-existing wire shape: freq was passed as bare
-        # "freq" key rather than "freq{index}" — behavior unchanged
-        if freq is not None:
-            kwargs["freq"] = freq
+        if index is not None and freq is not None:
+            kwargs["freq"+str(index)] = freq
         if queue is not None:
             kwargs["queue"] = queue
         return self._stat_cmd("pwm", **kwargs)
 
 
     def set_duty(self, index=None, duty=None, queue=None, **kwargs):
-        # preserve pre-existing wire shape: the old code sent
-        # duty=index (copy-paste of the index kwarg) — behavior
-        # unchanged, do not silently repair it here
-        if index is not None:
-            kwargs["duty"] = index
+        if index is not None and duty is not None:
+            kwargs["duty"+str(index)] = duty
         if queue is not None:
             kwargs["queue"] = queue
         return self._stat_cmd("pwm", **kwargs)
