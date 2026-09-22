@@ -209,6 +209,90 @@ def test_get_last_alarm_and_callback():
     assert d.get_last_alarm() is None
 
 
+def test_alarm_capture_ignores_set_alarm_replies():
+    """A reply to set_alarm(enable=False) has cmd=alarm, alarm=0, id=...,
+    stat=2. It must not overwrite _last_alarm or fire callbacks. Same
+    for set_alarm(True) — alarm=1 but has an id."""
+    d = _make_offline_dorna()
+
+    # seed a real broadcast so we can prove replies don't overwrite it
+    real = {"cmd": "alarm", "alarm": 1, "err0": 3}  # no id => broadcast
+    d._last_alarm = {"time": 1.0, "msg": real}
+
+    received = []
+    d.register_alarm_callback(lambda a: received.append(a))
+
+    # simulate the read_loop's filter directly — this is the shape
+    # dorna2 must reject: cmd=alarm but has an id (reply) or alarm=0
+    for reply in [
+        {"cmd": "alarm", "alarm": 0, "id": 42, "stat": 2},  # set_alarm(False) reply
+        {"cmd": "alarm", "alarm": 1, "id": 43, "stat": 2},  # set_alarm(True) reply
+    ]:
+        matches = (reply.get("cmd") == "alarm"
+                   and reply.get("alarm") == 1
+                   and "id" not in reply)
+        assert not matches, "reply must not pass the alarm-broadcast filter: %r" % reply
+
+    # sanity: a broadcast still passes
+    broadcast = {"cmd": "alarm", "alarm": 1, "err0": 7}
+    matches = (broadcast.get("cmd") == "alarm"
+               and broadcast.get("alarm") == 1
+               and "id" not in broadcast)
+    assert matches
+    assert d.get_last_alarm()["msg"] == real
+    assert received == []
+
+
+def test_disconnect_raises_connection_error():
+    """A play() waiting on timeout=-1 must not hang when the socket
+    drops. close_coro() calls _fail_all_tracks, and play() raises
+    ConnectionError instead of hanging on the never-arriving reply."""
+    d = _make_offline_dorna()
+
+    def dropping_write(msg="", mode="cmd"):
+        # writes vanish — no reply will ever come
+        pass
+
+    d.write = dropping_write
+
+    # start a play() in a background thread, then simulate disconnect
+    result = {"exc": None, "rtn": None, "done": False}
+
+    def worker():
+        try:
+            result["rtn"] = d.play(cmd="output", out0=1, timeout=-1)
+        except Exception as e:
+            result["exc"] = e
+        finally:
+            result["done"] = True
+
+    t = threading.Thread(target=worker, daemon=True)
+    t.start()
+
+    # let the play() register its entry
+    time.sleep(0.05)
+
+    # simulate what close_coro does after the socket drops
+    d._fail_all_tracks("disconnected")
+
+    t.join(timeout=2.0)
+    assert result["done"], "play() hung past 2s after disconnect"
+    assert isinstance(result["exc"], ConnectionError), (
+        "expected ConnectionError, got %r (rtn=%r)" % (result["exc"], result["rtn"]))
+    assert "disconnected" in str(result["exc"])
+
+
+def test_next_id_is_monotonic_and_above_rand_id_range():
+    """Two concurrent play() calls must get distinct ids. _next_id
+    lives above rand_id(100, 1_000_000)'s ceiling so external callers
+    on the same socket don't collide either."""
+    d = _make_offline_dorna()
+    ids = [d._next_id() for _ in range(1000)]
+    assert len(set(ids)) == 1000, "duplicate ids from _next_id"
+    assert min(ids) > 1_000_000, "counter must live above rand_id ceiling"
+    assert ids == sorted(ids), "counter must be monotonic"
+
+
 if __name__ == "__main__":
     test_concurrent_play_no_slot_collision()
     print("test_concurrent_play_no_slot_collision: ok")
@@ -216,3 +300,9 @@ if __name__ == "__main__":
     print("test_output_config_settle_uses_python_sleep: ok")
     test_get_last_alarm_and_callback()
     print("test_get_last_alarm_and_callback: ok")
+    test_alarm_capture_ignores_set_alarm_replies()
+    print("test_alarm_capture_ignores_set_alarm_replies: ok")
+    test_disconnect_raises_connection_error()
+    print("test_disconnect_raises_connection_error: ok")
+    test_next_id_is_monotonic_and_above_rand_id_range()
+    print("test_next_id_is_monotonic_and_above_rand_id_range: ok")

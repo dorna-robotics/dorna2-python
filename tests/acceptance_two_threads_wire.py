@@ -47,14 +47,22 @@ def main():
                     help="seconds between toggles")
     ap.add_argument("--motion-joint", type=int, default=0,
                     help="joint index the motion thread wiggles")
-    ap.add_argument("--motion-amp", type=float, default=5.0,
+    ap.add_argument("--motion-amp", type=float, default=10.0,
                     help="degrees the motion thread wiggles")
     ap.add_argument("--motion-vel", type=float, default=25.0)
     ap.add_argument("--motion-accel", type=float, default=500.0)
     ap.add_argument("--motion-jerk", type=float, default=2500.0)
-    ap.add_argument("--min-motion-time", type=float, default=0.3,
-                    help="a motion play() must block at least this long")
+    ap.add_argument("--min-motion-time", type=float, default=None,
+                    help="a motion play() must block at least this long "
+                         "(default: derived from amp/vel — half of the "
+                         "constant-velocity travel time, floored at 0.1 s)")
     args = ap.parse_args()
+
+    # derive threshold from amp/vel when the operator didn't pin it —
+    # otherwise a bench with a fast tune can fail invariant 1 on timing
+    # alone with the old 0.3 s default
+    if args.min_motion_time is None:
+        args.min_motion_time = max(0.1, 0.5 * args.motion_amp / max(args.motion_vel, 1e-3))
 
     robot = Dorna()
     if not robot.connect(host=args.host, port=args.port):

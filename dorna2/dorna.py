@@ -146,11 +146,13 @@ class Dorna(WS):
         else:
             msg = copy.deepcopy(kwargs)
 
-        # check the id
+        # check the id — accept an int id from the caller, otherwise
+        # use the monotonic counter (never rand_id; two concurrent
+        # play()s could pick the same random id and cross-terminate).
         if "id" in msg and type(msg["id"]) == int and msg["id"] > 0:
             pass
         else:
-            msg["id"] = self.rand_id(100, 1000000)
+            msg["id"] = self._next_id()
 
         # remove all the None keys
         _msg = copy.deepcopy(msg)
@@ -187,18 +189,27 @@ class Dorna(WS):
         wait_timeout = None if timeout < 0 else max(0.0, float(timeout))
         entry["event"].wait(timeout=wait_timeout)
 
-        # pop the entry; release the cap warning once we're back under
-        # half so we don't spam on steady-state churn near the cap.
+        # pop the entry and snapshot msgs under the same lock the
+        # reader appends under — guarantees a stable list to fold.
         with self._tracks_lock:
             self._tracks.pop(msg["id"], None)
             if self._tracks_over_cap and len(self._tracks) <= self._tracks_cap // 2:
                 self._tracks_over_cap = False
+            error = entry.get("error")
+            msgs = list(entry["msgs"])
+
+        # disconnect wakes the waiter with an error marker set by
+        # _fail_all_tracks — raise so callers using timeout=-1 don't
+        # hang forever on a dropped socket. The platform's _wrap_call
+        # catches ConnectionError.
+        if error:
+            raise ConnectionError("dorna2: %s while waiting for id=%s" % (error, msg["id"]))
 
         # build the return — this is the ONLY way to get a stat back
         union = {}
-        for m in entry["msgs"]:
+        for m in msgs:
             union = {**union, **m}
-        return {"msgs": entry["msgs"], "cmd": entry["cmd"], "union": union}
+        return {"msgs": msgs, "cmd": entry["cmd"], "union": union}
 
 
     """

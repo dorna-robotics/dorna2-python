@@ -1,5 +1,56 @@
 # Changelog
 
+## 2.1.8
+
+Review follow-up before the platform pins the version. Two gating
+bugs (alarm capture false-positives, live waiter hang on disconnect)
+plus polish on the parts the review flagged.
+
+### Fixed
+- **Alarm capture no longer catches the client's own replies.**
+  `read_loop` now filters on `cmd == "alarm" and alarm == 1 and "id"
+  not in msg`. Previously a reply to `set_alarm(enable=False)`
+  (`{"cmd":"alarm","alarm":0,"id":...,"stat":2}`) would overwrite
+  `_last_alarm` with a "cleared" message and fire the alarm
+  callbacks. Matters because `home_with_stop` clears alarms as part
+  of its normal stall-homing path.
+- **Live waiters no longer hang forever on disconnect.** `close_coro`
+  calls `_fail_all_tracks("disconnected")`, which marks every entry
+  in `_tracks` with an error and sets its event. `play()` sees the
+  marker and raises `ConnectionError` instead of blocking on
+  `timeout=-1` through a dropped socket. The platform's
+  `RobotStation._wrap_call` handles this as the critical-device-down
+  case.
+- **`play()` uses a monotonic counter for auto-assigned ids** instead
+  of `rand_id()`, removing the birthday-collision class between
+  concurrent `play()`s. Counter starts at `1_000_001` (above
+  `rand_id(100, 1_000_000)`'s ceiling) so ids picked by other callers
+  on the same socket — e.g. the platform's `RobotStation.raw_output`
+  — never collide with our tracked ids either. `rand_id()` is kept
+  public unchanged for callers that want random ids.
+- **Union folded from a snapshot taken under `_tracks_lock`.** The
+  read loop's append + `event.set()` now runs under the same lock
+  play() holds when it pops and snapshots, so there's no last shared
+  mutation to race on.
+
+### Test
+- Acceptance test threshold now defaults from `amp/vel` instead of
+  a fixed 0.3 s (a correct client on a fast tune could fail
+  invariant 1 on timing alone with the old default). `--motion-amp`
+  default bumped to 10°.
+
+### Note on `output(config=...)` return shape (from 2.1.6)
+- `output(config=[[pin, val, settle], ...])` previously returned the
+  result of `play_list(...)` (the trailing `sleep(0)` stat). It now
+  returns the last row's `play()` dict (`{"msgs","cmd","union"}`), or
+  `None` for an empty config. Nothing on the platform's path
+  inspects this return value, but pinning this version should
+  include the note.
+
+### Deferred to its own commit
+- Proper wire-shape fix for `set_freq` / `set_duty` (they still ship
+  the pre-existing broken keys, marked in-source).
+
 ## 2.1.7
 
 Follow-up to 2.1.6: remove every remaining shared-state path to a

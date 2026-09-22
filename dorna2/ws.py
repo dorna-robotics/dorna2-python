@@ -101,14 +101,22 @@ class WS(object):
         # per-id command tracking. play() registers {id: entry}, writes,
         # waits on entry["event"], and pops on return. read_loop looks
         # up msg["id"] and appends the reply / sets the event on
-        # terminal stat. _tracks_lock guards dict membership only —
-        # entries themselves are one-writer (read_loop) / one-waiter
-        # (the play() call that owns the id). Every stat consumer reads
-        # play()'s own return value; there is no shared shim to race on.
+        # terminal stat, all under _tracks_lock. Every stat consumer
+        # reads play()'s own return value; there is no shared shim to
+        # race on.
         self._tracks = {}
         self._tracks_lock = threading.Lock()
         self._tracks_cap = 256
         self._tracks_over_cap = False
+
+        # Monotonic counter for play()'s own ids, guaranteed unique
+        # within this client (removes the birthday-collision class the
+        # old random.randint had between concurrent play() calls). Kept
+        # above the rand_id(100, 1_000_000) range so ids picked by
+        # other callers on the same socket — e.g. the platform's
+        # RobotStation.raw_output — never collide with our tracked ids.
+        self._id_lock = threading.Lock()
+        self._id_counter = 1_000_001
 
         # Last {"cmd":"alarm",...} broadcast (with wall-clock stamp) and
         # any registered callbacks. Cleared only via clear_last_alarm().
@@ -329,24 +337,32 @@ class WS(object):
 
                 # per-id tracking: look up the entry the owning play()
                 # call registered, append the reply, wake the waiter on
-                # terminal stat. No shared slot to overwrite, so a reply
-                # for id A never terminates a play() waiting on id B.
+                # terminal stat. Append + event.set() run under the
+                # lock so play()'s snapshot at pop time sees a stable
+                # msgs list (no concurrent mutation to fold over).
                 if "id" in msg:
                     with self._tracks_lock:
                         entry = self._tracks.get(msg["id"])
-                    if entry is not None:
-                        try:
-                            entry["msgs"].append(copy.deepcopy(msg))
-                            if "stat" in msg and (msg["stat"] < 0 or msg["stat"] >= 2):
-                                entry["event"].set()
-                        except Exception:
-                            pass
+                        if entry is not None:
+                            try:
+                                entry["msgs"].append(copy.deepcopy(msg))
+                                if "stat" in msg and (msg["stat"] < 0 or msg["stat"] >= 2):
+                                    entry["event"].set()
+                            except Exception:
+                                pass
 
-                # capture alarm broadcasts so the platform can attach
-                # err0..err7 detail to a subsequent negative stat. Fires
-                # registered callbacks non-blockingly; a raising callback
-                # is dropped, never the loop.
-                if msg.get("cmd") == "alarm":
+                # capture alarm BROADCASTS only — not the client's own
+                # replies to set_alarm. A broadcast has no "id" and
+                # carries alarm=1 (raised). A reply to
+                # set_alarm(enable=False) also has cmd=="alarm" but
+                # arrives as alarm=0 with an id, and set_alarm(True)'s
+                # reply has alarm=1 with an id — both would spuriously
+                # overwrite _last_alarm and fire callbacks if we didn't
+                # filter here. home_with_stop clears alarms as part of
+                # its normal stall-homing path, so this matters.
+                if (msg.get("cmd") == "alarm"
+                        and msg.get("alarm") == 1
+                        and "id" not in msg):
                     try:
                         stamped = {"time": time.time(), "msg": copy.deepcopy(msg)}
                         with self._alarm_lock:
@@ -496,23 +512,39 @@ class WS(object):
             )
     """
     async def close_coro(self):
-        """
-        if self._connected:
-            try:
-                self.writer.close()
-                await self.writer.wait_closed()
-
-                self.reader.close()
-
-            except:
-                pass
-        """
         if self.writer is not None:
             self.writer.close()
             await self.writer.wait_closed()
-        
+
         self._connected = False
+
+        # wake every live waiter with an error marker so play() raises
+        # ConnectionError instead of hanging on timeout=-1 through a
+        # dropped socket. Idempotent — repeat close is a no-op here.
+        self._fail_all_tracks("disconnected")
+
         return True
+
+
+    def _fail_all_tracks(self, reason):
+        """Mark every live entry in _tracks with an error and wake its
+        waiter. Called on disconnect; safe to call from any thread."""
+        with self._tracks_lock:
+            entries = list(self._tracks.values())
+        for entry in entries:
+            entry["error"] = reason
+            entry["event"].set()
+
+
+    def _next_id(self):
+        """Monotonic client-unique id for play() — no birthday
+        collisions between concurrent play() calls on this client."""
+        with self._id_lock:
+            self._id_counter += 1
+            # wrap well before overflow; still above rand_id's ceiling
+            if self._id_counter > (1 << 30):
+                self._id_counter = 1_000_002
+            return self._id_counter
 
     def close(self, timeout=5):
         """
