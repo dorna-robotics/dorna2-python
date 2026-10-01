@@ -132,6 +132,10 @@ class WS(object):
         self.reader = None
         self.writer = None
 
+        # liveness without I/O: wall-clock of the last message the
+        # read loop took in (0.0 until the first) — see last_recv().
+        self._last_recv = 0.0
+
         # emergency
         self._emergency = {"enable": False, "key": "in0", "value":1}
         self._emergency_flag = False
@@ -182,14 +186,35 @@ class WS(object):
         
         return self._connected        
 
+    def connected(self):
+        """True while the link is up — the read loop runs on an open
+        socket. False before connect(), after a connect() that failed
+        and after a drop (close_coro)."""
+        return bool(self._connected)
+
+    def last_recv(self):
+        """Wall-clock time of the last message received on the link,
+        0.0 if none yet. A liveness signal that costs no I/O: a
+        controller that is up keeps talking."""
+        return self._last_recv
+
     def write(self, msg = "", mode="cmd"):
+        # Not connected — before connect(), after a failed connect()
+        # (asyncio.run has returned: the loop it ran is CLOSED) or
+        # after a drop: refuse with the one error class a dead link
+        # has, ConnectionError — what play() documents and what the
+        # caller classifies as connection lost. Without this the
+        # closed loop raised RuntimeError('Event loop is closed') out
+        # of asyncio, which nothing recognised as the link.
+        loop = self.loop
+        if not self._connected or loop is None or loop.is_closed():
+            raise ConnectionError("dorna2: not connected")
         # Wire log — queue put only, the writer thread does all I/O
         # (see _WireLog). The send path must never touch the disk: the
         # old inline file write was a synchronous open/append on every
         # command, on the very link that bottlenecks the robot.
         _wire_log.log("send", msg)
-        #asyncio.create_task(self.write_coro(msg, mode))
-        future = asyncio.run_coroutine_threadsafe(self.write_coro(msg, mode), self.loop)
+        future = asyncio.run_coroutine_threadsafe(self.write_coro(msg, mode), loop)
 
     # write coroutine
     async def write_coro(self, msg="", mode="cmd"):
@@ -314,6 +339,7 @@ class WS(object):
 
                 # update _msg
                 self._recv = msg
+                self._last_recv = time.time()
 
                 # update sys
                 sys.update(msg)

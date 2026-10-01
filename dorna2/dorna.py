@@ -315,6 +315,11 @@ class Dorna(WS):
     return one value based on the key
     """
     def val(self, key="cmd"):
+        # A value read off a dead link is a lie (the last one seen) or
+        # a KeyError (never connected): both say "not connected", so
+        # say that — the same ConnectionError every command raises.
+        if not self._connected:
+            raise ConnectionError("dorna2: not connected")
         return self.union()[key]
 
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.1.10
+
+A dead link has ONE error. Before, a command sent after the connection
+was gone — never up (connect() failed) or dropped since — raised
+`RuntimeError('Event loop is closed')` from asyncio, and a value read
+off it returned the last one seen (or `KeyError` if none). The
+platform's RobotStation classifies `ConnectionError` as "connection
+lost"; neither of those was, so a run drove a dead robot without the
+device ever going red (bna, 2026-09-24).
+
+### Changed
+- `write()` raises `ConnectionError("dorna2: not connected")` while the
+  link is down — before `connect()`, after a failed `connect()`, after
+  a drop. Every command goes through it, so every command does.
+- `val()` (and so `joint()`, `pose()` and every reader built on it)
+  raises the same `ConnectionError` while not connected, instead of a
+  stale value or `KeyError`.
+
+### Added
+- `connected()` — True while the read loop runs on an open socket.
+- `last_recv()` — wall-clock of the last message received, 0.0 if
+  none. Liveness without I/O: a controller that is up keeps talking;
+  a silent link is the signal to probe.
+
 ## 2.1.9
 
 ### Fixed
