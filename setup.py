@@ -1,9 +1,12 @@
 import setuptools
-import dorna2
+import re
+from pathlib import Path
+
+_init_text = (Path(__file__).parent / "dorna2" / "__init__.py").read_text()
+version = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', _init_text).group(1)
+
 with open("README.md", "r") as fh:
     readme = fh.read()
-
-version = dorna2.__version__
 
 setuptools.setup(
     name="dorna2",
