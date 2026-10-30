@@ -1471,29 +1471,43 @@ class Dorna(WS):
                 pass
             return False
 
-        # run once
-        for _ in range(1):
-            # set pid
-            if self.set_pid(index=index, p=pid[0], i=pid[1], d=pid[2], threshold=pid[3], duration=pid[4]) < 0:
-                break
+        # run once — and whatever happens, the pid goes back (finally): a
+        # dead link raises out of jmove / set_alarm, and a homing that
+        # stops there must not leave the axis on the soft homing pid
+        try:
+            for _ in range(1):
+                # set pid
+                if self.set_pid(index=index, p=pid[0], i=pid[1], d=pid[2], threshold=pid[3], duration=pid[4]) < 0:
+                    break
 
-            # jmove
-            cmd_jmove = {"j"+str(index): travel*dir, "rel": 1, "vel": vaj_forward[0], "accel": vaj_forward[1], "jerk": vaj_forward[2], "cont":0}
-            if self.jmove(**cmd_jmove) >= 0 or self.get_alarm() == 0:
-                break
+                # jmove
+                cmd_jmove = {"j"+str(index): travel*dir, "rel": 1, "vel": vaj_forward[0], "accel": vaj_forward[1], "jerk": vaj_forward[2], "cont":0}
+                if self.jmove(**cmd_jmove) >= 0 or self.get_alarm() == 0:
+                    break
 
-            # sleep
-            time.sleep(0.5)
+                # sleep
+                time.sleep(0.5)
 
-            # alarm happens
-            self.set_alarm(enable=False)
-            time.sleep(0.5)
+                # alarm happens
+                self.set_alarm(enable=False)
+                time.sleep(0.5)
 
-            # home flag
-            home_done = True
+                # home flag
+                home_done = True
+        finally:
+            # bring pid back to initial
+            self.set_pid(index=index, p=pid_init[0], i=pid_init[1], d=pid_init[2], threshold=pid_init[3], duration=pid_init[4])
 
-        # bring pid back to initial
-        self.set_pid(index=index, p=pid_init[0], i=pid_init[1], d=pid_init[2], threshold=pid_init[3], duration=pid_init[4])
+        # the restore must have landed: the controller refuses it while
+        # still in alarm — then this is a failed homing, not a quiet one
+        pid_now = self.get_pid(index=index)
+        if (not isinstance(pid_now, (list, tuple)) or len(pid_now) < 5
+                or any(abs(float(a) - float(b)) > 1e-6 for a, b in zip(pid_now[:5], pid_init[:5]))):
+            try:
+                self.log("home_with_stop: pid of index %s not restored (now %r, before %r)" % (index, pid_now, pid_init))
+            except Exception:
+                pass
+            return False
 
         if home_done:
             # backward motion and set joint value
